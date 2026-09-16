@@ -159,18 +159,18 @@
     <div id="content" role="main">
       <h1>Source code for carm.state</h1><div class="highlight"><pre>
 <span></span><code><span id="line-1"><span class="c1"># -*- coding: utf-8 -*-</span>
-</span><span id="line-2"><span class="sd">&quot;&quot;&quot;</span>
+</span><span id="line-2"><span class="sd">"""</span>
 </span><span id="line-3"><span class="sd">Simulation state module.</span>
 </span><span id="line-4">
 </span><span id="line-5"><span class="sd">Manages the temperature state vector during time-stepping,</span>
 </span><span id="line-6"><span class="sd">tracking both the current and previous time step values.</span>
-</span><span id="line-7"><span class="sd">&quot;&quot;&quot;</span>
+</span><span id="line-7"><span class="sd">"""</span>
 </span><span id="line-8"><span class="kn">from</span><span class="w"> </span><span class="nn">numpy.typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">NDArray</span>
 </span><span id="line-9">
 <div class="viewcode-block" id="State">
 <a class="viewcode-back" href="../../carm.html#carm.state.State">[docs]</a>
 </span><span id="line-10"><span class="k">class</span><span class="w"> </span><span class="nc">State</span><span class="p">:</span>
-</span><span id="line-11"><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+</span><span id="line-11"><span class="w">    </span><span class="sd">"""</span>
 </span><span id="line-12"><span class="sd">    Temperature state vector for the BHE simulation.</span>
 </span><span id="line-13">
 </span><span id="line-14"><span class="sd">    Holds the current and previous time step temperature arrays,</span>
@@ -182,7 +182,7 @@
 </span><span id="line-20"><span class="sd">        Current temperature state vector.</span>
 </span><span id="line-21"><span class="sd">    T_old : NDArray</span>
 </span><span id="line-22"><span class="sd">        Temperature state vector at the previous time step.</span>
-</span><span id="line-23"><span class="sd">    &quot;&quot;&quot;</span>
+</span><span id="line-23"><span class="sd">    """</span>
 </span><span id="line-24">
 </span><span id="line-25">    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">T0</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 </span><span id="line-26">        <span class="bp">self</span><span class="o">.</span><span class="n">T_state</span> <span class="o">=</span> <span class="n">T0</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>

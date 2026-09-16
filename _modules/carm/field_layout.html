@@ -159,508 +159,475 @@
     <div id="content" role="main">
       <h1>Source code for carm.field_layout</h1><div class="highlight"><pre>
 <span></span><code><span id="line-1"><span class="c1"># -*- coding: utf-8 -*-</span>
-</span><span id="line-2"><span class="sd">&quot;&quot;&quot;</span>
+</span><span id="line-2"><span class="sd">"""</span>
 </span><span id="line-3"><span class="sd">Borehole field geometry module.</span>
 </span><span id="line-4">
 </span><span id="line-5"><span class="sd">Defines the spatial layout of the borehole field: coordinate input and validation</span>
 </span><span id="line-6"><span class="sd">(``FieldInput``), Voronoi decomposition, distance matrix, and neighbor graph (``Field``).</span>
-</span><span id="line-7"><span class="sd">&quot;&quot;&quot;</span>
-</span><span id="line-8"><span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
-</span><span id="line-9">
-</span><span id="line-10"><span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Sequence</span><span class="p">,</span> <span class="n">Dict</span>
-</span><span id="line-11"><span class="kn">from</span><span class="w"> </span><span class="nn">numpy.typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">NDArray</span>
-</span><span id="line-12"><span class="kn">from</span><span class="w"> </span><span class="nn">matplotlib.figure</span><span class="w"> </span><span class="kn">import</span> <span class="n">Figure</span>
-</span><span id="line-13"><span class="kn">from</span><span class="w"> </span><span class="nn">matplotlib.axes</span><span class="w"> </span><span class="kn">import</span> <span class="n">Axes</span>
-</span><span id="line-14">
-</span><span id="line-15"><span class="kn">from</span><span class="w"> </span><span class="nn">shapely.geometry</span><span class="w"> </span><span class="kn">import</span> <span class="n">MultiPoint</span><span class="p">,</span> <span class="n">box</span><span class="p">,</span> <span class="n">GeometryCollection</span><span class="p">,</span> <span class="n">Polygon</span><span class="p">,</span> <span class="n">LineString</span>
-</span><span id="line-16"><span class="kn">from</span><span class="w"> </span><span class="nn">shapely.ops</span><span class="w"> </span><span class="kn">import</span> <span class="n">voronoi_diagram</span>
-</span><span id="line-17"><span class="kn">from</span><span class="w"> </span><span class="nn">shapely</span><span class="w"> </span><span class="kn">import</span> <span class="n">voronoi_polygons</span><span class="p">,</span> <span class="n">intersection</span>
-</span><span id="line-18">
-</span><span id="line-19"><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
-</span><span id="line-20"><span class="kn">import</span><span class="w"> </span><span class="nn">networkx</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">nx</span>
-</span><span id="line-21"><span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
-</span><span id="line-22"><span class="kn">import</span><span class="w"> </span><span class="nn">matplotlib.pyplot</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">plt</span>
-</span><span id="line-23">
-</span><span id="line-24">
+</span><span id="line-7"><span class="sd">"""</span>
+</span><span id="line-8"><span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Sequence</span><span class="p">,</span> <span class="n">Dict</span>
+</span><span id="line-9"><span class="kn">from</span><span class="w"> </span><span class="nn">numpy.typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">NDArray</span>
+</span><span id="line-10"><span class="kn">from</span><span class="w"> </span><span class="nn">matplotlib.figure</span><span class="w"> </span><span class="kn">import</span> <span class="n">Figure</span>
+</span><span id="line-11"><span class="kn">from</span><span class="w"> </span><span class="nn">matplotlib.axes</span><span class="w"> </span><span class="kn">import</span> <span class="n">Axes</span>
+</span><span id="line-12">
+</span><span id="line-13"><span class="kn">from</span><span class="w"> </span><span class="nn">shapely.geometry</span><span class="w"> </span><span class="kn">import</span> <span class="n">MultiPoint</span><span class="p">,</span> <span class="n">box</span><span class="p">,</span> <span class="n">GeometryCollection</span><span class="p">,</span> <span class="n">Polygon</span><span class="p">,</span> <span class="n">LineString</span>
+</span><span id="line-14"><span class="kn">from</span><span class="w"> </span><span class="nn">shapely.ops</span><span class="w"> </span><span class="kn">import</span> <span class="n">voronoi_diagram</span>
+</span><span id="line-15"><span class="kn">from</span><span class="w"> </span><span class="nn">shapely</span><span class="w"> </span><span class="kn">import</span> <span class="n">voronoi_polygons</span><span class="p">,</span> <span class="n">intersection</span>
+</span><span id="line-16">
+</span><span id="line-17"><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+</span><span id="line-18"><span class="kn">import</span><span class="w"> </span><span class="nn">networkx</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">nx</span>
+</span><span id="line-19"><span class="kn">import</span><span class="w"> </span><span class="nn">matplotlib.pyplot</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">plt</span>
+</span><span id="line-20">
+</span><span id="line-21">
 <div class="viewcode-block" id="FieldInput">
 <a class="viewcode-back" href="../../carm.html#carm.field_layout.FieldInput">[docs]</a>
-</span><span id="line-25"><span class="k">class</span><span class="w"> </span><span class="nc">FieldInput</span><span class="p">:</span>
-</span><span id="line-26"><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-</span><span id="line-27"><span class="sd">    Geometry container for the borehole field layout.</span>
-</span><span id="line-28">
-</span><span id="line-29"><span class="sd">    Stores the field bounding box and borehole coordinates, with validation.</span>
-</span><span id="line-30"><span class="sd">    Coordinates must be loaded explicitly via one of the ``from_*`` methods</span>
-</span><span id="line-31"><span class="sd">    before the field can be used downstream.</span>
-</span><span id="line-32">
-</span><span id="line-33"><span class="sd">    Attributes</span>
-</span><span id="line-34"><span class="sd">    ----------</span>
-</span><span id="line-35"><span class="sd">    n_bhes : int</span>
-</span><span id="line-36"><span class="sd">        Number of boreholes in the field.</span>
-</span><span id="line-37"><span class="sd">    xmin, xmax : float</span>
-</span><span id="line-38"><span class="sd">        Field bounding box x-extent [m].</span>
-</span><span id="line-39"><span class="sd">    ymin, ymax : float</span>
-</span><span id="line-40"><span class="sd">        Field bounding box y-extent [m].</span>
-</span><span id="line-41"><span class="sd">    borehole_coordinates : Sequence[tuple[float, float]]</span>
-</span><span id="line-42"><span class="sd">        List of (x, y) coordinate pairs for each borehole [m].</span>
-</span><span id="line-43"><span class="sd">        ``[]`` until populated via a ``from_*`` method.</span>
-</span><span id="line-44"><span class="sd">    rb: float</span>
-</span><span id="line-45"><span class="sd">        External Borehole radius [m] </span>
-</span><span id="line-46"><span class="sd">    layout: str</span>
-</span><span id="line-47"><span class="sd">        Borehole spacing layout. The layout can be &quot;regular&quot;</span>
-</span><span id="line-48"><span class="sd">        or &quot;irregular&quot;. If regular, the adiabatic condition</span>
-</span><span id="line-49"><span class="sd">        will be applied at mid-distancce between thoe adjacent</span>
-</span><span id="line-50"><span class="sd">        boreholes. If irregular, the FLS calculation will be</span>
-</span><span id="line-51"><span class="sd">        performed to account for penalty temperature at the</span>
-</span><span id="line-52"><span class="sd">        ground maximum radius. By default it is &quot;regular&quot;.</span>
-</span><span id="line-53"><span class="sd">        It is important that even if regularly spaced, if </span>
-</span><span id="line-54"><span class="sd">        series connection is present, the layout must be set</span>
-</span><span id="line-55"><span class="sd">        as irregular.</span>
-</span><span id="line-56"><span class="sd">    &quot;&quot;&quot;</span>
-</span><span id="line-57">    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
-</span><span id="line-58">        <span class="bp">self</span><span class="p">,</span>
-</span><span id="line-59">        <span class="o">*</span><span class="p">,</span>
-</span><span id="line-60">        <span class="n">n_bhes</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>  <span class="c1"># number of boreholes</span>
-</span><span id="line-61">        <span class="n">xmin</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>  <span class="c1"># min x field coordinate</span>
-</span><span id="line-62">        <span class="n">ymin</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>  <span class="c1"># min y field coordinate</span>
-</span><span id="line-63">        <span class="n">xmax</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>  <span class="c1"># max x field coordinate</span>
-</span><span id="line-64">        <span class="n">ymax</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>  <span class="c1"># max y field coordinate</span>
-</span><span id="line-65">        <span class="n">rb</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="c1">#borehole radius</span>
-</span><span id="line-66">        <span class="n">layout</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;regular&quot;</span><span class="p">,</span>  <span class="c1"># regular | irregular spacing layout</span>
-</span><span id="line-67">    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span><span id="line-22"><span class="k">class</span><span class="w"> </span><span class="nc">FieldInput</span><span class="p">:</span>
+</span><span id="line-23"><span class="w">    </span><span class="sd">"""</span>
+</span><span id="line-24"><span class="sd">    Geometry container for the borehole field layout.</span>
+</span><span id="line-25">
+</span><span id="line-26"><span class="sd">    Stores the field bounding box and borehole coordinates, with validation.</span>
+</span><span id="line-27"><span class="sd">    Coordinates must be loaded explicitly via one of the ``from_*`` methods</span>
+</span><span id="line-28"><span class="sd">    before the field can be used downstream.</span>
+</span><span id="line-29">
+</span><span id="line-30"><span class="sd">    Attributes</span>
+</span><span id="line-31"><span class="sd">    ----------</span>
+</span><span id="line-32"><span class="sd">    n_bhes : int</span>
+</span><span id="line-33"><span class="sd">        Number of boreholes in the field.</span>
+</span><span id="line-34"><span class="sd">    xmin, xmax : float</span>
+</span><span id="line-35"><span class="sd">        Field bounding box x-extent [m].</span>
+</span><span id="line-36"><span class="sd">    ymin, ymax : float</span>
+</span><span id="line-37"><span class="sd">        Field bounding box y-extent [m].</span>
+</span><span id="line-38"><span class="sd">    borehole_coordinates : Sequence[tuple[float, float]]</span>
+</span><span id="line-39"><span class="sd">        List of (x, y) coordinate pairs for each borehole [m].</span>
+</span><span id="line-40"><span class="sd">        ``[]`` until populated via a ``from_*`` method.</span>
+</span><span id="line-41"><span class="sd">    rb: float</span>
+</span><span id="line-42"><span class="sd">        External Borehole radius [m] </span>
+</span><span id="line-43"><span class="sd">    layout: str</span>
+</span><span id="line-44"><span class="sd">        Borehole spacing layout. The layout can be "regular"</span>
+</span><span id="line-45"><span class="sd">        or "irregular". If regular, the adiabatic condition</span>
+</span><span id="line-46"><span class="sd">        will be applied at mid-distancce between thoe adjacent</span>
+</span><span id="line-47"><span class="sd">        boreholes. If irregular, the FLS calculation will be</span>
+</span><span id="line-48"><span class="sd">        performed to account for penalty temperature at the</span>
+</span><span id="line-49"><span class="sd">        ground maximum radius. By default it is "regular".</span>
+</span><span id="line-50"><span class="sd">        It is important that even if regularly spaced, if </span>
+</span><span id="line-51"><span class="sd">        series connection is present, the layout must be set</span>
+</span><span id="line-52"><span class="sd">        as irregular.</span>
+</span><span id="line-53"><span class="sd">    """</span>
+</span><span id="line-54">    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+</span><span id="line-55">        <span class="bp">self</span><span class="p">,</span>
+</span><span id="line-56">        <span class="o">*</span><span class="p">,</span>
+</span><span id="line-57">        <span class="n">n_bhes</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>  <span class="c1"># number of boreholes</span>
+</span><span id="line-58">        <span class="n">xmin</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>  <span class="c1"># min x field coordinate</span>
+</span><span id="line-59">        <span class="n">ymin</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>  <span class="c1"># min y field coordinate</span>
+</span><span id="line-60">        <span class="n">xmax</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>  <span class="c1"># max x field coordinate</span>
+</span><span id="line-61">        <span class="n">ymax</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>  <span class="c1"># max y field coordinate</span>
+</span><span id="line-62">        <span class="n">rb</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="c1">#borehole radius</span>
+</span><span id="line-63">        <span class="n">layout</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"regular"</span><span class="p">,</span>  <span class="c1"># regular | irregular spacing layout</span>
+</span><span id="line-64">    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span><span id="line-65">
+</span><span id="line-66">        <span class="k">if</span> <span class="p">(</span><span class="n">xmin</span> <span class="o">&gt;</span> <span class="n">xmax</span><span class="p">)</span> <span class="ow">or</span> <span class="p">(</span><span class="n">ymin</span> <span class="o">&gt;</span> <span class="n">ymax</span><span class="p">):</span>
+</span><span id="line-67">            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"xmin must be &lt; xmax, ymin must be &lt; ymax"</span><span class="p">)</span>
 </span><span id="line-68">
-</span><span id="line-69">        <span class="k">if</span> <span class="p">(</span><span class="n">xmin</span> <span class="o">&gt;</span> <span class="n">xmax</span><span class="p">)</span> <span class="ow">or</span> <span class="p">(</span><span class="n">ymin</span> <span class="o">&gt;</span> <span class="n">ymax</span><span class="p">):</span>
-</span><span id="line-70">            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;xmin must be &lt; xmax, ymin must be &lt; ymax&quot;</span><span class="p">)</span>
-</span><span id="line-71">
-</span><span id="line-72">        <span class="bp">self</span><span class="o">.</span><span class="n">n_bhes</span> <span class="o">=</span> <span class="n">n_bhes</span>
-</span><span id="line-73">        <span class="bp">self</span><span class="o">.</span><span class="n">xmin</span> <span class="o">=</span> <span class="n">xmin</span>
-</span><span id="line-74">        <span class="bp">self</span><span class="o">.</span><span class="n">ymin</span> <span class="o">=</span> <span class="n">ymin</span>
-</span><span id="line-75">        <span class="bp">self</span><span class="o">.</span><span class="n">xmax</span> <span class="o">=</span> <span class="n">xmax</span>
-</span><span id="line-76">        <span class="bp">self</span><span class="o">.</span><span class="n">ymax</span> <span class="o">=</span> <span class="n">ymax</span>
-</span><span id="line-77">        <span class="bp">self</span><span class="o">.</span><span class="n">rb</span> <span class="o">=</span> <span class="n">rb</span>
-</span><span id="line-78">        <span class="bp">self</span><span class="o">.</span><span class="n">_borehole_coordinates</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">]]</span> <span class="o">=</span> <span class="p">[]</span>
-</span><span id="line-79">
-</span><span id="line-80">        <span class="n">layout</span> <span class="o">=</span> <span class="n">layout</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
-</span><span id="line-81">        <span class="k">if</span> <span class="n">layout</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">{</span><span class="s2">&quot;regular&quot;</span><span class="p">,</span> <span class="s2">&quot;irregular&quot;</span><span class="p">}:</span>
-</span><span id="line-82">            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;layout must be &#39;regular&#39; or &#39;irregular&#39;&quot;</span><span class="p">)</span>
-</span><span id="line-83">        <span class="bp">self</span><span class="o">.</span><span class="n">layout</span> <span class="o">=</span> <span class="n">layout</span>
-</span><span id="line-84">
-</span><span id="line-85">    <span class="nd">@property</span>
-</span><span id="line-86">    <span class="k">def</span><span class="w"> </span><span class="nf">borehole_coordinates</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">]]:</span>
-</span><span id="line-87">        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_borehole_coordinates</span>
-</span><span id="line-88">
-<div class="viewcode-block" id="FieldInput.from_excel">
-<a class="viewcode-back" href="../../carm.html#carm.field_layout.FieldInput.from_excel">[docs]</a>
-</span><span id="line-89">    <span class="k">def</span><span class="w"> </span><span class="nf">from_excel</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="n">Path</span> <span class="o">|</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-</span><span id="line-90"><span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
-</span><span id="line-91"><span class="sd">        Load borehole coordinates from an Excel file.</span>
-</span><span id="line-92">
-</span><span id="line-93"><span class="sd">        The file must contain columns named ``x`` and ``y``.</span>
-</span><span id="line-94">
-</span><span id="line-95"><span class="sd">        Parameters</span>
-</span><span id="line-96"><span class="sd">        ----------</span>
-</span><span id="line-97"><span class="sd">        path : Path or str</span>
-</span><span id="line-98"><span class="sd">            Path to the Excel file (.xlsx).</span>
-</span><span id="line-99">
-</span><span id="line-100"><span class="sd">        Raises</span>
-</span><span id="line-101"><span class="sd">        ------</span>
-</span><span id="line-102"><span class="sd">        ValueError</span>
-</span><span id="line-103"><span class="sd">            If coordinates are non-finite, outside the bounding box,</span>
-</span><span id="line-104"><span class="sd">            or the number of rows does not match ``n_bhes``.</span>
-</span><span id="line-105">
-</span><span id="line-106"><span class="sd">        Examples</span>
-</span><span id="line-107"><span class="sd">        --------</span>
-</span><span id="line-108"><span class="sd">        &gt;&gt;&gt; fi = FieldInput(n_bhes=4, xmin=0, ymin=0, xmax=10, ymax=10)</span>
-</span><span id="line-109"><span class="sd">        &gt;&gt;&gt; fi.from_excel(&quot;data/field.xlsx&quot;)</span>
-</span><span id="line-110"><span class="sd">        &gt;&gt;&gt; fi.borehole_coordinates</span>
-</span><span id="line-111"><span class="sd">        [(2.5, 2.5), (7.5, 2.5), (2.5, 7.5), (7.5, 7.5)]</span>
-</span><span id="line-112"><span class="sd">        &quot;&quot;&quot;</span>
-</span><span id="line-113">        <span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_excel</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
-</span><span id="line-114">        <span class="bp">self</span><span class="o">.</span><span class="n">_validate_and_set_coordinates</span><span class="p">(</span><span class="n">df</span><span class="p">[</span><span class="s2">&quot;x&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">(),</span> <span class="n">df</span><span class="p">[</span><span class="s2">&quot;y&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">())</span></div>
-
-</span><span id="line-115">
+</span><span id="line-69">        <span class="bp">self</span><span class="o">.</span><span class="n">n_bhes</span> <span class="o">=</span> <span class="n">n_bhes</span>
+</span><span id="line-70">        <span class="bp">self</span><span class="o">.</span><span class="n">xmin</span> <span class="o">=</span> <span class="n">xmin</span>
+</span><span id="line-71">        <span class="bp">self</span><span class="o">.</span><span class="n">ymin</span> <span class="o">=</span> <span class="n">ymin</span>
+</span><span id="line-72">        <span class="bp">self</span><span class="o">.</span><span class="n">xmax</span> <span class="o">=</span> <span class="n">xmax</span>
+</span><span id="line-73">        <span class="bp">self</span><span class="o">.</span><span class="n">ymax</span> <span class="o">=</span> <span class="n">ymax</span>
+</span><span id="line-74">        <span class="bp">self</span><span class="o">.</span><span class="n">rb</span> <span class="o">=</span> <span class="n">rb</span>
+</span><span id="line-75">        <span class="bp">self</span><span class="o">.</span><span class="n">_borehole_coordinates</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">]]</span> <span class="o">=</span> <span class="p">[]</span>
+</span><span id="line-76">
+</span><span id="line-77">        <span class="n">layout</span> <span class="o">=</span> <span class="n">layout</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+</span><span id="line-78">        <span class="k">if</span> <span class="n">layout</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">{</span><span class="s2">"regular"</span><span class="p">,</span> <span class="s2">"irregular"</span><span class="p">}:</span>
+</span><span id="line-79">            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"layout must be 'regular' or 'irregular'"</span><span class="p">)</span>
+</span><span id="line-80">        <span class="bp">self</span><span class="o">.</span><span class="n">layout</span> <span class="o">=</span> <span class="n">layout</span>
+</span><span id="line-81">
+</span><span id="line-82">    <span class="nd">@property</span>
+</span><span id="line-83">    <span class="k">def</span><span class="w"> </span><span class="nf">borehole_coordinates</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">]]:</span>
+</span><span id="line-84">        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_borehole_coordinates</span>
+</span><span id="line-85">
 <div class="viewcode-block" id="FieldInput.from_array">
 <a class="viewcode-back" href="../../carm.html#carm.field_layout.FieldInput.from_array">[docs]</a>
-</span><span id="line-116">    <span class="k">def</span><span class="w"> </span><span class="nf">from_array</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">,</span> <span class="n">y</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-</span><span id="line-117"><span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
-</span><span id="line-118"><span class="sd">        Load borehole coordinates from two 1-D arrays.</span>
-</span><span id="line-119">
-</span><span id="line-120"><span class="sd">        Parameters</span>
-</span><span id="line-121"><span class="sd">        ----------</span>
-</span><span id="line-122"><span class="sd">        x : NDArray</span>
-</span><span id="line-123"><span class="sd">            x-coordinates of the boreholes [m].</span>
-</span><span id="line-124"><span class="sd">        y : NDArray</span>
-</span><span id="line-125"><span class="sd">            y-coordinates of the boreholes [m].</span>
-</span><span id="line-126">
-</span><span id="line-127"><span class="sd">        Raises</span>
-</span><span id="line-128"><span class="sd">        ------</span>
-</span><span id="line-129"><span class="sd">        ValueError</span>
-</span><span id="line-130"><span class="sd">            If ``x`` and ``y`` have different lengths, contain non-finite values,</span>
-</span><span id="line-131"><span class="sd">            or coordinates fall outside the bounding box.</span>
-</span><span id="line-132">
-</span><span id="line-133"><span class="sd">        Examples</span>
-</span><span id="line-134"><span class="sd">        --------</span>
-</span><span id="line-135"><span class="sd">        &gt;&gt;&gt; fi = FieldInput(n_bhes=2, xmin=0, ymin=0, xmax=10, ymax=10)</span>
-</span><span id="line-136"><span class="sd">        &gt;&gt;&gt; fi.from_array(np.array([3.0, 7.0]), np.array([5.0, 5.0]))</span>
-</span><span id="line-137"><span class="sd">        &quot;&quot;&quot;</span>
-</span><span id="line-138">        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">y</span><span class="p">):</span>
-</span><span id="line-139">            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;x and y arrays must have the same length&quot;</span><span class="p">)</span>
-</span><span id="line-140">        <span class="bp">self</span><span class="o">.</span><span class="n">_validate_and_set_coordinates</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span></div>
+</span><span id="line-86">    <span class="k">def</span><span class="w"> </span><span class="nf">from_array</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">,</span> <span class="n">y</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span><span id="line-87"><span class="w">        </span><span class="sd">"""</span>
+</span><span id="line-88"><span class="sd">        Load borehole coordinates from two 1-D arrays.</span>
+</span><span id="line-89">
+</span><span id="line-90"><span class="sd">        Parameters</span>
+</span><span id="line-91"><span class="sd">        ----------</span>
+</span><span id="line-92"><span class="sd">        x : NDArray</span>
+</span><span id="line-93"><span class="sd">            x-coordinates of the boreholes [m].</span>
+</span><span id="line-94"><span class="sd">        y : NDArray</span>
+</span><span id="line-95"><span class="sd">            y-coordinates of the boreholes [m].</span>
+</span><span id="line-96">
+</span><span id="line-97"><span class="sd">        Raises</span>
+</span><span id="line-98"><span class="sd">        ------</span>
+</span><span id="line-99"><span class="sd">        ValueError</span>
+</span><span id="line-100"><span class="sd">            If ``x`` and ``y`` have different lengths, contain non-finite values,</span>
+</span><span id="line-101"><span class="sd">            or coordinates fall outside the bounding box.</span>
+</span><span id="line-102">
+</span><span id="line-103"><span class="sd">        Examples</span>
+</span><span id="line-104"><span class="sd">        --------</span>
+</span><span id="line-105"><span class="sd">        &gt;&gt;&gt; fi = FieldInput(n_bhes=2, xmin=0, ymin=0, xmax=10, ymax=10)</span>
+</span><span id="line-106"><span class="sd">        &gt;&gt;&gt; fi.from_array(np.array([3.0, 7.0]), np.array([5.0, 5.0]))</span>
+</span><span id="line-107"><span class="sd">        """</span>
+</span><span id="line-108">        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">y</span><span class="p">):</span>
+</span><span id="line-109">            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"x and y arrays must have the same length"</span><span class="p">)</span>
+</span><span id="line-110">        <span class="bp">self</span><span class="o">.</span><span class="n">_validate_and_set_coordinates</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span></div>
 
-</span><span id="line-141">
+</span><span id="line-111">
 <div class="viewcode-block" id="FieldInput.from_matrix">
 <a class="viewcode-back" href="../../carm.html#carm.field_layout.FieldInput.from_matrix">[docs]</a>
-</span><span id="line-142">    <span class="k">def</span><span class="w"> </span><span class="nf">from_matrix</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">matrix</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-</span><span id="line-143"><span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
-</span><span id="line-144"><span class="sd">        Load borehole coordinates from a 2-D array of shape (n_bhes, 2).</span>
-</span><span id="line-145">
-</span><span id="line-146"><span class="sd">        Parameters</span>
-</span><span id="line-147"><span class="sd">        ----------</span>
-</span><span id="line-148"><span class="sd">        matrix : NDArray</span>
-</span><span id="line-149"><span class="sd">            Array with columns [x, y] for each borehole [m].</span>
-</span><span id="line-150">
-</span><span id="line-151"><span class="sd">        Raises</span>
-</span><span id="line-152"><span class="sd">        ------</span>
-</span><span id="line-153"><span class="sd">        ValueError</span>
-</span><span id="line-154"><span class="sd">            If the array is not 2-D, does not have exactly 2 columns,</span>
-</span><span id="line-155"><span class="sd">            or coordinates fail validation.</span>
+</span><span id="line-112">    <span class="k">def</span><span class="w"> </span><span class="nf">from_matrix</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">matrix</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span><span id="line-113"><span class="w">        </span><span class="sd">"""</span>
+</span><span id="line-114"><span class="sd">        Load borehole coordinates from a 2-D array of shape (n_bhes, 2).</span>
+</span><span id="line-115">
+</span><span id="line-116"><span class="sd">        Parameters</span>
+</span><span id="line-117"><span class="sd">        ----------</span>
+</span><span id="line-118"><span class="sd">        matrix : NDArray</span>
+</span><span id="line-119"><span class="sd">            Array with columns [x, y] for each borehole [m].</span>
+</span><span id="line-120">
+</span><span id="line-121"><span class="sd">        Raises</span>
+</span><span id="line-122"><span class="sd">        ------</span>
+</span><span id="line-123"><span class="sd">        ValueError</span>
+</span><span id="line-124"><span class="sd">            If the array is not 2-D, does not have exactly 2 columns,</span>
+</span><span id="line-125"><span class="sd">            or coordinates fail validation.</span>
+</span><span id="line-126">
+</span><span id="line-127"><span class="sd">        Examples</span>
+</span><span id="line-128"><span class="sd">        --------</span>
+</span><span id="line-129"><span class="sd">        &gt;&gt;&gt; coords = np.array([[3.0, 5.0], [7.0, 5.0]])</span>
+</span><span id="line-130"><span class="sd">        &gt;&gt;&gt; fi = FieldInput(n_bhes=2, xmin=0, ymin=0, xmax=10, ymax=10)</span>
+</span><span id="line-131"><span class="sd">        &gt;&gt;&gt; fi.from_matrix(coords)</span>
+</span><span id="line-132"><span class="sd">        """</span>
+</span><span id="line-133">        <span class="k">if</span> <span class="n">matrix</span><span class="o">.</span><span class="n">ndim</span> <span class="o">!=</span> <span class="mi">2</span><span class="p">:</span>
+</span><span id="line-134">            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"Matrix dimensions must be = 2"</span><span class="p">)</span>
+</span><span id="line-135">
+</span><span id="line-136">        <span class="k">if</span> <span class="n">matrix</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">!=</span> <span class="mi">2</span><span class="p">:</span>
+</span><span id="line-137">            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"Matrix must have 2 columns: x and y"</span><span class="p">)</span>
+</span><span id="line-138">        <span class="bp">self</span><span class="o">.</span><span class="n">_validate_and_set_coordinates</span><span class="p">(</span><span class="n">matrix</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">matrix</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">])</span></div>
+
+</span><span id="line-139">
+</span><span id="line-140">    <span class="k">def</span><span class="w"> </span><span class="nf">_validate_and_set_coordinates</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">,</span> <span class="n">y</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span><span id="line-141">        <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">x</span><span class="p">))</span> <span class="ow">and</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">y</span><span class="p">))):</span>
+</span><span id="line-142">            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"x and y coordinates may contain invalid values"</span><span class="p">)</span>
+</span><span id="line-143">
+</span><span id="line-144">        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_bhes</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">x</span><span class="p">):</span>
+</span><span id="line-145">            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"Each borehole must have a coordinate pair"</span><span class="p">)</span>
+</span><span id="line-146">
+</span><span id="line-147">        <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">x</span> <span class="o">&lt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">xmin</span><span class="p">)</span> <span class="ow">or</span> <span class="n">np</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">x</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">xmax</span><span class="p">):</span>
+</span><span id="line-148">            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+</span><span id="line-149">                <span class="s2">"The following relationship must be satisfied: xmin &lt; x coordinates &lt; xmax"</span>
+</span><span id="line-150">            <span class="p">)</span>
+</span><span id="line-151">
+</span><span id="line-152">        <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">y</span> <span class="o">&lt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ymin</span><span class="p">)</span> <span class="ow">or</span> <span class="n">np</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">y</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ymax</span><span class="p">):</span>
+</span><span id="line-153">            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+</span><span id="line-154">                <span class="s2">"The following relationship must be satisfied: ymin &lt; y coordinates &lt; ymax"</span>
+</span><span id="line-155">            <span class="p">)</span>
 </span><span id="line-156">
-</span><span id="line-157"><span class="sd">        Examples</span>
-</span><span id="line-158"><span class="sd">        --------</span>
-</span><span id="line-159"><span class="sd">        &gt;&gt;&gt; coords = np.array([[3.0, 5.0], [7.0, 5.0]])</span>
-</span><span id="line-160"><span class="sd">        &gt;&gt;&gt; fi = FieldInput(n_bhes=2, xmin=0, ymin=0, xmax=10, ymax=10)</span>
-</span><span id="line-161"><span class="sd">        &gt;&gt;&gt; fi.from_matrix(coords)</span>
-</span><span id="line-162"><span class="sd">        &quot;&quot;&quot;</span>
-</span><span id="line-163">        <span class="k">if</span> <span class="n">matrix</span><span class="o">.</span><span class="n">ndim</span> <span class="o">!=</span> <span class="mi">2</span><span class="p">:</span>
-</span><span id="line-164">            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Matrix dimensions must be = 2&quot;</span><span class="p">)</span>
-</span><span id="line-165">
-</span><span id="line-166">        <span class="k">if</span> <span class="n">matrix</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">!=</span> <span class="mi">2</span><span class="p">:</span>
-</span><span id="line-167">            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Matrix must have 2 columns: x and y&quot;</span><span class="p">)</span>
-</span><span id="line-168">        <span class="bp">self</span><span class="o">.</span><span class="n">_validate_and_set_coordinates</span><span class="p">(</span><span class="n">matrix</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">matrix</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">])</span></div>
+</span><span id="line-157">        <span class="bp">self</span><span class="o">.</span><span class="n">_borehole_coordinates</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">))</span></div>
 
-</span><span id="line-169">
-</span><span id="line-170">    <span class="k">def</span><span class="w"> </span><span class="nf">_validate_and_set_coordinates</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">,</span> <span class="n">y</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-</span><span id="line-171">        <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">x</span><span class="p">))</span> <span class="ow">and</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">y</span><span class="p">))):</span>
-</span><span id="line-172">            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;x and y coordinates may contain invalid values&quot;</span><span class="p">)</span>
-</span><span id="line-173">
-</span><span id="line-174">        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_bhes</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">x</span><span class="p">):</span>
-</span><span id="line-175">            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Each borehole must have a coordinate pair&quot;</span><span class="p">)</span>
-</span><span id="line-176">
-</span><span id="line-177">        <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">x</span> <span class="o">&lt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">xmin</span><span class="p">)</span> <span class="ow">or</span> <span class="n">np</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">x</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">xmax</span><span class="p">):</span>
-</span><span id="line-178">            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-</span><span id="line-179">                <span class="s2">&quot;The following relationship must be satisfied: xmin &lt; x coordinates &lt; xmax&quot;</span>
-</span><span id="line-180">            <span class="p">)</span>
-</span><span id="line-181">
-</span><span id="line-182">        <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">y</span> <span class="o">&lt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ymin</span><span class="p">)</span> <span class="ow">or</span> <span class="n">np</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">y</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ymax</span><span class="p">):</span>
-</span><span id="line-183">            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-</span><span id="line-184">                <span class="s2">&quot;The following relationship must be satisfied: ymin &lt; y coordinates &lt; ymax&quot;</span>
-</span><span id="line-185">            <span class="p">)</span>
-</span><span id="line-186">
-</span><span id="line-187">        <span class="bp">self</span><span class="o">.</span><span class="n">_borehole_coordinates</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">))</span></div>
-
-</span><span id="line-188">
-</span><span id="line-189">
+</span><span id="line-158">
+</span><span id="line-159">
 <div class="viewcode-block" id="Field">
 <a class="viewcode-back" href="../../carm.html#carm.field_layout.Field">[docs]</a>
-</span><span id="line-190"><span class="k">class</span><span class="w"> </span><span class="nc">Field</span><span class="p">:</span>
-</span><span id="line-191"><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-</span><span id="line-192"><span class="sd">    Voronoi decomposition and interaction geometry of the borehole field.</span>
-</span><span id="line-193">
-</span><span id="line-194"><span class="sd">    Built from a populated ``FieldInput``, computes the Voronoi cell for each</span>
-</span><span id="line-195"><span class="sd">    borehole, the equivalent radius ``r_eq = sqrt(area / pi)``, the pairwise</span>
-</span><span id="line-196"><span class="sd">    distance matrix (corrected for ``r_eq``), and the neighbor graph.</span>
-</span><span id="line-197">
-</span><span id="line-198"><span class="sd">    Attributes</span>
-</span><span id="line-199"><span class="sd">    ----------</span>
-</span><span id="line-200"><span class="sd">    fieldinput : FieldInput</span>
-</span><span id="line-201"><span class="sd">        Source geometry object (must have coordinates loaded).</span>
-</span><span id="line-202"><span class="sd">    field_dict : dict</span>
-</span><span id="line-203"><span class="sd">        Mapping from borehole index to its Voronoi cell data::</span>
-</span><span id="line-204">
-</span><span id="line-205"><span class="sd">            {i: {&quot;cell&quot;: Polygon, &quot;area&quot;: float, &quot;req&quot;: float, &quot;coords&quot;: (x, y)}}</span>
-</span><span id="line-206">
-</span><span id="line-207"><span class="sd">    distance_matrix : NDArray[np.float64]</span>
-</span><span id="line-208"><span class="sd">        Symmetric matrix of shape (n_bhes, n_bhes) with inter-borehole distances</span>
-</span><span id="line-209"><span class="sd">        corrected by ``r_eq`` [m]. Diagonal entries are zero.</span>
-</span><span id="line-210"><span class="sd">    &quot;&quot;&quot;</span>
-</span><span id="line-211">    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">fieldinput</span><span class="p">:</span> <span class="n">FieldInput</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-</span><span id="line-212">        <span class="bp">self</span><span class="o">.</span><span class="n">fieldinput</span> <span class="o">=</span> <span class="n">fieldinput</span>
-</span><span id="line-213">        <span class="bp">self</span><span class="o">.</span><span class="n">_field_dict</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_matching_field</span><span class="p">()</span>
-</span><span id="line-214">        <span class="bp">self</span><span class="o">.</span><span class="n">_distance_matrix</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_build_distance_matrix</span><span class="p">()</span>
-</span><span id="line-215">        <span class="bp">self</span><span class="o">.</span><span class="n">_borehole_graph</span><span class="p">:</span> <span class="n">nx</span><span class="o">.</span><span class="n">Graph</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_compute_neighbors</span><span class="p">()</span>
-</span><span id="line-216">
-</span><span id="line-217">    <span class="nd">@property</span>
-</span><span id="line-218">    <span class="k">def</span><span class="w"> </span><span class="nf">distance_matrix</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">NDArray</span><span class="p">:</span>
-</span><span id="line-219">        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_distance_matrix</span>
+</span><span id="line-160"><span class="k">class</span><span class="w"> </span><span class="nc">Field</span><span class="p">:</span>
+</span><span id="line-161"><span class="w">    </span><span class="sd">"""</span>
+</span><span id="line-162"><span class="sd">    Voronoi decomposition and interaction geometry of the borehole field.</span>
+</span><span id="line-163">
+</span><span id="line-164"><span class="sd">    Built from a populated ``FieldInput``, computes the Voronoi cell for each</span>
+</span><span id="line-165"><span class="sd">    borehole, the equivalent radius ``r_eq = sqrt(area / pi)``, the pairwise</span>
+</span><span id="line-166"><span class="sd">    distance matrix (corrected for ``r_eq``), and the neighbor graph.</span>
+</span><span id="line-167">
+</span><span id="line-168"><span class="sd">    Attributes</span>
+</span><span id="line-169"><span class="sd">    ----------</span>
+</span><span id="line-170"><span class="sd">    fieldinput : FieldInput</span>
+</span><span id="line-171"><span class="sd">        Source geometry object (must have coordinates loaded).</span>
+</span><span id="line-172"><span class="sd">    field_dict : dict</span>
+</span><span id="line-173"><span class="sd">        Mapping from borehole index to its Voronoi cell data::</span>
+</span><span id="line-174">
+</span><span id="line-175"><span class="sd">            {i: {"cell": Polygon, "area": float, "req": float, "coords": (x, y)}}</span>
+</span><span id="line-176">
+</span><span id="line-177"><span class="sd">    distance_matrix : NDArray[np.float64]</span>
+</span><span id="line-178"><span class="sd">        Symmetric matrix of shape (n_bhes, n_bhes) with inter-borehole distances</span>
+</span><span id="line-179"><span class="sd">        corrected by ``r_eq`` [m]. Diagonal entries are zero.</span>
+</span><span id="line-180"><span class="sd">    """</span>
+</span><span id="line-181">    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">fieldinput</span><span class="p">:</span> <span class="n">FieldInput</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span><span id="line-182">        <span class="bp">self</span><span class="o">.</span><span class="n">fieldinput</span> <span class="o">=</span> <span class="n">fieldinput</span>
+</span><span id="line-183">        <span class="bp">self</span><span class="o">.</span><span class="n">_field_dict</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_matching_field</span><span class="p">()</span>
+</span><span id="line-184">        <span class="bp">self</span><span class="o">.</span><span class="n">_distance_matrix</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_build_distance_matrix</span><span class="p">()</span>
+</span><span id="line-185">        <span class="bp">self</span><span class="o">.</span><span class="n">_borehole_graph</span><span class="p">:</span> <span class="n">nx</span><span class="o">.</span><span class="n">Graph</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_compute_neighbors</span><span class="p">()</span>
+</span><span id="line-186">
+</span><span id="line-187">    <span class="nd">@property</span>
+</span><span id="line-188">    <span class="k">def</span><span class="w"> </span><span class="nf">distance_matrix</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">NDArray</span><span class="p">:</span>
+</span><span id="line-189">        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_distance_matrix</span>
+</span><span id="line-190">
+</span><span id="line-191">    <span class="nd">@property</span>
+</span><span id="line-192">    <span class="k">def</span><span class="w"> </span><span class="nf">field_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+</span><span id="line-193">        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_field_dict</span>
+</span><span id="line-194">
+</span><span id="line-195">    <span class="k">def</span><span class="w"> </span><span class="nf">_build_domain</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">MultiPoint</span><span class="p">,</span> <span class="n">Polygon</span><span class="p">]:</span>
+</span><span id="line-196">        <span class="n">points</span> <span class="o">=</span> <span class="n">MultiPoint</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">fieldinput</span><span class="o">.</span><span class="n">_borehole_coordinates</span><span class="p">)</span>
+</span><span id="line-197">        <span class="n">domain</span> <span class="o">=</span> <span class="n">box</span><span class="p">(</span>
+</span><span id="line-198">            <span class="bp">self</span><span class="o">.</span><span class="n">fieldinput</span><span class="o">.</span><span class="n">xmin</span><span class="p">,</span>
+</span><span id="line-199">            <span class="bp">self</span><span class="o">.</span><span class="n">fieldinput</span><span class="o">.</span><span class="n">ymin</span><span class="p">,</span>
+</span><span id="line-200">            <span class="bp">self</span><span class="o">.</span><span class="n">fieldinput</span><span class="o">.</span><span class="n">xmax</span><span class="p">,</span>
+</span><span id="line-201">            <span class="bp">self</span><span class="o">.</span><span class="n">fieldinput</span><span class="o">.</span><span class="n">ymax</span><span class="p">,</span>
+</span><span id="line-202">        <span class="p">)</span>
+</span><span id="line-203">
+</span><span id="line-204">        <span class="k">return</span> <span class="n">points</span><span class="p">,</span> <span class="n">domain</span>
+</span><span id="line-205">
+</span><span id="line-206">    <span class="k">def</span><span class="w"> </span><span class="nf">_build_voronoi</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">GeometryCollection</span><span class="p">:</span>
+</span><span id="line-207">        <span class="n">points</span><span class="p">,</span> <span class="n">domain</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_build_domain</span><span class="p">()</span>
+</span><span id="line-208">        <span class="k">try</span><span class="p">:</span>
+</span><span id="line-209">            <span class="n">raw</span> <span class="o">=</span> <span class="n">voronoi_polygons</span><span class="p">(</span><span class="n">points</span><span class="p">,</span> <span class="n">extend_to</span><span class="o">=</span><span class="n">domain</span><span class="p">)</span>
+</span><span id="line-210">        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+</span><span id="line-211">            <span class="n">raw</span> <span class="o">=</span> <span class="n">voronoi_diagram</span><span class="p">(</span><span class="n">points</span><span class="p">,</span> <span class="n">envelope</span><span class="o">=</span><span class="n">domain</span><span class="p">)</span>
+</span><span id="line-212">
+</span><span id="line-213">        <span class="n">geoms</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">raw</span><span class="o">.</span><span class="n">geoms</span><span class="p">)</span> <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">raw</span><span class="p">,</span> <span class="s2">"geoms"</span><span class="p">)</span> <span class="k">else</span> <span class="p">[</span><span class="n">raw</span><span class="p">]</span>
+</span><span id="line-214">
+</span><span id="line-215">        <span class="n">clipped</span> <span class="o">=</span> <span class="p">[]</span>
+</span><span id="line-216">        <span class="k">for</span> <span class="n">g</span> <span class="ow">in</span> <span class="n">geoms</span><span class="p">:</span>
+</span><span id="line-217">
+</span><span id="line-218">            <span class="k">if</span> <span class="n">g</span><span class="o">.</span><span class="n">is_empty</span><span class="p">:</span>
+</span><span id="line-219">                <span class="k">continue</span>
 </span><span id="line-220">
-</span><span id="line-221">    <span class="nd">@property</span>
-</span><span id="line-222">    <span class="k">def</span><span class="w"> </span><span class="nf">field_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
-</span><span id="line-223">        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_field_dict</span>
-</span><span id="line-224">
-</span><span id="line-225">    <span class="k">def</span><span class="w"> </span><span class="nf">_build_domain</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">MultiPoint</span><span class="p">,</span> <span class="n">Polygon</span><span class="p">]:</span>
-</span><span id="line-226">        <span class="n">points</span> <span class="o">=</span> <span class="n">MultiPoint</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">fieldinput</span><span class="o">.</span><span class="n">_borehole_coordinates</span><span class="p">)</span>
-</span><span id="line-227">        <span class="n">domain</span> <span class="o">=</span> <span class="n">box</span><span class="p">(</span>
-</span><span id="line-228">            <span class="bp">self</span><span class="o">.</span><span class="n">fieldinput</span><span class="o">.</span><span class="n">xmin</span><span class="p">,</span>
-</span><span id="line-229">            <span class="bp">self</span><span class="o">.</span><span class="n">fieldinput</span><span class="o">.</span><span class="n">ymin</span><span class="p">,</span>
-</span><span id="line-230">            <span class="bp">self</span><span class="o">.</span><span class="n">fieldinput</span><span class="o">.</span><span class="n">xmax</span><span class="p">,</span>
-</span><span id="line-231">            <span class="bp">self</span><span class="o">.</span><span class="n">fieldinput</span><span class="o">.</span><span class="n">ymax</span><span class="p">,</span>
-</span><span id="line-232">        <span class="p">)</span>
-</span><span id="line-233">
-</span><span id="line-234">        <span class="k">return</span> <span class="n">points</span><span class="p">,</span> <span class="n">domain</span>
-</span><span id="line-235">
-</span><span id="line-236">    <span class="k">def</span><span class="w"> </span><span class="nf">_build_voronoi</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">GeometryCollection</span><span class="p">:</span>
-</span><span id="line-237">        <span class="n">points</span><span class="p">,</span> <span class="n">domain</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_build_domain</span><span class="p">()</span>
-</span><span id="line-238">        <span class="k">try</span><span class="p">:</span>
-</span><span id="line-239">            <span class="n">raw</span> <span class="o">=</span> <span class="n">voronoi_polygons</span><span class="p">(</span><span class="n">points</span><span class="p">,</span> <span class="n">extend_to</span><span class="o">=</span><span class="n">domain</span><span class="p">)</span>
-</span><span id="line-240">        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
-</span><span id="line-241">            <span class="n">raw</span> <span class="o">=</span> <span class="n">voronoi_diagram</span><span class="p">(</span><span class="n">points</span><span class="p">,</span> <span class="n">envelope</span><span class="o">=</span><span class="n">domain</span><span class="p">)</span>
-</span><span id="line-242">
-</span><span id="line-243">        <span class="n">geoms</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">raw</span><span class="o">.</span><span class="n">geoms</span><span class="p">)</span> <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">raw</span><span class="p">,</span> <span class="s2">&quot;geoms&quot;</span><span class="p">)</span> <span class="k">else</span> <span class="p">[</span><span class="n">raw</span><span class="p">]</span>
+</span><span id="line-221">            <span class="n">c</span> <span class="o">=</span> <span class="n">g</span><span class="o">.</span><span class="n">intersection</span><span class="p">(</span><span class="n">domain</span><span class="p">)</span>
+</span><span id="line-222">
+</span><span id="line-223">            <span class="k">if</span> <span class="ow">not</span> <span class="n">c</span><span class="o">.</span><span class="n">is_empty</span> <span class="ow">and</span> <span class="n">c</span><span class="o">.</span><span class="n">area</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+</span><span id="line-224">                <span class="n">clipped</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">c</span><span class="p">)</span>
+</span><span id="line-225">
+</span><span id="line-226">        <span class="k">return</span> <span class="n">GeometryCollection</span><span class="p">(</span><span class="n">clipped</span><span class="p">)</span>
+</span><span id="line-227">
+</span><span id="line-228">    <span class="k">def</span><span class="w"> </span><span class="nf">_matching_field</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">:</span>
+</span><span id="line-229">
+</span><span id="line-230">        <span class="n">vor</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_build_voronoi</span><span class="p">()</span>
+</span><span id="line-231">        <span class="n">field_dict</span> <span class="o">=</span> <span class="p">{}</span>
+</span><span id="line-232">
+</span><span id="line-233">        <span class="k">for</span> <span class="n">cell</span> <span class="ow">in</span> <span class="n">vor</span><span class="o">.</span><span class="n">geoms</span><span class="p">:</span>
+</span><span id="line-234">            <span class="n">p</span> <span class="o">=</span> <span class="n">cell</span><span class="o">.</span><span class="n">representative_point</span><span class="p">()</span>
+</span><span id="line-235">            <span class="n">best_dist</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">inf</span>
+</span><span id="line-236">            <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">fieldinput</span><span class="o">.</span><span class="n">_borehole_coordinates</span><span class="p">):</span>
+</span><span id="line-237">                <span class="n">min_distance</span> <span class="o">=</span> <span class="p">(</span><span class="n">x</span> <span class="o">-</span> <span class="n">p</span><span class="o">.</span><span class="n">x</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span> <span class="o">+</span> <span class="p">(</span><span class="n">y</span> <span class="o">-</span> <span class="n">p</span><span class="o">.</span><span class="n">y</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span>
+</span><span id="line-238">                <span class="k">if</span> <span class="n">min_distance</span> <span class="o">&lt;</span> <span class="n">best_dist</span><span class="p">:</span> 
+</span><span id="line-239">                    <span class="n">best_dist</span> <span class="o">=</span> <span class="n">min_distance</span>
+</span><span id="line-240">                    <span class="n">best_idx</span> <span class="o">=</span> <span class="n">i</span>
+</span><span id="line-241">
+</span><span id="line-242">            <span class="k">if</span> <span class="n">best_idx</span> <span class="ow">in</span> <span class="n">field_dict</span><span class="p">:</span>
+</span><span id="line-243">                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"Same index appeares multiple times in the field"</span><span class="p">)</span>
 </span><span id="line-244">
-</span><span id="line-245">        <span class="n">clipped</span> <span class="o">=</span> <span class="p">[]</span>
-</span><span id="line-246">        <span class="k">for</span> <span class="n">g</span> <span class="ow">in</span> <span class="n">geoms</span><span class="p">:</span>
-</span><span id="line-247">
-</span><span id="line-248">            <span class="k">if</span> <span class="n">g</span><span class="o">.</span><span class="n">is_empty</span><span class="p">:</span>
-</span><span id="line-249">                <span class="k">continue</span>
-</span><span id="line-250">
-</span><span id="line-251">            <span class="n">c</span> <span class="o">=</span> <span class="n">g</span><span class="o">.</span><span class="n">intersection</span><span class="p">(</span><span class="n">domain</span><span class="p">)</span>
-</span><span id="line-252">
-</span><span id="line-253">            <span class="k">if</span> <span class="ow">not</span> <span class="n">c</span><span class="o">.</span><span class="n">is_empty</span> <span class="ow">and</span> <span class="n">c</span><span class="o">.</span><span class="n">area</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
-</span><span id="line-254">                <span class="n">clipped</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">c</span><span class="p">)</span>
-</span><span id="line-255">
-</span><span id="line-256">        <span class="k">return</span> <span class="n">GeometryCollection</span><span class="p">(</span><span class="n">clipped</span><span class="p">)</span>
-</span><span id="line-257">
-</span><span id="line-258">    <span class="k">def</span><span class="w"> </span><span class="nf">_matching_field</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">:</span>
+</span><span id="line-245">            <span class="n">field_dict</span><span class="p">[</span><span class="n">best_idx</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+</span><span id="line-246">                <span class="s2">"cell"</span><span class="p">:</span> <span class="n">cell</span><span class="p">,</span>
+</span><span id="line-247">                <span class="s2">"area"</span><span class="p">:</span> <span class="n">cell</span><span class="o">.</span><span class="n">area</span><span class="p">,</span>
+</span><span id="line-248">                <span class="s2">"req"</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">cell</span><span class="o">.</span><span class="n">area</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="p">),</span>
+</span><span id="line-249">                <span class="s2">"coords"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">fieldinput</span><span class="o">.</span><span class="n">_borehole_coordinates</span><span class="p">[</span><span class="n">best_idx</span><span class="p">],</span>
+</span><span id="line-250">            <span class="p">}</span>
+</span><span id="line-251">
+</span><span id="line-252">        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">field_dict</span><span class="p">)</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">fieldinput</span><span class="o">.</span><span class="n">n_bhes</span><span class="p">:</span>
+</span><span id="line-253">            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"Some values are missing"</span><span class="p">)</span>
+</span><span id="line-254">
+</span><span id="line-255">        <span class="n">idx_present</span> <span class="o">=</span> <span class="p">[</span><span class="n">i</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">fieldinput</span><span class="o">.</span><span class="n">_borehole_coordinates</span><span class="p">))]</span>
+</span><span id="line-256">
+</span><span id="line-257">        <span class="k">if</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">field_dict</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span> <span class="o">!=</span> <span class="n">idx_present</span><span class="p">:</span>
+</span><span id="line-258">            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"Some idx are missing"</span><span class="p">)</span>
 </span><span id="line-259">
-</span><span id="line-260">        <span class="n">vor</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_build_voronoi</span><span class="p">()</span>
-</span><span id="line-261">        <span class="n">field_dict</span> <span class="o">=</span> <span class="p">{}</span>
-</span><span id="line-262">
-</span><span id="line-263">        <span class="k">for</span> <span class="n">cell</span> <span class="ow">in</span> <span class="n">vor</span><span class="o">.</span><span class="n">geoms</span><span class="p">:</span>
-</span><span id="line-264">            <span class="n">p</span> <span class="o">=</span> <span class="n">cell</span><span class="o">.</span><span class="n">representative_point</span><span class="p">()</span>
-</span><span id="line-265">            <span class="n">best_dist</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">inf</span>
-</span><span id="line-266">            <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">fieldinput</span><span class="o">.</span><span class="n">_borehole_coordinates</span><span class="p">):</span>
-</span><span id="line-267">                <span class="n">min_distance</span> <span class="o">=</span> <span class="p">(</span><span class="n">x</span> <span class="o">-</span> <span class="n">p</span><span class="o">.</span><span class="n">x</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span> <span class="o">+</span> <span class="p">(</span><span class="n">y</span> <span class="o">-</span> <span class="n">p</span><span class="o">.</span><span class="n">y</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span>
-</span><span id="line-268">                <span class="k">if</span> <span class="n">min_distance</span> <span class="o">&lt;</span> <span class="n">best_dist</span><span class="p">:</span> 
-</span><span id="line-269">                    <span class="n">best_dist</span> <span class="o">=</span> <span class="n">min_distance</span>
-</span><span id="line-270">                    <span class="n">best_idx</span> <span class="o">=</span> <span class="n">i</span>
-</span><span id="line-271">
-</span><span id="line-272">            <span class="k">if</span> <span class="n">best_idx</span> <span class="ow">in</span> <span class="n">field_dict</span><span class="p">:</span>
-</span><span id="line-273">                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Same index appeares multiple times in the field&quot;</span><span class="p">)</span>
+</span><span id="line-260">        <span class="k">return</span> <span class="n">field_dict</span>
+</span><span id="line-261">
+</span><span id="line-262">    <span class="k">def</span><span class="w"> </span><span class="nf">_build_distance_matrix</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">NDArray</span><span class="p">:</span>
+</span><span id="line-263">        <span class="n">n</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">fieldinput</span><span class="o">.</span><span class="n">n_bhes</span>
+</span><span id="line-264">        <span class="n">req</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">field_dict</span><span class="p">[</span><span class="n">j</span><span class="p">][</span><span class="s2">"req"</span><span class="p">]</span> <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n</span><span class="p">)])</span>
+</span><span id="line-265">
+</span><span id="line-266">        <span class="n">coords</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">fieldinput</span><span class="o">.</span><span class="n">_borehole_coordinates</span><span class="p">)</span>
+</span><span id="line-267">        <span class="n">x</span> <span class="o">=</span> <span class="n">coords</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span>
+</span><span id="line-268">        <span class="n">y</span> <span class="o">=</span> <span class="n">coords</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span>
+</span><span id="line-269">
+</span><span id="line-270">        <span class="n">x_j</span> <span class="o">=</span> <span class="n">x</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:]</span>
+</span><span id="line-271">        <span class="n">x_i</span> <span class="o">=</span> <span class="n">x</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">]</span>
+</span><span id="line-272">        <span class="n">y_j</span> <span class="o">=</span> <span class="n">y</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:]</span>
+</span><span id="line-273">        <span class="n">y_i</span> <span class="o">=</span> <span class="n">y</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">]</span>
 </span><span id="line-274">
-</span><span id="line-275">            <span class="n">field_dict</span><span class="p">[</span><span class="n">best_idx</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
-</span><span id="line-276">                <span class="s2">&quot;cell&quot;</span><span class="p">:</span> <span class="n">cell</span><span class="p">,</span>
-</span><span id="line-277">                <span class="s2">&quot;area&quot;</span><span class="p">:</span> <span class="n">cell</span><span class="o">.</span><span class="n">area</span><span class="p">,</span>
-</span><span id="line-278">                <span class="s2">&quot;req&quot;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">cell</span><span class="o">.</span><span class="n">area</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="p">),</span>
-</span><span id="line-279">                <span class="s2">&quot;coords&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">fieldinput</span><span class="o">.</span><span class="n">_borehole_coordinates</span><span class="p">[</span><span class="n">best_idx</span><span class="p">],</span>
-</span><span id="line-280">            <span class="p">}</span>
+</span><span id="line-275">        <span class="n">distance_matrix</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">((</span><span class="n">x_j</span> <span class="o">-</span> <span class="n">x_i</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="p">(</span><span class="n">y_j</span> <span class="o">-</span> <span class="n">y_i</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="n">req</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">]</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+</span><span id="line-276">
+</span><span id="line-277">        <span class="k">return</span> <span class="n">distance_matrix</span>
+</span><span id="line-278">
+</span><span id="line-279">    <span class="k">def</span><span class="w"> </span><span class="nf">_compute_neighbors</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">nx</span><span class="o">.</span><span class="n">Graph</span><span class="p">:</span>
+</span><span id="line-280">        <span class="n">n_bhes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">fieldinput</span><span class="o">.</span><span class="n">n_bhes</span>
 </span><span id="line-281">
-</span><span id="line-282">        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">field_dict</span><span class="p">)</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">fieldinput</span><span class="o">.</span><span class="n">n_bhes</span><span class="p">:</span>
-</span><span id="line-283">            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Some values are missing&quot;</span><span class="p">)</span>
+</span><span id="line-282">        <span class="n">borehole_graph</span> <span class="o">=</span> <span class="n">nx</span><span class="o">.</span><span class="n">Graph</span><span class="p">()</span>
+</span><span id="line-283">        <span class="n">borehole_graph</span><span class="o">.</span><span class="n">add_nodes_from</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">field_dict</span><span class="o">.</span><span class="n">keys</span><span class="p">()))</span>
 </span><span id="line-284">
-</span><span id="line-285">        <span class="n">idx_present</span> <span class="o">=</span> <span class="p">[</span><span class="n">i</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">fieldinput</span><span class="o">.</span><span class="n">_borehole_coordinates</span><span class="p">))]</span>
-</span><span id="line-286">
-</span><span id="line-287">        <span class="k">if</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">field_dict</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span> <span class="o">!=</span> <span class="n">idx_present</span><span class="p">:</span>
-</span><span id="line-288">            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Some idx are missing&quot;</span><span class="p">)</span>
-</span><span id="line-289">
-</span><span id="line-290">        <span class="k">return</span> <span class="n">field_dict</span>
-</span><span id="line-291">
-</span><span id="line-292">    <span class="k">def</span><span class="w"> </span><span class="nf">_build_distance_matrix</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">NDArray</span><span class="p">:</span>
-</span><span id="line-293">        <span class="n">n</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">fieldinput</span><span class="o">.</span><span class="n">n_bhes</span>
-</span><span id="line-294">        <span class="n">req</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">field_dict</span><span class="p">[</span><span class="n">j</span><span class="p">][</span><span class="s2">&quot;req&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n</span><span class="p">)])</span>
-</span><span id="line-295">
-</span><span id="line-296">        <span class="n">coords</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">fieldinput</span><span class="o">.</span><span class="n">_borehole_coordinates</span><span class="p">)</span>
-</span><span id="line-297">        <span class="n">x</span> <span class="o">=</span> <span class="n">coords</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span>
-</span><span id="line-298">        <span class="n">y</span> <span class="o">=</span> <span class="n">coords</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span>
-</span><span id="line-299">
-</span><span id="line-300">        <span class="n">x_j</span> <span class="o">=</span> <span class="n">x</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:]</span>
-</span><span id="line-301">        <span class="n">x_i</span> <span class="o">=</span> <span class="n">x</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">]</span>
-</span><span id="line-302">        <span class="n">y_j</span> <span class="o">=</span> <span class="n">y</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:]</span>
-</span><span id="line-303">        <span class="n">y_i</span> <span class="o">=</span> <span class="n">y</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">]</span>
-</span><span id="line-304">
-</span><span id="line-305">        <span class="n">distance_matrix</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">((</span><span class="n">x_j</span> <span class="o">-</span> <span class="n">x_i</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="p">(</span><span class="n">y_j</span> <span class="o">-</span> <span class="n">y_i</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="n">req</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">]</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
-</span><span id="line-306">
-</span><span id="line-307">        <span class="k">return</span> <span class="n">distance_matrix</span>
-</span><span id="line-308">
-</span><span id="line-309">    <span class="k">def</span><span class="w"> </span><span class="nf">_compute_neighbors</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">nx</span><span class="o">.</span><span class="n">Graph</span><span class="p">:</span>
-</span><span id="line-310">        <span class="n">n_bhes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">fieldinput</span><span class="o">.</span><span class="n">n_bhes</span>
-</span><span id="line-311">
-</span><span id="line-312">        <span class="n">borehole_graph</span> <span class="o">=</span> <span class="n">nx</span><span class="o">.</span><span class="n">Graph</span><span class="p">()</span>
-</span><span id="line-313">        <span class="n">borehole_graph</span><span class="o">.</span><span class="n">add_nodes_from</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">field_dict</span><span class="o">.</span><span class="n">keys</span><span class="p">()))</span>
-</span><span id="line-314">
-</span><span id="line-315">        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_bhes</span><span class="p">):</span>
-</span><span id="line-316">            <span class="n">cell</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">field_dict</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="s2">&quot;cell&quot;</span><span class="p">]</span>
-</span><span id="line-317">            <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">n_bhes</span><span class="p">):</span>
-</span><span id="line-318">                <span class="n">potential_neighbor</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">field_dict</span><span class="p">[</span><span class="n">j</span><span class="p">][</span><span class="s2">&quot;cell&quot;</span><span class="p">]</span>
-</span><span id="line-319">                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">intersection</span><span class="p">(</span><span class="n">cell</span><span class="p">,</span> <span class="n">potential_neighbor</span><span class="p">),</span> <span class="n">LineString</span><span class="p">):</span>
-</span><span id="line-320">                    <span class="n">borehole_graph</span><span class="o">.</span><span class="n">add_edge</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">)</span>
-</span><span id="line-321">        <span class="k">return</span> <span class="n">borehole_graph</span>
-</span><span id="line-322">
+</span><span id="line-285">        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_bhes</span><span class="p">):</span>
+</span><span id="line-286">            <span class="n">cell</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">field_dict</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="s2">"cell"</span><span class="p">]</span>
+</span><span id="line-287">            <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">n_bhes</span><span class="p">):</span>
+</span><span id="line-288">                <span class="n">potential_neighbor</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">field_dict</span><span class="p">[</span><span class="n">j</span><span class="p">][</span><span class="s2">"cell"</span><span class="p">]</span>
+</span><span id="line-289">                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">intersection</span><span class="p">(</span><span class="n">cell</span><span class="p">,</span> <span class="n">potential_neighbor</span><span class="p">),</span> <span class="n">LineString</span><span class="p">):</span>
+</span><span id="line-290">                    <span class="n">borehole_graph</span><span class="o">.</span><span class="n">add_edge</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">)</span>
+</span><span id="line-291">        <span class="k">return</span> <span class="n">borehole_graph</span>
+</span><span id="line-292">
 <div class="viewcode-block" id="Field.plot_field">
 <a class="viewcode-back" href="../../carm.html#carm.field_layout.Field.plot_field">[docs]</a>
-</span><span id="line-323">    <span class="k">def</span><span class="w"> </span><span class="nf">plot_field</span><span class="p">(</span>
-</span><span id="line-324">        <span class="bp">self</span><span class="p">,</span>
-</span><span id="line-325">        <span class="n">ax</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-</span><span id="line-326">        <span class="n">show_points</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-</span><span id="line-327">        <span class="n">show_ids</span><span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-</span><span id="line-328">        <span class="n">show_area</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-</span><span id="line-329">        <span class="n">show_req</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-</span><span id="line-330">        <span class="n">color_by_area</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-</span><span id="line-331">        <span class="n">alpha</span><span class="o">=</span><span class="mf">0.35</span><span class="p">,</span>
-</span><span id="line-332">        <span class="n">linewidth</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span>
-</span><span id="line-333">        <span class="n">point_size</span><span class="o">=</span><span class="mi">8</span><span class="p">,</span>
-</span><span id="line-334">        <span class="n">save_path</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-</span><span id="line-335">        <span class="n">show</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-</span><span id="line-336">        <span class="n">show_graph</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-</span><span id="line-337">    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">Figure</span><span class="p">,</span> <span class="n">Axes</span><span class="p">]:</span>
-</span><span id="line-338"><span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
-</span><span id="line-339"><span class="sd">        Plot the Voronoi field decomposition.</span>
-</span><span id="line-340">
-</span><span id="line-341"><span class="sd">        Parameters</span>
-</span><span id="line-342"><span class="sd">        ----------</span>
-</span><span id="line-343"><span class="sd">        ax : matplotlib.axes.Axes or None</span>
-</span><span id="line-344"><span class="sd">            Axes to draw on. If ``None``, a new figure is created.</span>
-</span><span id="line-345"><span class="sd">        show_points : bool</span>
-</span><span id="line-346"><span class="sd">            If ``True``, draw borehole generator points.</span>
-</span><span id="line-347"><span class="sd">        show_ids : bool</span>
-</span><span id="line-348"><span class="sd">            If ``True``, annotate each point with its borehole index.</span>
-</span><span id="line-349"><span class="sd">        show_area : bool</span>
-</span><span id="line-350"><span class="sd">            If ``True``, label each cell with its area.</span>
-</span><span id="line-351"><span class="sd">        show_req : bool</span>
-</span><span id="line-352"><span class="sd">            If ``True``, label each cell with its equivalent radius ``r_eq``.</span>
-</span><span id="line-353"><span class="sd">        color_by_area : bool</span>
-</span><span id="line-354"><span class="sd">            If ``True``, shade cells according to their area.</span>
-</span><span id="line-355"><span class="sd">        alpha : float</span>
-</span><span id="line-356"><span class="sd">            Cell fill transparency.</span>
-</span><span id="line-357"><span class="sd">        linewidth : float</span>
-</span><span id="line-358"><span class="sd">            Line width for cell edges and domain boundary.</span>
-</span><span id="line-359"><span class="sd">        point_size : float</span>
-</span><span id="line-360"><span class="sd">            Marker size for borehole points.</span>
-</span><span id="line-361"><span class="sd">        save_path : str or None</span>
-</span><span id="line-362"><span class="sd">            If provided, save the figure to this path at 300 dpi.</span>
-</span><span id="line-363"><span class="sd">        show : bool</span>
-</span><span id="line-364"><span class="sd">            If ``True``, call ``plt.show()``.</span>
-</span><span id="line-365"><span class="sd">        show_graph : bool</span>
-</span><span id="line-366"><span class="sd">            If ``True``, draw edges of the Voronoi neighbor graph.</span>
-</span><span id="line-367">
-</span><span id="line-368"><span class="sd">        Returns</span>
-</span><span id="line-369"><span class="sd">        -------</span>
-</span><span id="line-370"><span class="sd">        fig : matplotlib.figure.Figure</span>
-</span><span id="line-371"><span class="sd">            The figure object.</span>
-</span><span id="line-372"><span class="sd">        ax : matplotlib.axes.Axes</span>
-</span><span id="line-373"><span class="sd">            The axes object.</span>
-</span><span id="line-374">
-</span><span id="line-375"><span class="sd">        Examples</span>
-</span><span id="line-376"><span class="sd">        --------</span>
-</span><span id="line-377"><span class="sd">        &gt;&gt;&gt; fi = FieldInput(n_bhes=4, xmin=0, ymin=0, xmax=10, ymax=10)</span>
-</span><span id="line-378"><span class="sd">        &gt;&gt;&gt; fi.from_array(np.array([2.5, 7.5, 2.5, 7.5]),</span>
-</span><span id="line-379"><span class="sd">        ...               np.array([2.5, 2.5, 7.5, 7.5]))</span>
-</span><span id="line-380"><span class="sd">        &gt;&gt;&gt; f = Field(fieldinput=fi)</span>
-</span><span id="line-381"><span class="sd">        &gt;&gt;&gt; fig, ax = f.plot_field(show=False)</span>
-</span><span id="line-382"><span class="sd">        &quot;&quot;&quot;</span>
-</span><span id="line-383">        <span class="k">if</span> <span class="n">ax</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-</span><span id="line-384">            <span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">()</span>
-</span><span id="line-385">        <span class="k">else</span><span class="p">:</span>
-</span><span id="line-386">            <span class="n">fig</span> <span class="o">=</span> <span class="n">ax</span><span class="o">.</span><span class="n">figure</span>
-</span><span id="line-387">
-</span><span id="line-388">    
-</span><span id="line-389">        <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;field_dict&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">field_dict</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-</span><span id="line-390">            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;field_dict non found: call _matching_field() first.&quot;</span><span class="p">)</span>
-</span><span id="line-391">
-</span><span id="line-392">
-</span><span id="line-393">        <span class="n">areas</span> <span class="o">=</span> <span class="kc">None</span>
-</span><span id="line-394">        <span class="k">if</span> <span class="n">color_by_area</span> <span class="ow">or</span> <span class="n">show_area</span> <span class="ow">or</span> <span class="n">show_req</span><span class="p">:</span>
-</span><span id="line-395">          
-</span><span id="line-396">            <span class="n">areas</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">fieldinput</span><span class="o">.</span><span class="n">n_bhes</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
-</span><span id="line-397">            <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">item</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">field_dict</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-</span><span id="line-398">                <span class="n">areas</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">item</span><span class="p">[</span><span class="s2">&quot;area&quot;</span><span class="p">]</span>
-</span><span id="line-399">
-</span><span id="line-400">      
-</span><span id="line-401">        <span class="k">if</span> <span class="n">color_by_area</span><span class="p">:</span>
-</span><span id="line-402">            <span class="n">a_min</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nanmin</span><span class="p">(</span><span class="n">areas</span><span class="p">)</span>
-</span><span id="line-403">            <span class="n">a_max</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nanmax</span><span class="p">(</span><span class="n">areas</span><span class="p">)</span>
-</span><span id="line-404">            <span class="n">denom</span> <span class="o">=</span> <span class="p">(</span><span class="n">a_max</span> <span class="o">-</span> <span class="n">a_min</span><span class="p">)</span> <span class="k">if</span> <span class="p">(</span><span class="n">a_max</span> <span class="o">&gt;</span> <span class="n">a_min</span><span class="p">)</span> <span class="k">else</span> <span class="mf">1.0</span>
-</span><span id="line-405">
-</span><span id="line-406">       
-</span><span id="line-407">        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">poly</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">field_dict</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-</span><span id="line-408">            <span class="k">if</span> <span class="n">poly</span><span class="p">[</span><span class="s2">&quot;cell&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">is_empty</span><span class="p">:</span>
-</span><span id="line-409">                <span class="k">continue</span>
-</span><span id="line-410">
-</span><span id="line-411">            <span class="n">x</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="n">poly</span><span class="p">[</span><span class="s2">&quot;cell&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">exterior</span><span class="o">.</span><span class="n">xy</span>
-</span><span id="line-412">
-</span><span id="line-413">            <span class="k">if</span> <span class="n">color_by_area</span><span class="p">:</span>
-</span><span id="line-414">                <span class="n">t</span> <span class="o">=</span> <span class="p">(</span><span class="n">areas</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">-</span> <span class="n">a_min</span><span class="p">)</span> <span class="o">/</span> <span class="n">denom</span>
-</span><span id="line-415">                <span class="n">ax</span><span class="o">.</span><span class="n">fill</span><span class="p">(</span>
-</span><span id="line-416">                    <span class="n">x</span><span class="p">,</span>
-</span><span id="line-417">                    <span class="n">y</span><span class="p">,</span>
-</span><span id="line-418">                    <span class="n">alpha</span><span class="o">=</span><span class="n">alpha</span><span class="p">,</span>
-</span><span id="line-419">                    <span class="n">linewidth</span><span class="o">=</span><span class="n">linewidth</span><span class="p">,</span>
-</span><span id="line-420">                    <span class="n">edgecolor</span><span class="o">=</span><span class="s2">&quot;k&quot;</span><span class="p">,</span>
-</span><span id="line-421">                    <span class="n">facecolor</span><span class="o">=</span><span class="s2">&quot;whitesmoke&quot;</span><span class="p">,</span>
-</span><span id="line-422">                <span class="p">)</span>
-</span><span id="line-423">            <span class="k">else</span><span class="p">:</span>
-</span><span id="line-424">                <span class="n">ax</span><span class="o">.</span><span class="n">fill</span><span class="p">(</span>
-</span><span id="line-425">                    <span class="n">x</span><span class="p">,</span>
-</span><span id="line-426">                    <span class="n">y</span><span class="p">,</span>
-</span><span id="line-427">                    <span class="n">alpha</span><span class="o">=</span><span class="n">alpha</span><span class="p">,</span>
-</span><span id="line-428">                    <span class="n">linewidth</span><span class="o">=</span><span class="n">linewidth</span><span class="p">,</span>
-</span><span id="line-429">                    <span class="n">edgecolor</span><span class="o">=</span><span class="s2">&quot;k&quot;</span><span class="p">,</span>
-</span><span id="line-430">                    <span class="n">facecolor</span><span class="o">=</span><span class="s2">&quot;whitesmoke&quot;</span><span class="p">,</span>
-</span><span id="line-431">                <span class="p">)</span>
-</span><span id="line-432">
-</span><span id="line-433">            
-</span><span id="line-434">            <span class="k">if</span> <span class="n">show_area</span> <span class="ow">or</span> <span class="n">show_req</span><span class="p">:</span>
-</span><span id="line-435">                <span class="n">rp</span> <span class="o">=</span> <span class="n">poly</span><span class="p">[</span><span class="s2">&quot;cell&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">representative_point</span><span class="p">()</span>
-</span><span id="line-436">                <span class="n">lines</span> <span class="o">=</span> <span class="p">[]</span>
-</span><span id="line-437">                <span class="k">if</span> <span class="n">show_area</span><span class="p">:</span>
-</span><span id="line-438">                    <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;A=</span><span class="si">{</span><span class="n">poly</span><span class="p">[</span><span class="s1">&#39;area&#39;</span><span class="p">]</span><span class="si">:</span><span class="s2">.3g</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-</span><span id="line-439">                <span class="k">if</span> <span class="n">show_req</span><span class="p">:</span>
-</span><span id="line-440">                    <span class="n">req</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">poly</span><span class="p">[</span><span class="s1">&#39;area&#39;</span><span class="p">]</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="p">)</span>
-</span><span id="line-441">                    <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;r_eq=</span><span class="si">{</span><span class="n">req</span><span class="si">:</span><span class="s2">.3g</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-</span><span id="line-442">                <span class="n">rp</span> <span class="o">=</span> <span class="n">poly</span><span class="p">[</span><span class="s2">&quot;cell&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">representative_point</span><span class="p">()</span>
-</span><span id="line-443">                <span class="n">ax</span><span class="o">.</span><span class="n">text</span><span class="p">(</span>
-</span><span id="line-444">                    <span class="n">rp</span><span class="o">.</span><span class="n">x</span><span class="p">,</span> <span class="n">rp</span><span class="o">.</span><span class="n">y</span><span class="p">,</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">lines</span><span class="p">),</span> <span class="n">ha</span><span class="o">=</span><span class="s2">&quot;center&quot;</span><span class="p">,</span> <span class="n">va</span><span class="o">=</span><span class="s2">&quot;center&quot;</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">8</span>
-</span><span id="line-445">                <span class="p">)</span>
-</span><span id="line-446">
-</span><span id="line-447">
-</span><span id="line-448">        <span class="k">if</span> <span class="n">show_points</span><span class="p">:</span>
-</span><span id="line-449">            <span class="n">xs</span> <span class="o">=</span> <span class="p">[</span><span class="n">c</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">fieldinput</span><span class="o">.</span><span class="n">_borehole_coordinates</span><span class="p">]</span>
-</span><span id="line-450">            <span class="n">ys</span> <span class="o">=</span> <span class="p">[</span><span class="n">c</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">fieldinput</span><span class="o">.</span><span class="n">_borehole_coordinates</span><span class="p">]</span>
-</span><span id="line-451">            <span class="n">ax</span><span class="o">.</span><span class="n">scatter</span><span class="p">(</span><span class="n">xs</span><span class="p">,</span> <span class="n">ys</span><span class="p">,</span> <span class="n">s</span><span class="o">=</span><span class="n">point_size</span><span class="p">,</span> <span class="n">marker</span><span class="o">=</span><span class="s2">&quot;o&quot;</span><span class="p">,</span> <span class="n">c</span><span class="o">=</span><span class="s2">&quot;k&quot;</span><span class="p">)</span>
-</span><span id="line-452">
-</span><span id="line-453">            <span class="k">if</span> <span class="n">show_ids</span><span class="p">:</span>
-</span><span id="line-454">                <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">fieldinput</span><span class="o">.</span><span class="n">_borehole_coordinates</span><span class="p">):</span>
-</span><span id="line-455">                    <span class="n">ax</span><span class="o">.</span><span class="n">text</span><span class="p">(</span>
-</span><span id="line-456">                        <span class="n">x</span> <span class="o">+</span> <span class="mf">0.3</span><span class="p">,</span> <span class="n">y</span> <span class="o">+</span> <span class="mf">0.3</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">8</span><span class="p">,</span> <span class="n">ha</span><span class="o">=</span><span class="s2">&quot;left&quot;</span><span class="p">,</span> <span class="n">va</span><span class="o">=</span><span class="s2">&quot;bottom&quot;</span>
-</span><span id="line-457">                    <span class="p">)</span>
-</span><span id="line-458">
-</span><span id="line-459">        <span class="k">if</span> <span class="n">show_graph</span><span class="p">:</span>
-</span><span id="line-460">            <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">j</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_borehole_graph</span><span class="o">.</span><span class="n">edges</span><span class="p">():</span>
-</span><span id="line-461">                <span class="n">x1</span><span class="p">,</span> <span class="n">y1</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">fieldinput</span><span class="o">.</span><span class="n">_borehole_coordinates</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
-</span><span id="line-462">                <span class="n">x2</span><span class="p">,</span> <span class="n">y2</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">fieldinput</span><span class="o">.</span><span class="n">_borehole_coordinates</span><span class="p">[</span><span class="n">j</span><span class="p">]</span>
-</span><span id="line-463">                <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">([</span><span class="n">x1</span><span class="p">,</span> <span class="n">x2</span><span class="p">],</span> <span class="p">[</span><span class="n">y1</span><span class="p">,</span> <span class="n">y2</span><span class="p">],</span> <span class="n">color</span><span class="o">=</span><span class="s2">&quot;lightcoral&quot;</span><span class="p">,</span> <span class="n">linewidth</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">zorder</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
-</span><span id="line-464">
-</span><span id="line-465">        <span class="n">xmin</span><span class="p">,</span> <span class="n">ymin</span><span class="p">,</span> <span class="n">xmax</span><span class="p">,</span> <span class="n">ymax</span> <span class="o">=</span> <span class="p">(</span>
-</span><span id="line-466">            <span class="bp">self</span><span class="o">.</span><span class="n">fieldinput</span><span class="o">.</span><span class="n">xmin</span><span class="p">,</span>
-</span><span id="line-467">            <span class="bp">self</span><span class="o">.</span><span class="n">fieldinput</span><span class="o">.</span><span class="n">ymin</span><span class="p">,</span>
-</span><span id="line-468">            <span class="bp">self</span><span class="o">.</span><span class="n">fieldinput</span><span class="o">.</span><span class="n">xmax</span><span class="p">,</span>
-</span><span id="line-469">            <span class="bp">self</span><span class="o">.</span><span class="n">fieldinput</span><span class="o">.</span><span class="n">ymax</span><span class="p">,</span>
-</span><span id="line-470">        <span class="p">)</span>
-</span><span id="line-471">        <span class="n">rect_x</span> <span class="o">=</span> <span class="p">[</span><span class="n">xmin</span><span class="p">,</span> <span class="n">xmax</span><span class="p">,</span> <span class="n">xmax</span><span class="p">,</span> <span class="n">xmin</span><span class="p">,</span> <span class="n">xmin</span><span class="p">]</span>
-</span><span id="line-472">        <span class="n">rect_y</span> <span class="o">=</span> <span class="p">[</span><span class="n">ymin</span><span class="p">,</span> <span class="n">ymin</span><span class="p">,</span> <span class="n">ymax</span><span class="p">,</span> <span class="n">ymax</span><span class="p">,</span> <span class="n">ymin</span><span class="p">]</span>
-</span><span id="line-473">        <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">rect_x</span><span class="p">,</span> <span class="n">rect_y</span><span class="p">,</span> <span class="n">linewidth</span><span class="o">=</span><span class="n">linewidth</span><span class="p">)</span>
-</span><span id="line-474">
-</span><span id="line-475">        <span class="n">ax</span><span class="o">.</span><span class="n">set_aspect</span><span class="p">(</span><span class="s2">&quot;equal&quot;</span><span class="p">,</span> <span class="n">adjustable</span><span class="o">=</span><span class="s2">&quot;box&quot;</span><span class="p">)</span>
-</span><span id="line-476">        <span class="n">ax</span><span class="o">.</span><span class="n">set_xlim</span><span class="p">(</span><span class="n">xmin</span><span class="p">,</span> <span class="n">xmax</span><span class="p">)</span>
-</span><span id="line-477">        <span class="n">ax</span><span class="o">.</span><span class="n">set_ylim</span><span class="p">(</span><span class="n">ymin</span><span class="p">,</span> <span class="n">ymax</span><span class="p">)</span>
-</span><span id="line-478">        <span class="n">ax</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s2">&quot;x [m]&quot;</span><span class="p">)</span>
-</span><span id="line-479">        <span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s2">&quot;y [m]&quot;</span><span class="p">)</span>
-</span><span id="line-480">
-</span><span id="line-481">        <span class="k">if</span> <span class="n">save_path</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-</span><span id="line-482">            <span class="n">fig</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="n">save_path</span><span class="p">,</span> <span class="n">dpi</span><span class="o">=</span><span class="mi">300</span><span class="p">,</span> <span class="n">bbox_inches</span><span class="o">=</span><span class="s2">&quot;tight&quot;</span><span class="p">)</span>
-</span><span id="line-483">
-</span><span id="line-484">        <span class="k">if</span> <span class="n">show</span><span class="p">:</span>
-</span><span id="line-485">            <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
-</span><span id="line-486">
-</span><span id="line-487">        <span class="k">return</span> <span class="n">fig</span><span class="p">,</span> <span class="n">ax</span></div>
+</span><span id="line-293">    <span class="k">def</span><span class="w"> </span><span class="nf">plot_field</span><span class="p">(</span>
+</span><span id="line-294">        <span class="bp">self</span><span class="p">,</span>
+</span><span id="line-295">        <span class="n">ax</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+</span><span id="line-296">        <span class="n">show_points</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+</span><span id="line-297">        <span class="n">show_ids</span><span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+</span><span id="line-298">        <span class="n">show_area</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+</span><span id="line-299">        <span class="n">show_req</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+</span><span id="line-300">        <span class="n">color_by_area</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+</span><span id="line-301">        <span class="n">alpha</span><span class="o">=</span><span class="mf">0.35</span><span class="p">,</span>
+</span><span id="line-302">        <span class="n">linewidth</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span>
+</span><span id="line-303">        <span class="n">point_size</span><span class="o">=</span><span class="mi">8</span><span class="p">,</span>
+</span><span id="line-304">        <span class="n">save_path</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+</span><span id="line-305">        <span class="n">show</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+</span><span id="line-306">        <span class="n">show_graph</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+</span><span id="line-307">    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">Figure</span><span class="p">,</span> <span class="n">Axes</span><span class="p">]:</span>
+</span><span id="line-308"><span class="w">        </span><span class="sd">"""</span>
+</span><span id="line-309"><span class="sd">        Plot the Voronoi field decomposition.</span>
+</span><span id="line-310">
+</span><span id="line-311"><span class="sd">        Parameters</span>
+</span><span id="line-312"><span class="sd">        ----------</span>
+</span><span id="line-313"><span class="sd">        ax : matplotlib.axes.Axes or None</span>
+</span><span id="line-314"><span class="sd">            Axes to draw on. If ``None``, a new figure is created.</span>
+</span><span id="line-315"><span class="sd">        show_points : bool</span>
+</span><span id="line-316"><span class="sd">            If ``True``, draw borehole generator points.</span>
+</span><span id="line-317"><span class="sd">        show_ids : bool</span>
+</span><span id="line-318"><span class="sd">            If ``True``, annotate each point with its borehole index.</span>
+</span><span id="line-319"><span class="sd">        show_area : bool</span>
+</span><span id="line-320"><span class="sd">            If ``True``, label each cell with its area.</span>
+</span><span id="line-321"><span class="sd">        show_req : bool</span>
+</span><span id="line-322"><span class="sd">            If ``True``, label each cell with its equivalent radius ``r_eq``.</span>
+</span><span id="line-323"><span class="sd">        color_by_area : bool</span>
+</span><span id="line-324"><span class="sd">            If ``True``, shade cells according to their area.</span>
+</span><span id="line-325"><span class="sd">        alpha : float</span>
+</span><span id="line-326"><span class="sd">            Cell fill transparency.</span>
+</span><span id="line-327"><span class="sd">        linewidth : float</span>
+</span><span id="line-328"><span class="sd">            Line width for cell edges and domain boundary.</span>
+</span><span id="line-329"><span class="sd">        point_size : float</span>
+</span><span id="line-330"><span class="sd">            Marker size for borehole points.</span>
+</span><span id="line-331"><span class="sd">        save_path : str or None</span>
+</span><span id="line-332"><span class="sd">            If provided, save the figure to this path at 300 dpi.</span>
+</span><span id="line-333"><span class="sd">        show : bool</span>
+</span><span id="line-334"><span class="sd">            If ``True``, call ``plt.show()``.</span>
+</span><span id="line-335"><span class="sd">        show_graph : bool</span>
+</span><span id="line-336"><span class="sd">            If ``True``, draw edges of the Voronoi neighbor graph.</span>
+</span><span id="line-337">
+</span><span id="line-338"><span class="sd">        Returns</span>
+</span><span id="line-339"><span class="sd">        -------</span>
+</span><span id="line-340"><span class="sd">        fig : matplotlib.figure.Figure</span>
+</span><span id="line-341"><span class="sd">            The figure object.</span>
+</span><span id="line-342"><span class="sd">        ax : matplotlib.axes.Axes</span>
+</span><span id="line-343"><span class="sd">            The axes object.</span>
+</span><span id="line-344">
+</span><span id="line-345"><span class="sd">        Examples</span>
+</span><span id="line-346"><span class="sd">        --------</span>
+</span><span id="line-347"><span class="sd">        &gt;&gt;&gt; fi = FieldInput(n_bhes=4, xmin=0, ymin=0, xmax=10, ymax=10)</span>
+</span><span id="line-348"><span class="sd">        &gt;&gt;&gt; fi.from_array(np.array([2.5, 7.5, 2.5, 7.5]),</span>
+</span><span id="line-349"><span class="sd">        ...               np.array([2.5, 2.5, 7.5, 7.5]))</span>
+</span><span id="line-350"><span class="sd">        &gt;&gt;&gt; f = Field(fieldinput=fi)</span>
+</span><span id="line-351"><span class="sd">        &gt;&gt;&gt; fig, ax = f.plot_field(show=False)</span>
+</span><span id="line-352"><span class="sd">        """</span>
+</span><span id="line-353">        <span class="k">if</span> <span class="n">ax</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+</span><span id="line-354">            <span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">()</span>
+</span><span id="line-355">        <span class="k">else</span><span class="p">:</span>
+</span><span id="line-356">            <span class="n">fig</span> <span class="o">=</span> <span class="n">ax</span><span class="o">.</span><span class="n">figure</span>
+</span><span id="line-357">
+</span><span id="line-358">    
+</span><span id="line-359">        <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">"field_dict"</span><span class="p">)</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">field_dict</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+</span><span id="line-360">            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"field_dict non found: call _matching_field() first."</span><span class="p">)</span>
+</span><span id="line-361">
+</span><span id="line-362">
+</span><span id="line-363">        <span class="n">areas</span> <span class="o">=</span> <span class="kc">None</span>
+</span><span id="line-364">        <span class="k">if</span> <span class="n">color_by_area</span> <span class="ow">or</span> <span class="n">show_area</span> <span class="ow">or</span> <span class="n">show_req</span><span class="p">:</span>
+</span><span id="line-365">          
+</span><span id="line-366">            <span class="n">areas</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">fieldinput</span><span class="o">.</span><span class="n">n_bhes</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+</span><span id="line-367">            <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">item</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">field_dict</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+</span><span id="line-368">                <span class="n">areas</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">item</span><span class="p">[</span><span class="s2">"area"</span><span class="p">]</span>
+</span><span id="line-369">
+</span><span id="line-370">      
+</span><span id="line-371">        <span class="k">if</span> <span class="n">color_by_area</span><span class="p">:</span>
+</span><span id="line-372">            <span class="n">a_min</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nanmin</span><span class="p">(</span><span class="n">areas</span><span class="p">)</span>
+</span><span id="line-373">            <span class="n">a_max</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nanmax</span><span class="p">(</span><span class="n">areas</span><span class="p">)</span>
+</span><span id="line-374">            <span class="n">denom</span> <span class="o">=</span> <span class="p">(</span><span class="n">a_max</span> <span class="o">-</span> <span class="n">a_min</span><span class="p">)</span> <span class="k">if</span> <span class="p">(</span><span class="n">a_max</span> <span class="o">&gt;</span> <span class="n">a_min</span><span class="p">)</span> <span class="k">else</span> <span class="mf">1.0</span>
+</span><span id="line-375">
+</span><span id="line-376">       
+</span><span id="line-377">        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">poly</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">field_dict</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+</span><span id="line-378">            <span class="k">if</span> <span class="n">poly</span><span class="p">[</span><span class="s2">"cell"</span><span class="p">]</span><span class="o">.</span><span class="n">is_empty</span><span class="p">:</span>
+</span><span id="line-379">                <span class="k">continue</span>
+</span><span id="line-380">
+</span><span id="line-381">            <span class="n">x</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="n">poly</span><span class="p">[</span><span class="s2">"cell"</span><span class="p">]</span><span class="o">.</span><span class="n">exterior</span><span class="o">.</span><span class="n">xy</span>
+</span><span id="line-382">
+</span><span id="line-383">            <span class="k">if</span> <span class="n">color_by_area</span><span class="p">:</span>
+</span><span id="line-384">                <span class="n">t</span> <span class="o">=</span> <span class="p">(</span><span class="n">areas</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">-</span> <span class="n">a_min</span><span class="p">)</span> <span class="o">/</span> <span class="n">denom</span>
+</span><span id="line-385">                <span class="n">ax</span><span class="o">.</span><span class="n">fill</span><span class="p">(</span>
+</span><span id="line-386">                    <span class="n">x</span><span class="p">,</span>
+</span><span id="line-387">                    <span class="n">y</span><span class="p">,</span>
+</span><span id="line-388">                    <span class="n">alpha</span><span class="o">=</span><span class="n">alpha</span><span class="p">,</span>
+</span><span id="line-389">                    <span class="n">linewidth</span><span class="o">=</span><span class="n">linewidth</span><span class="p">,</span>
+</span><span id="line-390">                    <span class="n">edgecolor</span><span class="o">=</span><span class="s2">"k"</span><span class="p">,</span>
+</span><span id="line-391">                    <span class="n">facecolor</span><span class="o">=</span><span class="s2">"whitesmoke"</span><span class="p">,</span>
+</span><span id="line-392">                <span class="p">)</span>
+</span><span id="line-393">            <span class="k">else</span><span class="p">:</span>
+</span><span id="line-394">                <span class="n">ax</span><span class="o">.</span><span class="n">fill</span><span class="p">(</span>
+</span><span id="line-395">                    <span class="n">x</span><span class="p">,</span>
+</span><span id="line-396">                    <span class="n">y</span><span class="p">,</span>
+</span><span id="line-397">                    <span class="n">alpha</span><span class="o">=</span><span class="n">alpha</span><span class="p">,</span>
+</span><span id="line-398">                    <span class="n">linewidth</span><span class="o">=</span><span class="n">linewidth</span><span class="p">,</span>
+</span><span id="line-399">                    <span class="n">edgecolor</span><span class="o">=</span><span class="s2">"k"</span><span class="p">,</span>
+</span><span id="line-400">                    <span class="n">facecolor</span><span class="o">=</span><span class="s2">"whitesmoke"</span><span class="p">,</span>
+</span><span id="line-401">                <span class="p">)</span>
+</span><span id="line-402">
+</span><span id="line-403">            
+</span><span id="line-404">            <span class="k">if</span> <span class="n">show_area</span> <span class="ow">or</span> <span class="n">show_req</span><span class="p">:</span>
+</span><span id="line-405">                <span class="n">rp</span> <span class="o">=</span> <span class="n">poly</span><span class="p">[</span><span class="s2">"cell"</span><span class="p">]</span><span class="o">.</span><span class="n">representative_point</span><span class="p">()</span>
+</span><span id="line-406">                <span class="n">lines</span> <span class="o">=</span> <span class="p">[]</span>
+</span><span id="line-407">                <span class="k">if</span> <span class="n">show_area</span><span class="p">:</span>
+</span><span id="line-408">                    <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">"A=</span><span class="si">{</span><span class="n">poly</span><span class="p">[</span><span class="s1">'area'</span><span class="p">]</span><span class="si">:</span><span class="s2">.3g</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+</span><span id="line-409">                <span class="k">if</span> <span class="n">show_req</span><span class="p">:</span>
+</span><span id="line-410">                    <span class="n">req</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">poly</span><span class="p">[</span><span class="s1">'area'</span><span class="p">]</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="p">)</span>
+</span><span id="line-411">                    <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">"r_eq=</span><span class="si">{</span><span class="n">req</span><span class="si">:</span><span class="s2">.3g</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+</span><span id="line-412">                <span class="n">rp</span> <span class="o">=</span> <span class="n">poly</span><span class="p">[</span><span class="s2">"cell"</span><span class="p">]</span><span class="o">.</span><span class="n">representative_point</span><span class="p">()</span>
+</span><span id="line-413">                <span class="n">ax</span><span class="o">.</span><span class="n">text</span><span class="p">(</span>
+</span><span id="line-414">                    <span class="n">rp</span><span class="o">.</span><span class="n">x</span><span class="p">,</span> <span class="n">rp</span><span class="o">.</span><span class="n">y</span><span class="p">,</span> <span class="s2">"</span><span class="se">\n</span><span class="s2">"</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">lines</span><span class="p">),</span> <span class="n">ha</span><span class="o">=</span><span class="s2">"center"</span><span class="p">,</span> <span class="n">va</span><span class="o">=</span><span class="s2">"center"</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">8</span>
+</span><span id="line-415">                <span class="p">)</span>
+</span><span id="line-416">
+</span><span id="line-417">
+</span><span id="line-418">        <span class="k">if</span> <span class="n">show_points</span><span class="p">:</span>
+</span><span id="line-419">            <span class="n">xs</span> <span class="o">=</span> <span class="p">[</span><span class="n">c</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">fieldinput</span><span class="o">.</span><span class="n">_borehole_coordinates</span><span class="p">]</span>
+</span><span id="line-420">            <span class="n">ys</span> <span class="o">=</span> <span class="p">[</span><span class="n">c</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">fieldinput</span><span class="o">.</span><span class="n">_borehole_coordinates</span><span class="p">]</span>
+</span><span id="line-421">            <span class="n">ax</span><span class="o">.</span><span class="n">scatter</span><span class="p">(</span><span class="n">xs</span><span class="p">,</span> <span class="n">ys</span><span class="p">,</span> <span class="n">s</span><span class="o">=</span><span class="n">point_size</span><span class="p">,</span> <span class="n">marker</span><span class="o">=</span><span class="s2">"o"</span><span class="p">,</span> <span class="n">c</span><span class="o">=</span><span class="s2">"k"</span><span class="p">)</span>
+</span><span id="line-422">
+</span><span id="line-423">            <span class="k">if</span> <span class="n">show_ids</span><span class="p">:</span>
+</span><span id="line-424">                <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">fieldinput</span><span class="o">.</span><span class="n">_borehole_coordinates</span><span class="p">):</span>
+</span><span id="line-425">                    <span class="n">ax</span><span class="o">.</span><span class="n">text</span><span class="p">(</span>
+</span><span id="line-426">                        <span class="n">x</span> <span class="o">+</span> <span class="mf">0.3</span><span class="p">,</span> <span class="n">y</span> <span class="o">+</span> <span class="mf">0.3</span><span class="p">,</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">8</span><span class="p">,</span> <span class="n">ha</span><span class="o">=</span><span class="s2">"left"</span><span class="p">,</span> <span class="n">va</span><span class="o">=</span><span class="s2">"bottom"</span>
+</span><span id="line-427">                    <span class="p">)</span>
+</span><span id="line-428">
+</span><span id="line-429">        <span class="k">if</span> <span class="n">show_graph</span><span class="p">:</span>
+</span><span id="line-430">            <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">j</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_borehole_graph</span><span class="o">.</span><span class="n">edges</span><span class="p">():</span>
+</span><span id="line-431">                <span class="n">x1</span><span class="p">,</span> <span class="n">y1</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">fieldinput</span><span class="o">.</span><span class="n">_borehole_coordinates</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+</span><span id="line-432">                <span class="n">x2</span><span class="p">,</span> <span class="n">y2</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">fieldinput</span><span class="o">.</span><span class="n">_borehole_coordinates</span><span class="p">[</span><span class="n">j</span><span class="p">]</span>
+</span><span id="line-433">                <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">([</span><span class="n">x1</span><span class="p">,</span> <span class="n">x2</span><span class="p">],</span> <span class="p">[</span><span class="n">y1</span><span class="p">,</span> <span class="n">y2</span><span class="p">],</span> <span class="n">color</span><span class="o">=</span><span class="s2">"lightcoral"</span><span class="p">,</span> <span class="n">linewidth</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">zorder</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+</span><span id="line-434">
+</span><span id="line-435">        <span class="n">xmin</span><span class="p">,</span> <span class="n">ymin</span><span class="p">,</span> <span class="n">xmax</span><span class="p">,</span> <span class="n">ymax</span> <span class="o">=</span> <span class="p">(</span>
+</span><span id="line-436">            <span class="bp">self</span><span class="o">.</span><span class="n">fieldinput</span><span class="o">.</span><span class="n">xmin</span><span class="p">,</span>
+</span><span id="line-437">            <span class="bp">self</span><span class="o">.</span><span class="n">fieldinput</span><span class="o">.</span><span class="n">ymin</span><span class="p">,</span>
+</span><span id="line-438">            <span class="bp">self</span><span class="o">.</span><span class="n">fieldinput</span><span class="o">.</span><span class="n">xmax</span><span class="p">,</span>
+</span><span id="line-439">            <span class="bp">self</span><span class="o">.</span><span class="n">fieldinput</span><span class="o">.</span><span class="n">ymax</span><span class="p">,</span>
+</span><span id="line-440">        <span class="p">)</span>
+</span><span id="line-441">        <span class="n">rect_x</span> <span class="o">=</span> <span class="p">[</span><span class="n">xmin</span><span class="p">,</span> <span class="n">xmax</span><span class="p">,</span> <span class="n">xmax</span><span class="p">,</span> <span class="n">xmin</span><span class="p">,</span> <span class="n">xmin</span><span class="p">]</span>
+</span><span id="line-442">        <span class="n">rect_y</span> <span class="o">=</span> <span class="p">[</span><span class="n">ymin</span><span class="p">,</span> <span class="n">ymin</span><span class="p">,</span> <span class="n">ymax</span><span class="p">,</span> <span class="n">ymax</span><span class="p">,</span> <span class="n">ymin</span><span class="p">]</span>
+</span><span id="line-443">        <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">rect_x</span><span class="p">,</span> <span class="n">rect_y</span><span class="p">,</span> <span class="n">linewidth</span><span class="o">=</span><span class="n">linewidth</span><span class="p">)</span>
+</span><span id="line-444">
+</span><span id="line-445">        <span class="n">ax</span><span class="o">.</span><span class="n">set_aspect</span><span class="p">(</span><span class="s2">"equal"</span><span class="p">,</span> <span class="n">adjustable</span><span class="o">=</span><span class="s2">"box"</span><span class="p">)</span>
+</span><span id="line-446">        <span class="n">ax</span><span class="o">.</span><span class="n">set_xlim</span><span class="p">(</span><span class="n">xmin</span><span class="p">,</span> <span class="n">xmax</span><span class="p">)</span>
+</span><span id="line-447">        <span class="n">ax</span><span class="o">.</span><span class="n">set_ylim</span><span class="p">(</span><span class="n">ymin</span><span class="p">,</span> <span class="n">ymax</span><span class="p">)</span>
+</span><span id="line-448">        <span class="n">ax</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s2">"x [m]"</span><span class="p">)</span>
+</span><span id="line-449">        <span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s2">"y [m]"</span><span class="p">)</span>
+</span><span id="line-450">
+</span><span id="line-451">        <span class="k">if</span> <span class="n">save_path</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+</span><span id="line-452">            <span class="n">fig</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="n">save_path</span><span class="p">,</span> <span class="n">dpi</span><span class="o">=</span><span class="mi">300</span><span class="p">,</span> <span class="n">bbox_inches</span><span class="o">=</span><span class="s2">"tight"</span><span class="p">)</span>
+</span><span id="line-453">
+</span><span id="line-454">        <span class="k">if</span> <span class="n">show</span><span class="p">:</span>
+</span><span id="line-455">            <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</span><span id="line-456">
+</span><span id="line-457">        <span class="k">return</span> <span class="n">fig</span><span class="p">,</span> <span class="n">ax</span></div>
 </div>
 
 </span></code></pre></div>

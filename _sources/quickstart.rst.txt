@@ -12,7 +12,6 @@ Imports
 .. code-block:: python
 
     import numpy as np
-    from pathlib import Path
 
     from carm import (
         BoreholeGeometry,
@@ -81,14 +80,23 @@ list of layers, each specified as ``(k, rho, cp, permeability)``:
 Environmental boundary conditions
 ----------------------------------
 
-Load time-varying surface boundary conditions from an Excel file and define
-the surface thermal properties:
+Time-varying surface boundary conditions are built from plain NumPy arrays
+via :meth:`~carm.external_environment.EnvironmentalTimeSeries.from_array`.
+Here a synthetic seasonal + daily profile stands in for real measured data:
 
 .. code-block:: python
 
-    path = Path("input_env.xlsx")
+    dt      = 3600          # timestep [s]
+    n_steps = 276
 
-    env_input = EnvironmentalTimeSeries.from_excel(Tm=13, path=path)
+    hours = np.arange(n_steps) * dt / 3600.0
+    T_ext = 12.5 - 11.0 * np.cos(2 * np.pi * hours / 8760.0) \
+                  + 3.0 * np.sin(2 * np.pi * hours / 24.0)
+    daylight = np.clip(np.sin(2 * np.pi * (hours % 24.0 - 6.0) / 24.0), 0.0, None)
+    seasonal = 0.5 - 0.5 * np.cos(2 * np.pi * hours / 8760.0)
+    SolarRad = 900.0 * daylight * seasonal
+
+    env_input = EnvironmentalTimeSeries.from_array(Tm=13, T_ext=T_ext, SolarRad=SolarRad)
     env_props = EnvironmentalProperties(
         R_ext=0.04,
         absorptance=0.7,
@@ -98,6 +106,14 @@ the surface thermal properties:
         tau_y=365 * 24 * 3600,
         tau_shift=210 * 24 * 3600,
     )
+
+.. note::
+   pyCaRM has no built-in Excel reader: ``from_array`` is the only way to
+   build an :class:`~carm.external_environment.EnvironmentalTimeSeries` (or
+   a :class:`~carm.field_layout.FieldInput`) from data. If your data lives
+   in a spreadsheet, read it with ``pandas.read_excel`` and pass the
+   resulting columns to ``from_array`` — see ``examples/Excel_input.py``
+   for the full recipe.
 
 Physical model
 --------------
@@ -125,9 +141,6 @@ parallel (the default), ``n_groups = 1``:
 
 .. code-block:: python
 
-    dt      = 3600          # timestep [s]
-    n_steps = 276
-
     Tf1    = np.full((1, n_steps), 2.0)      # inlet temperature [°C]
     mw_tot = np.full((1, n_steps), 0.1657)   # mass flow rate [kg/s]
 
@@ -146,6 +159,12 @@ parallel (the default), ``n_groups = 1``:
 ``T_history`` has shape ``(n_steps + 1, n_bhes, n_dof)``, where index 0
 along the first axis is the initial condition. See :doc:`output` for how
 to extract temperatures of interest from this array.
+
+.. note::
+   ``run()`` does not write anything to disk unless asked: pass
+   ``save_results=True`` to also dump a timestamped ``.npz`` archive to a
+   ``results/`` directory. See ``examples/SingleUtube.py`` for a runnable
+   use of this option.
 
 Extracting the outlet temperature
 ----------------------------------

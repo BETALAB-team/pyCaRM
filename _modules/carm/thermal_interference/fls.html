@@ -159,13 +159,13 @@
     <div id="content" role="main">
       <h1>Source code for carm.thermal_interference.fls</h1><div class="highlight"><pre>
 <span></span><code><span id="line-1"><span class="c1"># -*- coding: utf-8 -*-</span>
-</span><span id="line-2"><span class="sd">&quot;&quot;&quot;</span>
+</span><span id="line-2"><span class="sd">"""</span>
 </span><span id="line-3"><span class="sd">Finite Line Source (FLS) module.</span>
 </span><span id="line-4">
 </span><span id="line-5"><span class="sd">Computes the far-field thermal response of the borehole field using the</span>
 </span><span id="line-6"><span class="sd">Finite Line Source analytical model. Handles both single and multi-borehole</span>
 </span><span id="line-7"><span class="sd">configurations via a precomputed response matrix and a superposition scheme.</span>
-</span><span id="line-8"><span class="sd">&quot;&quot;&quot;</span>
+</span><span id="line-8"><span class="sd">"""</span>
 </span><span id="line-9"><span class="kn">from</span><span class="w"> </span><span class="nn">carm</span><span class="w"> </span><span class="kn">import</span> <span class="n">PhysicalModel</span>
 </span><span id="line-10">
 </span><span id="line-11"><span class="kn">from</span><span class="w"> </span><span class="nn">numpy.typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">NDArray</span>
@@ -178,7 +178,7 @@
 <div class="viewcode-block" id="FiniteLineSolution">
 <a class="viewcode-back" href="../../../carm.thermal_interference.html#carm.thermal_interference.fls.FiniteLineSolution">[docs]</a>
 </span><span id="line-18"><span class="k">class</span><span class="w"> </span><span class="nc">FiniteLineSolution</span><span class="p">:</span>
-</span><span id="line-19"><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+</span><span id="line-19"><span class="w">    </span><span class="sd">"""</span>
 </span><span id="line-20"><span class="sd">    Finite Line Source thermal response for a borehole field.</span>
 </span><span id="line-21">
 </span><span id="line-22"><span class="sd">    Precomputes the FLS response matrix at construction time and uses it</span>
@@ -199,21 +199,21 @@
 </span><span id="line-37"><span class="sd">        due to borehole ``i`` up to time step ``t``.</span>
 </span><span id="line-38"><span class="sd">    The numerical implementation of the integral follows the approach used in</span>
 </span><span id="line-39"><span class="sd">    pygfunction (Cimmino, 2018).</span>
-</span><span id="line-40"><span class="sd">    &quot;&quot;&quot;</span>
+</span><span id="line-40"><span class="sd">    """</span>
 </span><span id="line-41">    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
 </span><span id="line-42">        <span class="bp">self</span><span class="p">,</span>
 </span><span id="line-43">        <span class="o">*</span><span class="p">,</span>
 </span><span id="line-44">        <span class="n">physicalmodel</span><span class="p">:</span> <span class="n">PhysicalModel</span><span class="p">,</span>
 </span><span id="line-45">        <span class="n">n_steps</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
 </span><span id="line-46">        <span class="n">time_hist</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">,</span>
-</span><span id="line-47">        <span class="n">fls_mode</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;sqrt&quot;</span>
+</span><span id="line-47">        <span class="n">fls_mode</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"sqrt"</span>
 </span><span id="line-48">    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 </span><span id="line-49">
 </span><span id="line-50">        <span class="bp">self</span><span class="o">.</span><span class="n">physicalmodel</span> <span class="o">=</span> <span class="n">physicalmodel</span>
 </span><span id="line-51">        <span class="bp">self</span><span class="o">.</span><span class="n">n_steps</span> <span class="o">=</span> <span class="n">n_steps</span>
 </span><span id="line-52">        <span class="bp">self</span><span class="o">.</span><span class="n">time_hist</span> <span class="o">=</span> <span class="n">time_hist</span>
 </span><span id="line-53">
-</span><span id="line-54">        <span class="k">if</span> <span class="n">fls_mode</span> <span class="o">==</span> <span class="s2">&quot;sqrt&quot;</span><span class="p">:</span>
+</span><span id="line-54">        <span class="k">if</span> <span class="n">fls_mode</span> <span class="o">==</span> <span class="s2">"sqrt"</span><span class="p">:</span>
 </span><span id="line-55">            <span class="bp">self</span><span class="o">.</span><span class="n">_response_matrix</span><span class="p">:</span> <span class="n">NDArray</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_response_matrix_sqrt</span><span class="p">()</span>
 </span><span id="line-56">        <span class="k">else</span><span class="p">:</span>
 </span><span id="line-57">            <span class="bp">self</span><span class="o">.</span><span class="n">_response_matrix</span><span class="p">:</span> <span class="n">NDArray</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_response_matrix_continuous</span><span class="p">()</span>
@@ -242,11 +242,11 @@
 </span><span id="line-80">        <span class="n">dT_j</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">n_bhes</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
 </span><span id="line-81">        <span class="n">const</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="p">(</span><span class="mf">2.0</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="n">k_mean</span> <span class="o">*</span> <span class="n">L</span><span class="p">)</span>
 </span><span id="line-82">
-</span><span id="line-83">        <span class="k">assert</span> <span class="n">q_nbhes</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="n">step</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span> <span class="o">==</span> <span class="p">(</span><span class="n">step</span><span class="p">,</span> <span class="n">n_bhes</span><span class="p">),</span> <span class="s2">&quot;q_nbhes shape must be 2D&quot;</span>
+</span><span id="line-83">        <span class="k">assert</span> <span class="n">q_nbhes</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="n">step</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span> <span class="o">==</span> <span class="p">(</span><span class="n">step</span><span class="p">,</span> <span class="n">n_bhes</span><span class="p">),</span> <span class="s2">"q_nbhes shape must be 2D"</span>
 </span><span id="line-84">
 </span><span id="line-85">        <span class="n">dT_j</span> <span class="o">=</span> <span class="p">(</span>
 </span><span id="line-86">            <span class="n">np</span><span class="o">.</span><span class="n">einsum</span><span class="p">(</span>
-</span><span id="line-87">                <span class="s2">&quot;ti,tij -&gt; j&quot;</span><span class="p">,</span>
+</span><span id="line-87">                <span class="s2">"ti,tij -&gt; j"</span><span class="p">,</span>
 </span><span id="line-88">                <span class="n">q_nbhes</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="n">step</span><span class="p">],</span>
 </span><span id="line-89">                <span class="p">(</span>
 </span><span id="line-90">                    <span class="bp">self</span><span class="o">.</span><span class="n">_response_matrix</span><span class="p">[</span><span class="n">step</span><span class="p">:</span><span class="mi">0</span><span class="p">:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
@@ -311,7 +311,7 @@
 </span><span id="line-149">
 </span><span id="line-150">        <span class="c1">#field parameters</span>
 </span><span id="line-151">        <span class="n">coords</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">physicalmodel</span><span class="o">.</span><span class="n">fieldinput</span><span class="o">.</span><span class="n">_borehole_coordinates</span><span class="p">)</span> <span class="c1">#shape (n, 2)</span>
-</span><span id="line-152">        <span class="n">req</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">physicalmodel</span><span class="o">.</span><span class="n">field</span><span class="o">.</span><span class="n">field_dict</span><span class="p">[</span><span class="n">j</span><span class="p">][</span><span class="s2">&quot;req&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_bhes</span><span class="p">)])</span>
+</span><span id="line-152">        <span class="n">req</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">physicalmodel</span><span class="o">.</span><span class="n">field</span><span class="o">.</span><span class="n">field_dict</span><span class="p">[</span><span class="n">j</span><span class="p">][</span><span class="s2">"req"</span><span class="p">]</span> <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_bhes</span><span class="p">)])</span>
 </span><span id="line-153">        <span class="n">rb</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">physicalmodel</span><span class="o">.</span><span class="n">borehole</span><span class="o">.</span><span class="n">D0</span> <span class="o">/</span> <span class="mf">2.0</span>
 </span><span id="line-154">        <span class="n">n_theta</span> <span class="o">=</span> <span class="mi">8</span>
 </span><span id="line-155">

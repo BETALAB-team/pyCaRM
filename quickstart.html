@@ -115,19 +115,18 @@ starting point before moving to multi-borehole fields.</p>
 <section id="imports">
 <h2>Imports</h2>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
-</span><span id="line-2"><span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
-</span><span id="line-3">
-</span><span id="line-4"><span class="kn">from</span><span class="w"> </span><span class="nn">carm</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
-</span><span id="line-5">    <span class="n">BoreholeGeometry</span><span class="p">,</span>
-</span><span id="line-6">    <span class="n">BoreholeMesh</span><span class="p">,</span>
-</span><span id="line-7">    <span class="n">BoreholeThermalProperties</span><span class="p">,</span>
-</span><span id="line-8">    <span class="n">SingleUtube</span><span class="p">,</span>
-</span><span id="line-9"><span class="p">)</span>
-</span><span id="line-10"><span class="kn">from</span><span class="w"> </span><span class="nn">carm</span><span class="w"> </span><span class="kn">import</span> <span class="n">EnvironmentalProperties</span><span class="p">,</span> <span class="n">EnvironmentalTimeSeries</span>
-</span><span id="line-11"><span class="kn">from</span><span class="w"> </span><span class="nn">carm</span><span class="w"> </span><span class="kn">import</span> <span class="n">Fluid</span>
-</span><span id="line-12"><span class="kn">from</span><span class="w"> </span><span class="nn">carm</span><span class="w"> </span><span class="kn">import</span> <span class="n">GroundGeometry</span><span class="p">,</span> <span class="n">GroundMesh</span>
-</span><span id="line-13"><span class="kn">from</span><span class="w"> </span><span class="nn">carm</span><span class="w"> </span><span class="kn">import</span> <span class="n">PhysicalModel</span>
-</span><span id="line-14"><span class="kn">from</span><span class="w"> </span><span class="nn">carm</span><span class="w"> </span><span class="kn">import</span> <span class="n">Simulation</span>
+</span><span id="line-2">
+</span><span id="line-3"><span class="kn">from</span><span class="w"> </span><span class="nn">carm</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+</span><span id="line-4">    <span class="n">BoreholeGeometry</span><span class="p">,</span>
+</span><span id="line-5">    <span class="n">BoreholeMesh</span><span class="p">,</span>
+</span><span id="line-6">    <span class="n">BoreholeThermalProperties</span><span class="p">,</span>
+</span><span id="line-7">    <span class="n">SingleUtube</span><span class="p">,</span>
+</span><span id="line-8"><span class="p">)</span>
+</span><span id="line-9"><span class="kn">from</span><span class="w"> </span><span class="nn">carm</span><span class="w"> </span><span class="kn">import</span> <span class="n">EnvironmentalProperties</span><span class="p">,</span> <span class="n">EnvironmentalTimeSeries</span>
+</span><span id="line-10"><span class="kn">from</span><span class="w"> </span><span class="nn">carm</span><span class="w"> </span><span class="kn">import</span> <span class="n">Fluid</span>
+</span><span id="line-11"><span class="kn">from</span><span class="w"> </span><span class="nn">carm</span><span class="w"> </span><span class="kn">import</span> <span class="n">GroundGeometry</span><span class="p">,</span> <span class="n">GroundMesh</span>
+</span><span id="line-12"><span class="kn">from</span><span class="w"> </span><span class="nn">carm</span><span class="w"> </span><span class="kn">import</span> <span class="n">PhysicalModel</span>
+</span><span id="line-13"><span class="kn">from</span><span class="w"> </span><span class="nn">carm</span><span class="w"> </span><span class="kn">import</span> <span class="n">Simulation</span>
 </span></code></pre></div>
 </div>
 </section>
@@ -179,21 +178,39 @@ list of layers, each specified as <code class="docutils literal notranslate"><sp
 </section>
 <section id="environmental-boundary-conditions">
 <h2>Environmental boundary conditions</h2>
-<p>Load time-varying surface boundary conditions from an Excel file and define
-the surface thermal properties:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="n">path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="s2">"input_env.xlsx"</span><span class="p">)</span>
-</span><span id="line-2">
-</span><span id="line-3"><span class="n">env_input</span> <span class="o">=</span> <span class="n">EnvironmentalTimeSeries</span><span class="o">.</span><span class="n">from_excel</span><span class="p">(</span><span class="n">Tm</span><span class="o">=</span><span class="mi">13</span><span class="p">,</span> <span class="n">path</span><span class="o">=</span><span class="n">path</span><span class="p">)</span>
-</span><span id="line-4"><span class="n">env_props</span> <span class="o">=</span> <span class="n">EnvironmentalProperties</span><span class="p">(</span>
-</span><span id="line-5">    <span class="n">R_ext</span><span class="o">=</span><span class="mf">0.04</span><span class="p">,</span>
-</span><span id="line-6">    <span class="n">absorptance</span><span class="o">=</span><span class="mf">0.7</span><span class="p">,</span>
-</span><span id="line-7">    <span class="n">eps</span><span class="o">=</span><span class="mf">0.95</span><span class="p">,</span>
-</span><span id="line-8">    <span class="n">At</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
-</span><span id="line-9">    <span class="n">tau</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
-</span><span id="line-10">    <span class="n">tau_y</span><span class="o">=</span><span class="mi">365</span> <span class="o">*</span> <span class="mi">24</span> <span class="o">*</span> <span class="mi">3600</span><span class="p">,</span>
-</span><span id="line-11">    <span class="n">tau_shift</span><span class="o">=</span><span class="mi">210</span> <span class="o">*</span> <span class="mi">24</span> <span class="o">*</span> <span class="mi">3600</span><span class="p">,</span>
-</span><span id="line-12"><span class="p">)</span>
+<p>Time-varying surface boundary conditions are built from plain NumPy arrays
+via <a class="reference internal" href="carm.html#carm.external_environment.EnvironmentalTimeSeries.from_array" title="carm.external_environment.EnvironmentalTimeSeries.from_array"><code class="xref py py-meth docutils literal notranslate"><span class="pre">from_array()</span></code></a>.
+Here a synthetic seasonal + daily profile stands in for real measured data:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="n">dt</span>      <span class="o">=</span> <span class="mi">3600</span>          <span class="c1"># timestep [s]</span>
+</span><span id="line-2"><span class="n">n_steps</span> <span class="o">=</span> <span class="mi">276</span>
+</span><span id="line-3">
+</span><span id="line-4"><span class="n">hours</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">n_steps</span><span class="p">)</span> <span class="o">*</span> <span class="n">dt</span> <span class="o">/</span> <span class="mf">3600.0</span>
+</span><span id="line-5"><span class="n">T_ext</span> <span class="o">=</span> <span class="mf">12.5</span> <span class="o">-</span> <span class="mf">11.0</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="n">hours</span> <span class="o">/</span> <span class="mf">8760.0</span><span class="p">)</span> \
+</span><span id="line-6">              <span class="o">+</span> <span class="mf">3.0</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="n">hours</span> <span class="o">/</span> <span class="mf">24.0</span><span class="p">)</span>
+</span><span id="line-7"><span class="n">daylight</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="p">(</span><span class="n">hours</span> <span class="o">%</span> <span class="mf">24.0</span> <span class="o">-</span> <span class="mf">6.0</span><span class="p">)</span> <span class="o">/</span> <span class="mf">24.0</span><span class="p">),</span> <span class="mf">0.0</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+</span><span id="line-8"><span class="n">seasonal</span> <span class="o">=</span> <span class="mf">0.5</span> <span class="o">-</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="n">hours</span> <span class="o">/</span> <span class="mf">8760.0</span><span class="p">)</span>
+</span><span id="line-9"><span class="n">SolarRad</span> <span class="o">=</span> <span class="mf">900.0</span> <span class="o">*</span> <span class="n">daylight</span> <span class="o">*</span> <span class="n">seasonal</span>
+</span><span id="line-10">
+</span><span id="line-11"><span class="n">env_input</span> <span class="o">=</span> <span class="n">EnvironmentalTimeSeries</span><span class="o">.</span><span class="n">from_array</span><span class="p">(</span><span class="n">Tm</span><span class="o">=</span><span class="mi">13</span><span class="p">,</span> <span class="n">T_ext</span><span class="o">=</span><span class="n">T_ext</span><span class="p">,</span> <span class="n">SolarRad</span><span class="o">=</span><span class="n">SolarRad</span><span class="p">)</span>
+</span><span id="line-12"><span class="n">env_props</span> <span class="o">=</span> <span class="n">EnvironmentalProperties</span><span class="p">(</span>
+</span><span id="line-13">    <span class="n">R_ext</span><span class="o">=</span><span class="mf">0.04</span><span class="p">,</span>
+</span><span id="line-14">    <span class="n">absorptance</span><span class="o">=</span><span class="mf">0.7</span><span class="p">,</span>
+</span><span id="line-15">    <span class="n">eps</span><span class="o">=</span><span class="mf">0.95</span><span class="p">,</span>
+</span><span id="line-16">    <span class="n">At</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
+</span><span id="line-17">    <span class="n">tau</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+</span><span id="line-18">    <span class="n">tau_y</span><span class="o">=</span><span class="mi">365</span> <span class="o">*</span> <span class="mi">24</span> <span class="o">*</span> <span class="mi">3600</span><span class="p">,</span>
+</span><span id="line-19">    <span class="n">tau_shift</span><span class="o">=</span><span class="mi">210</span> <span class="o">*</span> <span class="mi">24</span> <span class="o">*</span> <span class="mi">3600</span><span class="p">,</span>
+</span><span id="line-20"><span class="p">)</span>
 </span></code></pre></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>pyCaRM has no built-in Excel reader: <code class="docutils literal notranslate"><span class="pre">from_array</span></code> is the only way to
+build an <a class="reference internal" href="carm.html#carm.external_environment.EnvironmentalTimeSeries" title="carm.external_environment.EnvironmentalTimeSeries"><code class="xref py py-class docutils literal notranslate"><span class="pre">EnvironmentalTimeSeries</span></code></a> (or
+a <a class="reference internal" href="carm.html#carm.field_layout.FieldInput" title="carm.field_layout.FieldInput"><code class="xref py py-class docutils literal notranslate"><span class="pre">FieldInput</span></code></a>) from data. If your data lives
+in a spreadsheet, read it with <code class="docutils literal notranslate"><span class="pre">pandas.read_excel</span></code> and pass the
+resulting columns to <code class="docutils literal notranslate"><span class="pre">from_array</span></code> — see <code class="docutils literal notranslate"><span class="pre">examples/Excel_input.py</span></code>
+for the full recipe.</p>
 </div>
 </section>
 <section id="physical-model">
@@ -216,28 +233,32 @@ ground temperature [°C]:</p>
 <p>Define the inlet fluid temperature <code class="docutils literal notranslate"><span class="pre">Tf1</span></code> and mass flow rate <code class="docutils literal notranslate"><span class="pre">mw_tot</span></code>
 as arrays of shape <code class="docutils literal notranslate"><span class="pre">(n_groups,</span> <span class="pre">n_steps)</span></code>. For a single borehole in
 parallel (the default), <code class="docutils literal notranslate"><span class="pre">n_groups</span> <span class="pre">=</span> <span class="pre">1</span></code>:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="n">dt</span>      <span class="o">=</span> <span class="mi">3600</span>          <span class="c1"># timestep [s]</span>
-</span><span id="line-2"><span class="n">n_steps</span> <span class="o">=</span> <span class="mi">276</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="n">Tf1</span>    <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">((</span><span class="mi">1</span><span class="p">,</span> <span class="n">n_steps</span><span class="p">),</span> <span class="mf">2.0</span><span class="p">)</span>      <span class="c1"># inlet temperature [°C]</span>
+</span><span id="line-2"><span class="n">mw_tot</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">((</span><span class="mi">1</span><span class="p">,</span> <span class="n">n_steps</span><span class="p">),</span> <span class="mf">0.1657</span><span class="p">)</span>   <span class="c1"># mass flow rate [kg/s]</span>
 </span><span id="line-3">
-</span><span id="line-4"><span class="n">Tf1</span>    <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">((</span><span class="mi">1</span><span class="p">,</span> <span class="n">n_steps</span><span class="p">),</span> <span class="mf">2.0</span><span class="p">)</span>      <span class="c1"># inlet temperature [°C]</span>
-</span><span id="line-5"><span class="n">mw_tot</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">((</span><span class="mi">1</span><span class="p">,</span> <span class="n">n_steps</span><span class="p">),</span> <span class="mf">0.1657</span><span class="p">)</span>   <span class="c1"># mass flow rate [kg/s]</span>
-</span><span id="line-6">
-</span><span id="line-7"><span class="n">simulation</span> <span class="o">=</span> <span class="n">Simulation</span><span class="p">(</span>
-</span><span id="line-8">    <span class="n">model</span><span class="o">=</span><span class="n">model</span><span class="p">,</span>
-</span><span id="line-9">    <span class="n">envinput</span><span class="o">=</span><span class="n">env_input</span><span class="p">,</span>
-</span><span id="line-10">    <span class="n">envprops</span><span class="o">=</span><span class="n">env_props</span><span class="p">,</span>
-</span><span id="line-11">    <span class="n">timesteps</span><span class="o">=</span><span class="n">dt</span><span class="p">,</span>
-</span><span id="line-12">    <span class="n">n_steps</span><span class="o">=</span><span class="n">n_steps</span><span class="p">,</span>
-</span><span id="line-13">    <span class="n">mw_tot</span><span class="o">=</span><span class="n">mw_tot</span><span class="p">,</span>
-</span><span id="line-14">    <span class="n">Tf1</span><span class="o">=</span><span class="n">Tf1</span><span class="p">,</span>
-</span><span id="line-15"><span class="p">)</span>
-</span><span id="line-16">
-</span><span id="line-17"><span class="n">T_history</span> <span class="o">=</span> <span class="n">simulation</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+</span><span id="line-4"><span class="n">simulation</span> <span class="o">=</span> <span class="n">Simulation</span><span class="p">(</span>
+</span><span id="line-5">    <span class="n">model</span><span class="o">=</span><span class="n">model</span><span class="p">,</span>
+</span><span id="line-6">    <span class="n">envinput</span><span class="o">=</span><span class="n">env_input</span><span class="p">,</span>
+</span><span id="line-7">    <span class="n">envprops</span><span class="o">=</span><span class="n">env_props</span><span class="p">,</span>
+</span><span id="line-8">    <span class="n">timesteps</span><span class="o">=</span><span class="n">dt</span><span class="p">,</span>
+</span><span id="line-9">    <span class="n">n_steps</span><span class="o">=</span><span class="n">n_steps</span><span class="p">,</span>
+</span><span id="line-10">    <span class="n">mw_tot</span><span class="o">=</span><span class="n">mw_tot</span><span class="p">,</span>
+</span><span id="line-11">    <span class="n">Tf1</span><span class="o">=</span><span class="n">Tf1</span><span class="p">,</span>
+</span><span id="line-12"><span class="p">)</span>
+</span><span id="line-13">
+</span><span id="line-14"><span class="n">T_history</span> <span class="o">=</span> <span class="n">simulation</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
 </span></code></pre></div>
 </div>
 <p><code class="docutils literal notranslate"><span class="pre">T_history</span></code> has shape <code class="docutils literal notranslate"><span class="pre">(n_steps</span> <span class="pre">+</span> <span class="pre">1,</span> <span class="pre">n_bhes,</span> <span class="pre">n_dof)</span></code>, where index 0
 along the first axis is the initial condition. See <a class="reference internal" href="output.html"><span class="doc">Output</span></a> for how
 to extract temperatures of interest from this array.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p><code class="docutils literal notranslate"><span class="pre">run()</span></code> does not write anything to disk unless asked: pass
+<code class="docutils literal notranslate"><span class="pre">save_results=True</span></code> to also dump a timestamped <code class="docutils literal notranslate"><span class="pre">.npz</span></code> archive to a
+<code class="docutils literal notranslate"><span class="pre">results/</span></code> directory. See <code class="docutils literal notranslate"><span class="pre">examples/SingleUtube.py</span></code> for a runnable
+use of this option.</p>
+</div>
 </section>
 <section id="extracting-the-outlet-temperature">
 <h2>Extracting the outlet temperature</h2>

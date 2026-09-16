@@ -159,13 +159,13 @@
     <div id="content" role="main">
       <h1>Source code for carm.properties.ground</h1><div class="highlight"><pre>
 <span></span><code><span id="line-1"><span class="c1"># -*- coding: utf-8 -*-</span>
-</span><span id="line-2"><span class="sd">&quot;&quot;&quot;</span>
+</span><span id="line-2"><span class="sd">"""</span>
 </span><span id="line-3"><span class="sd">Ground properties module.</span>
 </span><span id="line-4">
 </span><span id="line-5"><span class="sd">Defines the geometry, mesh, and thermophysical properties of the ground</span>
 </span><span id="line-6"><span class="sd">domain surrounding the borehole. Supports heterogeneous stratification</span>
 </span><span id="line-7"><span class="sd">via a layer-by-layer property averaging scheme.</span>
-</span><span id="line-8"><span class="sd">&quot;&quot;&quot;</span>
+</span><span id="line-8"><span class="sd">"""</span>
 </span><span id="line-9">
 </span><span id="line-10"><span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span>
 </span><span id="line-11"><span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Sequence</span>
@@ -177,7 +177,7 @@
 <a class="viewcode-back" href="../../../carm.properties.html#carm.GroundGeometry">[docs]</a>
 </span><span id="line-16"><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">slots</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 </span><span id="line-17"><span class="k">class</span><span class="w"> </span><span class="nc">GroundGeometry</span><span class="p">:</span>
-</span><span id="line-18"><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+</span><span id="line-18"><span class="w">    </span><span class="sd">"""</span>
 </span><span id="line-19"><span class="sd">    Geometric parameters of the ground domain.</span>
 </span><span id="line-20">
 </span><span id="line-21"><span class="sd">    Attributes</span>
@@ -196,7 +196,7 @@
 </span><span id="line-34"><span class="sd">        (where ``r_eq`` from the Voronoi decomposition is used instead).</span>
 </span><span id="line-35"><span class="sd">    r0 : float</span>
 </span><span id="line-36"><span class="sd">        Borehole radius, derived as ``D0 / 2`` [m].</span>
-</span><span id="line-37"><span class="sd">    &quot;&quot;&quot;</span>
+</span><span id="line-37"><span class="sd">    """</span>
 </span><span id="line-38">
 </span><span id="line-39">    <span class="n">D0</span><span class="p">:</span> <span class="nb">float</span>  <span class="c1"># m</span>
 </span><span id="line-40">    <span class="n">L</span><span class="p">:</span> <span class="nb">float</span>  <span class="c1"># m</span>
@@ -211,14 +211,14 @@
 </span><span id="line-49">    <span class="k">def</span><span class="w"> </span><span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 </span><span id="line-50">
 </span><span id="line-51">        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">D0</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
-</span><span id="line-52">            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;D0 must be &gt; 0&quot;</span><span class="p">)</span>
+</span><span id="line-52">            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"D0 must be &gt; 0"</span><span class="p">)</span>
 </span><span id="line-53">
 </span><span id="line-54">        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">rn</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
 </span><span id="line-55">            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">rn</span> <span class="o">&lt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">r0</span><span class="p">:</span>
-</span><span id="line-56">                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;rn must be &gt; D0/2&quot;</span><span class="p">)</span>
+</span><span id="line-56">                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"rn must be &gt; D0/2"</span><span class="p">)</span>
 </span><span id="line-57">
 </span><span id="line-58">        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">L</span> <span class="o">&lt;=</span> <span class="mi">0</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">L_sup</span> <span class="o">&lt;=</span> <span class="mi">0</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">L_inf</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
-</span><span id="line-59">            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;L, L_sup, L_inf must be &gt; 0&quot;</span><span class="p">)</span></div>
+</span><span id="line-59">            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"L, L_sup, L_inf must be &gt; 0"</span><span class="p">)</span></div>
 
 </span><span id="line-60">
 </span><span id="line-61">
@@ -226,7 +226,7 @@
 <a class="viewcode-back" href="../../../carm.properties.html#carm.GroundMesh">[docs]</a>
 </span><span id="line-62"><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">slots</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 </span><span id="line-63"><span class="k">class</span><span class="w"> </span><span class="nc">GroundMesh</span><span class="p">:</span>
-</span><span id="line-64"><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+</span><span id="line-64"><span class="w">    </span><span class="sd">"""</span>
 </span><span id="line-65"><span class="sd">    Discretization parameters for the ground domain.</span>
 </span><span id="line-66">
 </span><span id="line-67"><span class="sd">    Attributes</span>
@@ -242,7 +242,7 @@
 </span><span id="line-77"><span class="sd">    f : float</span>
 </span><span id="line-78"><span class="sd">        Radial expansion factor for the mesh (default 1.2). Controls how</span>
 </span><span id="line-79"><span class="sd">        rapidly cell thickness increases moving outward from the borehole.</span>
-</span><span id="line-80"><span class="sd">    &quot;&quot;&quot;</span>
+</span><span id="line-80"><span class="sd">    """</span>
 </span><span id="line-81">
 </span><span id="line-82">    <span class="n">n_mesh</span><span class="p">:</span> <span class="nb">int</span>  <span class="c1"># radial mesh</span>
 </span><span id="line-83">    <span class="n">m_mesh</span><span class="p">:</span> <span class="nb">int</span>  <span class="c1"># axial mesh middle part</span>
@@ -252,18 +252,18 @@
 </span><span id="line-87">
 </span><span id="line-88">    <span class="k">def</span><span class="w"> </span><span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 </span><span id="line-89">        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_mesh</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">:</span>
-</span><span id="line-90">            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;n_mesh must be &gt;= 2&quot;</span><span class="p">)</span>
+</span><span id="line-90">            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"n_mesh must be &gt;= 2"</span><span class="p">)</span>
 </span><span id="line-91">        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">m_mesh</span> <span class="o">&lt;=</span> <span class="mi">0</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">m_mesh_sup</span> <span class="o">&lt;=</span> <span class="mi">0</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">m_mesh_inf</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
-</span><span id="line-92">            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;m_mesh, m_mesh_sup, m_mesh_inf must be &gt; 0&quot;</span><span class="p">)</span>
+</span><span id="line-92">            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"m_mesh, m_mesh_sup, m_mesh_inf must be &gt; 0"</span><span class="p">)</span>
 </span><span id="line-93">        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">f</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
-</span><span id="line-94">            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;f must be &gt; 0&quot;</span><span class="p">)</span></div>
+</span><span id="line-94">            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"f must be &gt; 0"</span><span class="p">)</span></div>
 
 </span><span id="line-95">
 </span><span id="line-96">
 <div class="viewcode-block" id="GroundProperties">
 <a class="viewcode-back" href="../../../carm.properties.html#carm.GroundProperties">[docs]</a>
 </span><span id="line-97"><span class="k">class</span><span class="w"> </span><span class="nc">GroundProperties</span><span class="p">:</span>
-</span><span id="line-98"><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+</span><span id="line-98"><span class="w">    </span><span class="sd">"""</span>
 </span><span id="line-99"><span class="sd">    Thermophysical and discretization properties of the ground domain.</span>
 </span><span id="line-100">
 </span><span id="line-101"><span class="sd">    Computes layer-averaged thermal properties from the stratigraphic input,</span>
@@ -311,7 +311,7 @@
 </span><span id="line-143"><span class="sd">        Axial thermal resistances in the lower region, shape (m_mesh_inf,) [K/W].</span>
 </span><span id="line-144"><span class="sd">    C_inf : NDArray</span>
 </span><span id="line-145"><span class="sd">        Axial thermal capacitances in the lower region, shape (m_mesh_inf,) [J/K].</span>
-</span><span id="line-146"><span class="sd">    &quot;&quot;&quot;</span>
+</span><span id="line-146"><span class="sd">    """</span>
 </span><span id="line-147">
 </span><span id="line-148">    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
 </span><span id="line-149">        <span class="bp">self</span><span class="p">,</span>
@@ -386,7 +386,7 @@
 </span><span id="line-218">        <span class="n">tol</span> <span class="o">=</span> <span class="mf">1e-9</span>
 </span><span id="line-219">        <span class="k">if</span> <span class="nb">abs</span><span class="p">((</span><span class="nb">sum</span><span class="p">(</span><span class="n">Ls</span> <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">Ls</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">stratification</span><span class="p">)</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">dz_tot</span><span class="p">)))</span> <span class="o">&gt;</span> <span class="n">tol</span><span class="p">:</span>
 </span><span id="line-220">            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-</span><span id="line-221">                <span class="s2">&quot;Length of stratifications must match the total length of discretization&quot;</span>
+</span><span id="line-221">                <span class="s2">"Length of stratifications must match the total length of discretization"</span>
 </span><span id="line-222">            <span class="p">)</span>
 </span><span id="line-223">
 </span><span id="line-224">        <span class="n">n_cells</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">m_mesh_sup</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">m_mesh</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">m_mesh_inf</span>
@@ -438,7 +438,7 @@
 </span><span id="line-270">                <span class="k">if</span> <span class="n">k</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span> <span class="o">&lt;=</span> <span class="mi">0</span> <span class="ow">or</span> <span class="n">cp</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span> <span class="o">&lt;=</span> <span class="mi">0</span> <span class="ow">or</span> <span class="n">rho</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span> <span class="o">&lt;=</span> <span class="mi">0</span>
 </span><span id="line-271">            <span class="p">]</span>
 </span><span id="line-272">            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-</span><span id="line-273">                <span class="sa">f</span><span class="s2">&quot;Unfilled/invalid cell properties at indices (idx,k,cp,rho): </span><span class="si">{</span><span class="n">bad</span><span class="p">[:</span><span class="mi">10</span><span class="p">]</span><span class="si">}</span><span class="s2"> ...&quot;</span>
+</span><span id="line-273">                <span class="sa">f</span><span class="s2">"Unfilled/invalid cell properties at indices (idx,k,cp,rho): </span><span class="si">{</span><span class="n">bad</span><span class="p">[:</span><span class="mi">10</span><span class="p">]</span><span class="si">}</span><span class="s2"> ..."</span>
 </span><span id="line-274">            <span class="p">)</span>
 </span><span id="line-275">
 </span><span id="line-276">        <span class="n">k</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">k</span><span class="p">)[:,</span> <span class="kc">None</span><span class="p">]</span>

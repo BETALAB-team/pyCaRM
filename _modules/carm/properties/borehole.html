@@ -159,7 +159,7 @@
     <div id="content" role="main">
       <h1>Source code for carm.properties.borehole</h1><div class="highlight"><pre>
 <span></span><code><span id="line-1"><span class="c1"># -*- coding: utf-8 -*-</span>
-</span><span id="line-2"><span class="sd">&quot;&quot;&quot;</span>
+</span><span id="line-2"><span class="sd">"""</span>
 </span><span id="line-3"><span class="sd">Borehole heat exchanger types module.</span>
 </span><span id="line-4">
 </span><span id="line-5"><span class="sd">Defines the geometry, mesh, thermal properties, and fluid dynamics for</span>
@@ -172,7 +172,7 @@
 </span><span id="line-12"><span class="sd">    │   └── DoubleUtube</span>
 </span><span id="line-13"><span class="sd">    ├── Coaxial</span>
 </span><span id="line-14"><span class="sd">    └── Helical</span>
-</span><span id="line-15"><span class="sd">&quot;&quot;&quot;</span>
+</span><span id="line-15"><span class="sd">"""</span>
 </span><span id="line-16"><span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span>
 </span><span id="line-17"><span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Sequence</span>
 </span><span id="line-18"><span class="kn">from</span><span class="w"> </span><span class="nn">numpy.typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">NDArray</span>
@@ -187,7 +187,7 @@
 <a class="viewcode-back" href="../../../carm.properties.html#carm.BoreholeGeometry">[docs]</a>
 </span><span id="line-26"><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">slots</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 </span><span id="line-27"><span class="k">class</span><span class="w"> </span><span class="nc">BoreholeGeometry</span><span class="p">:</span>
-</span><span id="line-28"><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+</span><span id="line-28"><span class="w">    </span><span class="sd">"""</span>
 </span><span id="line-29"><span class="sd">    Geometric parameters of the borehole.</span>
 </span><span id="line-30"><span class="sd">    D_irrigation and perf_fraction parameters must be set as None if</span>
 </span><span id="line-31"><span class="sd">        grout variable properties are not taken into account.</span>
@@ -206,7 +206,7 @@
 </span><span id="line-44"><span class="sd">    perf_fraction: None | float = None</span>
 </span><span id="line-45"><span class="sd">        Irrigation pipe perforation fraction [-].</span>
 </span><span id="line-46">
-</span><span id="line-47"><span class="sd">    &quot;&quot;&quot;</span>
+</span><span id="line-47"><span class="sd">    """</span>
 </span><span id="line-48">
 </span><span id="line-49">    <span class="n">Lbore</span><span class="p">:</span> <span class="nb">float</span>  <span class="c1"># m</span>
 </span><span id="line-50">    <span class="n">D0</span><span class="p">:</span> <span class="nb">float</span>  <span class="c1"># m</span>
@@ -215,16 +215,16 @@
 </span><span id="line-53">
 </span><span id="line-54">    <span class="k">def</span><span class="w"> </span><span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 </span><span id="line-55">        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">Lbore</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
-</span><span id="line-56">            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Lbore must be &gt; 0&quot;</span><span class="p">)</span>
+</span><span id="line-56">            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"Lbore must be &gt; 0"</span><span class="p">)</span>
 </span><span id="line-57">        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">D0</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
-</span><span id="line-58">            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;D0 must be &gt; 0&quot;</span><span class="p">)</span>
+</span><span id="line-58">            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"D0 must be &gt; 0"</span><span class="p">)</span>
 </span><span id="line-59">        <span class="k">if</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">D_irrigation</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">)</span> <span class="o">!=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">perf_fraction</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">):</span>
-</span><span id="line-60">            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;D_irrigation and perf_fraction must be both None or float values&quot;</span><span class="p">)</span>
+</span><span id="line-60">            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"D_irrigation and perf_fraction must be both None or float values"</span><span class="p">)</span>
 </span><span id="line-61">        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">D_irrigation</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
 </span><span id="line-62">            <span class="k">if</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">D_irrigation</span> <span class="o">&lt;=</span> <span class="mf">0.0</span><span class="p">)</span> <span class="o">|</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">D_irrigation</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">D0</span><span class="p">):</span>
-</span><span id="line-63">                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Invalid irrigation pipe diameter&quot;</span><span class="p">)</span>
+</span><span id="line-63">                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"Invalid irrigation pipe diameter"</span><span class="p">)</span>
 </span><span id="line-64">            <span class="k">elif</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">perf_fraction</span> <span class="o">&lt;</span> <span class="mf">0.0</span><span class="p">)</span> <span class="ow">or</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">perf_fraction</span> <span class="o">&gt;=</span> <span class="mf">1.0</span><span class="p">):</span>
-</span><span id="line-65">                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Invalid perforation percentage&quot;</span><span class="p">)</span>
+</span><span id="line-65">                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"Invalid perforation percentage"</span><span class="p">)</span>
 </span><span id="line-66">        
 </span><span id="line-67">
 </span><span id="line-68">    <span class="nd">@property</span>
@@ -237,20 +237,20 @@
 <a class="viewcode-back" href="../../../carm.properties.html#carm.BoreholeMesh">[docs]</a>
 </span><span id="line-73"><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">slots</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 </span><span id="line-74"><span class="k">class</span><span class="w"> </span><span class="nc">BoreholeMesh</span><span class="p">:</span>
-</span><span id="line-75"><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+</span><span id="line-75"><span class="w">    </span><span class="sd">"""</span>
 </span><span id="line-76"><span class="sd">    Axial discretization of the borehole.</span>
 </span><span id="line-77">
 </span><span id="line-78"><span class="sd">    Attributes</span>
 </span><span id="line-79"><span class="sd">    ----------</span>
 </span><span id="line-80"><span class="sd">    m_mesh : int</span>
 </span><span id="line-81"><span class="sd">        Number of axial mesh elements along the borehole.</span>
-</span><span id="line-82"><span class="sd">    &quot;&quot;&quot;</span>
+</span><span id="line-82"><span class="sd">    """</span>
 </span><span id="line-83">
 </span><span id="line-84">    <span class="n">m_mesh</span><span class="p">:</span> <span class="nb">int</span>
 </span><span id="line-85">
 </span><span id="line-86">    <span class="k">def</span><span class="w"> </span><span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 </span><span id="line-87">        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">m_mesh</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
-</span><span id="line-88">            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Invalid axial mesh, m_mesh must be &gt; 0&quot;</span><span class="p">)</span></div>
+</span><span id="line-88">            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"Invalid axial mesh, m_mesh must be &gt; 0"</span><span class="p">)</span></div>
 
 </span><span id="line-89">
 </span><span id="line-90">
@@ -258,7 +258,7 @@
 <a class="viewcode-back" href="../../../carm.properties.html#carm.BoreholeThermalProperties">[docs]</a>
 </span><span id="line-91"><span class="nd">@dataclass</span>
 </span><span id="line-92"><span class="k">class</span><span class="w"> </span><span class="nc">BoreholeThermalProperties</span><span class="p">:</span>
-</span><span id="line-93"><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+</span><span id="line-93"><span class="w">    </span><span class="sd">"""</span>
 </span><span id="line-94"><span class="sd">    Thermal properties of the borehole filling material (grout).</span>
 </span><span id="line-95"><span class="sd">    The user must define whether he wants to define equivalent properties</span>
 </span><span id="line-96"><span class="sd">    or grout stratification.</span>
@@ -277,9 +277,9 @@
 </span><span id="line-109"><span class="sd">        Stratification is set as None by default.</span>
 </span><span id="line-110"><span class="sd">    soil_type: str</span>
 </span><span id="line-111"><span class="sd">        Soil type string. This is set as None by default. If accounting for</span>
-</span><span id="line-112"><span class="sd">        time variable properties, it must be set as &#39;sand&#39;, &#39;loam&#39;, or &#39;clay&#39; </span>
+</span><span id="line-112"><span class="sd">        time variable properties, it must be set as 'sand', 'loam', or 'clay' </span>
 </span><span id="line-113"><span class="sd">        and the correct properties must be given as input.</span>
-</span><span id="line-114"><span class="sd">    &quot;&quot;&quot;</span>
+</span><span id="line-114"><span class="sd">    """</span>
 </span><span id="line-115">    <span class="n">cp_0</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>  <span class="c1"># J/kgK</span>
 </span><span id="line-116">    <span class="n">rho_0</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>  <span class="c1"># kg/m3</span>
 </span><span id="line-117">    <span class="n">k0</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>  <span class="c1"># W/mK</span>
@@ -291,30 +291,30 @@
 </span><span id="line-123">            <span class="bp">self</span><span class="o">.</span><span class="n">cp_0</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">rho_0</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">k0</span> <span class="ow">is</span> <span class="kc">None</span>
 </span><span id="line-124">        <span class="p">):</span>
 </span><span id="line-125">            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-</span><span id="line-126">                <span class="s2">&quot;Define grout stratification or single equivalent properties&quot;</span>
+</span><span id="line-126">                <span class="s2">"Define grout stratification or single equivalent properties"</span>
 </span><span id="line-127">            <span class="p">)</span>
 </span><span id="line-128">
 </span><span id="line-129">        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">stratification</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="p">(</span>
 </span><span id="line-130">            <span class="bp">self</span><span class="o">.</span><span class="n">cp_0</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">rho_0</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">k0</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
 </span><span id="line-131">        <span class="p">):</span>
 </span><span id="line-132">            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-</span><span id="line-133">                <span class="s2">&quot;Choose to define only stratification or single equivalent properties.&quot;</span>
+</span><span id="line-133">                <span class="s2">"Choose to define only stratification or single equivalent properties."</span>
 </span><span id="line-134">            <span class="p">)</span>
 </span><span id="line-135">
 </span><span id="line-136">        <span class="k">if</span> <span class="p">(</span>
 </span><span id="line-137">            <span class="bp">self</span><span class="o">.</span><span class="n">cp_0</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">rho_0</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">k0</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
 </span><span id="line-138">        <span class="p">)</span> <span class="ow">and</span> <span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">cp_0</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">)</span> <span class="ow">or</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rho_0</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">)</span> <span class="ow">or</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">k0</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">)):</span>
 </span><span id="line-139">            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-</span><span id="line-140">                <span class="s2">&quot;Invalid borehole properties, cp_0, rho_0, and k0 must be &gt; 0&quot;</span>
+</span><span id="line-140">                <span class="s2">"Invalid borehole properties, cp_0, rho_0, and k0 must be &gt; 0"</span>
 </span><span id="line-141">            <span class="p">)</span>
 </span><span id="line-142">        
 </span><span id="line-143">        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">stratification</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">all</span><span class="p">(</span><span class="nb">min</span><span class="p">(</span><span class="n">layer</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">for</span> <span class="n">layer</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">stratification</span><span class="p">):</span>
-</span><span id="line-144">            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Invalid borehole properties, k0, cp_0, rho_0, and thicnkess must be &gt; 0.&quot;</span><span class="p">)</span>
+</span><span id="line-144">            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"Invalid borehole properties, k0, cp_0, rho_0, and thicnkess must be &gt; 0."</span><span class="p">)</span>
 </span><span id="line-145">        
 </span><span id="line-146">        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">soil_type</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
 </span><span id="line-147">            <span class="bp">self</span><span class="o">.</span><span class="n">soil_type</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">soil_type</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
-</span><span id="line-148">            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">soil_type</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">{</span><span class="s2">&quot;sand&quot;</span><span class="p">,</span> <span class="s2">&quot;loam&quot;</span><span class="p">,</span> <span class="s2">&quot;clay&quot;</span><span class="p">}:</span>
-</span><span id="line-149">                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;If soil_type is not None it must be set as &#39;sand&#39;, &#39;loam&#39;, or &#39;clay&#39;.&quot;</span><span class="p">)</span></div>
+</span><span id="line-148">            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">soil_type</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">{</span><span class="s2">"sand"</span><span class="p">,</span> <span class="s2">"loam"</span><span class="p">,</span> <span class="s2">"clay"</span><span class="p">}:</span>
+</span><span id="line-149">                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"If soil_type is not None it must be set as 'sand', 'loam', or 'clay'."</span><span class="p">)</span></div>
 
 </span><span id="line-150">
 </span><span id="line-151">
@@ -322,7 +322,7 @@
 <div class="viewcode-block" id="BoreholeProperties">
 <a class="viewcode-back" href="../../../carm.properties.html#carm.BoreholeProperties">[docs]</a>
 </span><span id="line-153"><span class="k">class</span><span class="w"> </span><span class="nc">BoreholeProperties</span><span class="p">:</span>
-</span><span id="line-154"><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+</span><span id="line-154"><span class="w">    </span><span class="sd">"""</span>
 </span><span id="line-155"><span class="sd">    Base class for all BHE configurations.</span>
 </span><span id="line-156">
 </span><span id="line-157"><span class="sd">    Assembles geometry, mesh, thermal properties, and fluid into a single</span>
@@ -353,7 +353,7 @@
 </span><span id="line-182"><span class="sd">        Density array, shape (m_mesh, 1) [kg/m³].</span>
 </span><span id="line-183"><span class="sd">    k0 : NDArray</span>
 </span><span id="line-184"><span class="sd">        Thermal conductivity array, shape (m_mesh, 1) [W / (m K)].</span>
-</span><span id="line-185"><span class="sd">    &quot;&quot;&quot;</span>
+</span><span id="line-185"><span class="sd">    """</span>
 </span><span id="line-186">
 </span><span id="line-187">    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
 </span><span id="line-188">        <span class="bp">self</span><span class="p">,</span>
@@ -365,10 +365,10 @@
 </span><span id="line-194">    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 </span><span id="line-195">
 </span><span id="line-196">        <span class="bp">self</span><span class="o">.</span><span class="n">configuration</span> <span class="o">=</span> <span class="p">{</span>
-</span><span id="line-197">            <span class="mi">1</span><span class="p">:</span> <span class="s2">&quot;single U-tube&quot;</span><span class="p">,</span>
-</span><span id="line-198">            <span class="mi">2</span><span class="p">:</span> <span class="s2">&quot;double U-tube&quot;</span><span class="p">,</span>
-</span><span id="line-199">            <span class="mi">3</span><span class="p">:</span> <span class="s2">&quot;coaxial pipes&quot;</span><span class="p">,</span>
-</span><span id="line-200">            <span class="mi">4</span><span class="p">:</span> <span class="s2">&quot;helical pipes&quot;</span><span class="p">,</span>
+</span><span id="line-197">            <span class="mi">1</span><span class="p">:</span> <span class="s2">"single U-tube"</span><span class="p">,</span>
+</span><span id="line-198">            <span class="mi">2</span><span class="p">:</span> <span class="s2">"double U-tube"</span><span class="p">,</span>
+</span><span id="line-199">            <span class="mi">3</span><span class="p">:</span> <span class="s2">"coaxial pipes"</span><span class="p">,</span>
+</span><span id="line-200">            <span class="mi">4</span><span class="p">:</span> <span class="s2">"helical pipes"</span><span class="p">,</span>
 </span><span id="line-201">        <span class="p">}</span>
 </span><span id="line-202">        <span class="bp">self</span><span class="o">.</span><span class="n">geom</span> <span class="o">=</span> <span class="n">geom</span>
 </span><span id="line-203">        <span class="bp">self</span><span class="o">.</span><span class="n">mesh</span> <span class="o">=</span> <span class="n">mesh</span>
@@ -407,7 +407,7 @@
 </span><span id="line-236">        <span class="n">tol</span> <span class="o">=</span> <span class="mf">1e-6</span>
 </span><span id="line-237">        <span class="k">if</span> <span class="nb">abs</span><span class="p">((</span><span class="nb">sum</span><span class="p">(</span><span class="n">Ls</span> <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">Ls</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">thermalprops</span><span class="o">.</span><span class="n">stratification</span><span class="p">)</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">dz_tot</span><span class="p">)))</span> <span class="o">&gt;</span> <span class="n">tol</span><span class="p">:</span>
 </span><span id="line-238">            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-</span><span id="line-239">                <span class="s2">&quot;Length of stratifications must match the total length of discretization&quot;</span>
+</span><span id="line-239">                <span class="s2">"Length of stratifications must match the total length of discretization"</span>
 </span><span id="line-240">            <span class="p">)</span>
 </span><span id="line-241">
 </span><span id="line-242">        <span class="n">n_cells</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">m_mesh</span>
@@ -459,7 +459,7 @@
 </span><span id="line-288">                <span class="k">if</span> <span class="n">k0</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span> <span class="o">&lt;=</span> <span class="mi">0</span> <span class="ow">or</span> <span class="n">cp_0</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span> <span class="o">&lt;=</span> <span class="mi">0</span> <span class="ow">or</span> <span class="n">rho_0</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span> <span class="o">&lt;=</span> <span class="mi">0</span>
 </span><span id="line-289">            <span class="p">]</span>
 </span><span id="line-290">            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-</span><span id="line-291">                <span class="sa">f</span><span class="s2">&quot;Unfilled/invalid cell properties at indices (idx,k,cp,rho): </span><span class="si">{</span><span class="n">bad</span><span class="p">[:</span><span class="mi">10</span><span class="p">]</span><span class="si">}</span><span class="s2"> ...&quot;</span>
+</span><span id="line-291">                <span class="sa">f</span><span class="s2">"Unfilled/invalid cell properties at indices (idx,k,cp,rho): </span><span class="si">{</span><span class="n">bad</span><span class="p">[:</span><span class="mi">10</span><span class="p">]</span><span class="si">}</span><span class="s2"> ..."</span>
 </span><span id="line-292">            <span class="p">)</span>
 </span><span id="line-293">
 </span><span id="line-294">        <span class="n">k0</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">k0</span><span class="p">)[:,</span> <span class="kc">None</span><span class="p">]</span>
@@ -473,7 +473,7 @@
 <div class="viewcode-block" id="Utube">
 <a class="viewcode-back" href="../../../carm.properties.html#carm.Utube">[docs]</a>
 </span><span id="line-301"><span class="k">class</span><span class="w"> </span><span class="nc">Utube</span><span class="p">(</span><span class="n">BoreholeProperties</span><span class="p">):</span>
-</span><span id="line-302"><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+</span><span id="line-302"><span class="w">    </span><span class="sd">"""</span>
 </span><span id="line-303"><span class="sd">    Base class for U-tube BHE configurations (single and double).</span>
 </span><span id="line-304">
 </span><span id="line-305"><span class="sd">    Extends ``BoreholeProperties`` with pipe geometry, grout cross-sectional</span>
@@ -503,7 +503,7 @@
 </span><span id="line-329"><span class="sd">        Axial thermal resistance of the shell, shape (m_mesh, 1) [K/W].</span>
 </span><span id="line-330"><span class="sd">    R_axial_core : NDArray</span>
 </span><span id="line-331"><span class="sd">        Axial thermal resistance of the core, shape (m_mesh, 1) [K/W].</span>
-</span><span id="line-332"><span class="sd">    &quot;&quot;&quot;</span>
+</span><span id="line-332"><span class="sd">    """</span>
 </span><span id="line-333">
 </span><span id="line-334">    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
 </span><span id="line-335">        <span class="bp">self</span><span class="p">,</span>
@@ -526,7 +526,7 @@
 </span><span id="line-352">        <span class="p">)</span>
 </span><span id="line-353">
 </span><span id="line-354">        <span class="k">if</span> <span class="n">n_pipes</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">4</span><span class="p">):</span>
-</span><span id="line-355">            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Invalid number of pipes, n_pipes must be = 2 | 4&quot;</span><span class="p">)</span>
+</span><span id="line-355">            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"Invalid number of pipes, n_pipes must be = 2 | 4"</span><span class="p">)</span>
 </span><span id="line-356">
 </span><span id="line-357">        <span class="bp">self</span><span class="o">.</span><span class="n">pipe_thick</span> <span class="o">=</span> <span class="n">pipe_thick</span>
 </span><span id="line-358">        <span class="bp">self</span><span class="o">.</span><span class="n">pipe_spacing</span> <span class="o">=</span> <span class="n">pipe_spacing</span>
@@ -585,7 +585,7 @@
 </span><span id="line-411">            <span class="n">angleB</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">-</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">angleA</span>
 </span><span id="line-412">        <span class="k">else</span><span class="p">:</span>
 </span><span id="line-413">            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-</span><span id="line-414">                <span class="s2">&quot;Spacing between pipes must be &gt;= (pipe diameter/2 + pipe thickness)&quot;</span>
+</span><span id="line-414">                <span class="s2">"Spacing between pipes must be &gt;= (pipe diameter/2 + pipe thickness)"</span>
 </span><span id="line-415">            <span class="p">)</span>
 </span><span id="line-416">
 </span><span id="line-417">        <span class="bp">self</span><span class="o">.</span><span class="n">S_core</span> <span class="o">=</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pipe_spacing</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span> <span class="o">/</span> <span class="mi">4</span><span class="p">)</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_pipes</span> <span class="o">*</span> <span class="p">(</span>
@@ -614,7 +614,7 @@
 <div class="viewcode-block" id="SingleUtube">
 <a class="viewcode-back" href="../../../carm.properties.html#carm.SingleUtube">[docs]</a>
 </span><span id="line-439"><span class="k">class</span><span class="w"> </span><span class="nc">SingleUtube</span><span class="p">(</span><span class="n">Utube</span><span class="p">):</span>
-</span><span id="line-440"><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+</span><span id="line-440"><span class="w">    </span><span class="sd">"""</span>
 </span><span id="line-441"><span class="sd">    Single U-tube BHE configuration (2 pipes).</span>
 </span><span id="line-442">
 </span><span id="line-443"><span class="sd">    Extends ``Utube`` with pipe-to-grout and grout-to-ground resistances</span>
@@ -632,7 +632,7 @@
 </span><span id="line-455"><span class="sd">        ``Rp0`` normalized by ``dz`` [K/W].</span>
 </span><span id="line-456"><span class="sd">    RppB_dz : float</span>
 </span><span id="line-457"><span class="sd">        ``RppB`` normalized by ``dz`` [K/W].</span>
-</span><span id="line-458"><span class="sd">    &quot;&quot;&quot;</span>
+</span><span id="line-458"><span class="sd">    """</span>
 </span><span id="line-459">
 </span><span id="line-460">    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
 </span><span id="line-461">        <span class="bp">self</span><span class="p">,</span>
@@ -661,7 +661,7 @@
 </span><span id="line-484">        <span class="p">)</span>
 </span><span id="line-485">
 </span><span id="line-486">        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_pipes</span> <span class="o">!=</span> <span class="mi">2</span><span class="p">:</span>
-</span><span id="line-487">            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Single Utube configuration requires 2 pipes&quot;</span><span class="p">)</span>
+</span><span id="line-487">            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"Single Utube configuration requires 2 pipes"</span><span class="p">)</span>
 </span><span id="line-488">
 </span><span id="line-489">        <span class="bp">self</span><span class="o">.</span><span class="n">Rp0</span> <span class="o">=</span> <span class="n">Rp0</span>
 </span><span id="line-490">        <span class="bp">self</span><span class="o">.</span><span class="n">RppB</span> <span class="o">=</span> <span class="n">RppB</span>
@@ -677,7 +677,7 @@
 <div class="viewcode-block" id="SingleUtube.crossing_time_calculation">
 <a class="viewcode-back" href="../../../carm.properties.html#carm.SingleUtube.crossing_time_calculation">[docs]</a>
 </span><span id="line-500">    <span class="k">def</span><span class="w"> </span><span class="nf">crossing_time_calculation</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mw_tot</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">NDArray</span><span class="p">:</span>
-</span><span id="line-501"><span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+</span><span id="line-501"><span class="w">        </span><span class="sd">"""</span>
 </span><span id="line-502"><span class="sd">        Compute the fluid transit time through the U-tube.</span>
 </span><span id="line-503">
 </span><span id="line-504"><span class="sd">        Parameters</span>
@@ -694,7 +694,7 @@
 </span><span id="line-515"><span class="sd">        --------</span>
 </span><span id="line-516"><span class="sd">        &gt;&gt;&gt; mw_tot = np.full(n_steps, 2)</span>
 </span><span id="line-517"><span class="sd">        &gt;&gt;&gt; t = bhe.crossing_time_calculation(mw_tot=mw_tot)</span>
-</span><span id="line-518"><span class="sd">        &quot;&quot;&quot;</span>
+</span><span id="line-518"><span class="sd">        """</span>
 </span><span id="line-519">        <span class="n">mw</span> <span class="o">=</span> <span class="n">mw_tot</span>
 </span><span id="line-520">        <span class="n">v_w</span> <span class="o">=</span> <span class="n">mw</span> <span class="o">/</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">fluid</span><span class="o">.</span><span class="n">rho_w</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">Dpi</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span> <span class="o">/</span> <span class="mi">4</span><span class="p">))</span>
 </span><span id="line-521">        <span class="n">crossing_time</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">Lbore</span> <span class="o">/</span> <span class="n">v_w</span>
@@ -737,7 +737,7 @@
 <div class="viewcode-block" id="DoubleUtube">
 <a class="viewcode-back" href="../../../carm.properties.html#carm.DoubleUtube">[docs]</a>
 </span><span id="line-556"><span class="k">class</span><span class="w"> </span><span class="nc">DoubleUtube</span><span class="p">(</span><span class="n">Utube</span><span class="p">):</span>
-</span><span id="line-557"><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+</span><span id="line-557"><span class="w">    </span><span class="sd">"""</span>
 </span><span id="line-558"><span class="sd">    Double U-tube BHE configuration (4 pipes).</span>
 </span><span id="line-559">
 </span><span id="line-560"><span class="sd">    Extends ``Utube`` with an additional pipe-to-pipe resistance and</span>
@@ -746,7 +746,7 @@
 </span><span id="line-563"><span class="sd">    Attributes</span>
 </span><span id="line-564"><span class="sd">    ----------</span>
 </span><span id="line-565"><span class="sd">    connection : str</span>
-</span><span id="line-566"><span class="sd">        Pipe connection mode: ``&#39;S&#39;`` for series, ``&#39;P&#39;`` for parallel.</span>
+</span><span id="line-566"><span class="sd">        Pipe connection mode: ``'S'`` for series, ``'P'`` for parallel.</span>
 </span><span id="line-567"><span class="sd">    Rp0 : float</span>
 </span><span id="line-568"><span class="sd">        Pipe-to-grout thermal resistance [K m / W].</span>
 </span><span id="line-569"><span class="sd">    RppB : float</span>
@@ -761,7 +761,7 @@
 </span><span id="line-578"><span class="sd">        ``RppB`` normalized by ``dz`` [K/W].</span>
 </span><span id="line-579"><span class="sd">    RppA_dz : float</span>
 </span><span id="line-580"><span class="sd">        ``RppA`` normalized by ``dz`` [K/W].</span>
-</span><span id="line-581"><span class="sd">    &quot;&quot;&quot;</span>
+</span><span id="line-581"><span class="sd">    """</span>
 </span><span id="line-582">
 </span><span id="line-583">    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
 </span><span id="line-584">        <span class="bp">self</span><span class="p">,</span>
@@ -792,11 +792,11 @@
 </span><span id="line-609">        <span class="p">)</span>
 </span><span id="line-610">
 </span><span id="line-611">        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_pipes</span> <span class="o">!=</span> <span class="mi">4</span><span class="p">:</span>
-</span><span id="line-612">            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Double Utubes configuration requires 4 pipes&quot;</span><span class="p">)</span>
+</span><span id="line-612">            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"Double Utubes configuration requires 4 pipes"</span><span class="p">)</span>
 </span><span id="line-613">
-</span><span id="line-614">        <span class="k">if</span> <span class="n">connection</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;S&quot;</span><span class="p">,</span> <span class="s2">&quot;s&quot;</span><span class="p">,</span> <span class="s2">&quot;P&quot;</span><span class="p">,</span> <span class="s2">&quot;p&quot;</span><span class="p">):</span>
+</span><span id="line-614">        <span class="k">if</span> <span class="n">connection</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">"S"</span><span class="p">,</span> <span class="s2">"s"</span><span class="p">,</span> <span class="s2">"P"</span><span class="p">,</span> <span class="s2">"p"</span><span class="p">):</span>
 </span><span id="line-615">            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-</span><span id="line-616">                <span class="s2">&quot;Connection value must be S or s for series connection, P or p for parallel connection&quot;</span>
+</span><span id="line-616">                <span class="s2">"Connection value must be S or s for series connection, P or p for parallel connection"</span>
 </span><span id="line-617">            <span class="p">)</span>
 </span><span id="line-618">
 </span><span id="line-619">        <span class="bp">self</span><span class="o">.</span><span class="n">connection</span> <span class="o">=</span> <span class="n">connection</span>
@@ -815,7 +815,7 @@
 <div class="viewcode-block" id="DoubleUtube.crossing_time_calculation">
 <a class="viewcode-back" href="../../../carm.properties.html#carm.DoubleUtube.crossing_time_calculation">[docs]</a>
 </span><span id="line-632">    <span class="k">def</span><span class="w"> </span><span class="nf">crossing_time_calculation</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mw_tot</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">NDArray</span><span class="p">:</span>
-</span><span id="line-633"><span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+</span><span id="line-633"><span class="w">        </span><span class="sd">"""</span>
 </span><span id="line-634"><span class="sd">        Compute the fluid transit time through the double U-tube.</span>
 </span><span id="line-635">
 </span><span id="line-636"><span class="sd">        Accounts for series (full flow in each pipe) vs. parallel</span>
@@ -830,9 +830,9 @@
 </span><span id="line-645"><span class="sd">        -------</span>
 </span><span id="line-646"><span class="sd">        NDArray</span>
 </span><span id="line-647"><span class="sd">            Fluid transit time [s].</span>
-</span><span id="line-648"><span class="sd">        &quot;&quot;&quot;</span>
+</span><span id="line-648"><span class="sd">        """</span>
 </span><span id="line-649">
-</span><span id="line-650">        <span class="k">if</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">connection</span> <span class="o">==</span> <span class="s2">&quot;S&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">connection</span> <span class="o">==</span> <span class="s2">&quot;s&quot;</span><span class="p">):</span>
+</span><span id="line-650">        <span class="k">if</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">connection</span> <span class="o">==</span> <span class="s2">"S"</span><span class="p">)</span> <span class="ow">or</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">connection</span> <span class="o">==</span> <span class="s2">"s"</span><span class="p">):</span>
 </span><span id="line-651">            <span class="n">mw</span> <span class="o">=</span> <span class="n">mw_tot</span>
 </span><span id="line-652">            <span class="n">v_w</span> <span class="o">=</span> <span class="n">mw</span> <span class="o">/</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">fluid</span><span class="o">.</span><span class="n">rho_w</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">Dpi</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span> <span class="o">/</span> <span class="mi">4</span><span class="p">))</span>
 </span><span id="line-653">            <span class="n">crossing_time</span> <span class="o">=</span> <span class="mi">4</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">Lbore</span> <span class="o">/</span> <span class="n">v_w</span>
@@ -846,7 +846,7 @@
 </span><span id="line-660">
 </span><span id="line-661">    <span class="k">def</span><span class="w"> </span><span class="nf">_alpha_calculation</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mw_tot</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
 </span><span id="line-662">
-</span><span id="line-663">        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">connection</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;P&quot;</span><span class="p">,</span> <span class="s2">&quot;p&quot;</span><span class="p">):</span>
+</span><span id="line-663">        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">connection</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">"P"</span><span class="p">,</span> <span class="s2">"p"</span><span class="p">):</span>
 </span><span id="line-664">            <span class="n">mw</span> <span class="o">=</span> <span class="n">mw_tot</span> <span class="o">/</span> <span class="mi">2</span>
 </span><span id="line-665">        <span class="k">else</span><span class="p">:</span>
 </span><span id="line-666">            <span class="n">mw</span> <span class="o">=</span> <span class="n">mw_tot</span>
@@ -884,7 +884,7 @@
 <div class="viewcode-block" id="Coaxial">
 <a class="viewcode-back" href="../../../carm.properties.html#carm.Coaxial">[docs]</a>
 </span><span id="line-697"><span class="k">class</span><span class="w"> </span><span class="nc">Coaxial</span><span class="p">(</span><span class="n">BoreholeProperties</span><span class="p">):</span>
-</span><span id="line-698"><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+</span><span id="line-698"><span class="w">    </span><span class="sd">"""</span>
 </span><span id="line-699"><span class="sd">    Coaxial pipe BHE configuration.</span>
 </span><span id="line-700">
 </span><span id="line-701"><span class="sd">    Two concentric pipes: inner pipe (1) and annular outer pipe (2).</span>
@@ -905,7 +905,7 @@
 </span><span id="line-716"><span class="sd">    k_pipe2 : float</span>
 </span><span id="line-717"><span class="sd">        Thermal conductivity of the pipe 2 material [W / (m K)].</span>
 </span><span id="line-718"><span class="sd">    supply_and_return : str</span>
-</span><span id="line-719"><span class="sd">        Flow direction: ``&#39;1_2&#39;`` (supply in pipe 1) or ``&#39;2_1&#39;`` (supply in pipe 2).</span>
+</span><span id="line-719"><span class="sd">        Flow direction: ``'1_2'`` (supply in pipe 1) or ``'2_1'`` (supply in pipe 2).</span>
 </span><span id="line-720"><span class="sd">    n_equations : int</span>
 </span><span id="line-721"><span class="sd">        Number of nodal equations in the discretized system (5).</span>
 </span><span id="line-722"><span class="sd">    De : float</span>
@@ -930,7 +930,7 @@
 </span><span id="line-741"><span class="sd">        Thermal capacitance of the fluid in pipe 1 [J/K].</span>
 </span><span id="line-742"><span class="sd">    C_fluid2 : float</span>
 </span><span id="line-743"><span class="sd">        Thermal capacitance of the fluid in the annulus [J/K].</span>
-</span><span id="line-744"><span class="sd">    &quot;&quot;&quot;</span>
+</span><span id="line-744"><span class="sd">    """</span>
 </span><span id="line-745">
 </span><span id="line-746">    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
 </span><span id="line-747">        <span class="bp">self</span><span class="p">,</span>
@@ -955,26 +955,26 @@
 </span><span id="line-766">            <span class="n">fluid</span><span class="o">=</span><span class="n">fluid</span><span class="p">,</span>
 </span><span id="line-767">        <span class="p">)</span>
 </span><span id="line-768">
-</span><span id="line-769">        <span class="n">allowed_supply_and_return</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;1_2&quot;</span><span class="p">,</span> <span class="s2">&quot;2_1&quot;</span><span class="p">}</span>
+</span><span id="line-769">        <span class="n">allowed_supply_and_return</span> <span class="o">=</span> <span class="p">{</span><span class="s2">"1_2"</span><span class="p">,</span> <span class="s2">"2_1"</span><span class="p">}</span>
 </span><span id="line-770">
 </span><span id="line-771">        <span class="k">if</span> <span class="n">supply_and_return</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">allowed_supply_and_return</span><span class="p">:</span>
-</span><span id="line-772">            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;supply and return must be 1_2 or 2_1 type&quot;</span><span class="p">)</span>
+</span><span id="line-772">            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"supply and return must be 1_2 or 2_1 type"</span><span class="p">)</span>
 </span><span id="line-773">        <span class="k">if</span> <span class="p">(</span><span class="n">pipe1_thick</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">)</span> <span class="ow">or</span> <span class="p">(</span><span class="n">pipe2_thick</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">):</span>
 </span><span id="line-774">            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-</span><span id="line-775">                <span class="s2">&quot;Invalid pipe thicknesses, check pipe2_thick and pipe2_thick values&quot;</span>
+</span><span id="line-775">                <span class="s2">"Invalid pipe thicknesses, check pipe2_thick and pipe2_thick values"</span>
 </span><span id="line-776">            <span class="p">)</span>
 </span><span id="line-777">        <span class="k">if</span> <span class="p">(</span><span class="n">pipe1_thick</span> <span class="o">&gt;=</span> <span class="n">Dp1i</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)</span> <span class="ow">or</span> <span class="p">(</span><span class="n">pipe2_thick</span> <span class="o">&gt;=</span> <span class="n">Dp2i</span> <span class="o">/</span> <span class="mi">2</span><span class="p">):</span>
 </span><span id="line-778">            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-</span><span id="line-779">                <span class="s2">&quot;pipe1_thick must be &gt;= Dp1i/2 and pipe2_thick must be &gt;= Dp2i/2&quot;</span>
+</span><span id="line-779">                <span class="s2">"pipe1_thick must be &gt;= Dp1i/2 and pipe2_thick must be &gt;= Dp2i/2"</span>
 </span><span id="line-780">            <span class="p">)</span>
 </span><span id="line-781">        <span class="k">if</span> <span class="p">(</span><span class="n">Dp1i</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">)</span> <span class="ow">or</span> <span class="p">(</span><span class="n">Dp2i</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">)</span> <span class="ow">or</span> <span class="p">(</span><span class="n">Dp2i</span> <span class="o">&lt;=</span> <span class="n">Dp1i</span> <span class="o">*</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">pipe1_thick</span><span class="p">):</span>
 </span><span id="line-782">            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-</span><span id="line-783">                <span class="s2">&quot;Invalid internal diameters, check Dp1i and Dp2i values. Dp2i &gt;= Dp1i+2*pipe1_thick&quot;</span>
+</span><span id="line-783">                <span class="s2">"Invalid internal diameters, check Dp1i and Dp2i values. Dp2i &gt;= Dp1i+2*pipe1_thick"</span>
 </span><span id="line-784">            <span class="p">)</span>
 </span><span id="line-785">        <span class="k">if</span> <span class="n">k_pipe1</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
-</span><span id="line-786">            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;k_pipe1 must be &gt; 0&quot;</span><span class="p">)</span>
+</span><span id="line-786">            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"k_pipe1 must be &gt; 0"</span><span class="p">)</span>
 </span><span id="line-787">        <span class="k">if</span> <span class="n">k_pipe2</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
-</span><span id="line-788">            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;k_pipe2 must be &gt; 0&quot;</span><span class="p">)</span>
+</span><span id="line-788">            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"k_pipe2 must be &gt; 0"</span><span class="p">)</span>
 </span><span id="line-789">
 </span><span id="line-790">        <span class="bp">self</span><span class="o">.</span><span class="n">supply_and_return</span> <span class="o">=</span> <span class="n">supply_and_return</span>
 </span><span id="line-791">        <span class="bp">self</span><span class="o">.</span><span class="n">k_pipe1</span> <span class="o">=</span> <span class="n">k_pipe1</span>
@@ -987,7 +987,7 @@
 </span><span id="line-798">        <span class="bp">self</span><span class="o">.</span><span class="n">id_shell</span> <span class="o">=</span> <span class="mi">0</span>
 </span><span id="line-799">        <span class="bp">self</span><span class="o">.</span><span class="n">id_core</span> <span class="o">=</span> <span class="kc">None</span>
 </span><span id="line-800">
-</span><span id="line-801">        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">supply_and_return</span> <span class="o">==</span> <span class="s2">&quot;1_2&quot;</span><span class="p">:</span>
+</span><span id="line-801">        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">supply_and_return</span> <span class="o">==</span> <span class="s2">"1_2"</span><span class="p">:</span>
 </span><span id="line-802">            <span class="bp">self</span><span class="o">.</span><span class="n">id_inlet</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_equations</span> <span class="o">-</span> <span class="mi">2</span>
 </span><span id="line-803">            <span class="bp">self</span><span class="o">.</span><span class="n">id_outlet</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_equations</span> <span class="o">-</span> <span class="mi">1</span>
 </span><span id="line-804">        <span class="k">else</span><span class="p">:</span>
@@ -1118,7 +1118,7 @@
 <div class="viewcode-block" id="Coaxial.crossing_time_calculation">
 <a class="viewcode-back" href="../../../carm.properties.html#carm.Coaxial.crossing_time_calculation">[docs]</a>
 </span><span id="line-929">    <span class="k">def</span><span class="w"> </span><span class="nf">crossing_time_calculation</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mw_tot</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">NDArray</span><span class="p">:</span>
-</span><span id="line-930"><span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+</span><span id="line-930"><span class="w">        </span><span class="sd">"""</span>
 </span><span id="line-931"><span class="sd">        Compute fluid transit times for both flow paths in the coaxial BHE.</span>
 </span><span id="line-932">
 </span><span id="line-933"><span class="sd">        Parameters</span>
@@ -1130,7 +1130,7 @@
 </span><span id="line-939"><span class="sd">        -------</span>
 </span><span id="line-940"><span class="sd">        crossing_time : NDArray</span>
 </span><span id="line-941"><span class="sd">            Transit time through pipes [s].</span>
-</span><span id="line-942"><span class="sd">        &quot;&quot;&quot;</span>
+</span><span id="line-942"><span class="sd">        """</span>
 </span><span id="line-943">        <span class="n">mw</span> <span class="o">=</span> <span class="n">mw_tot</span>
 </span><span id="line-944">        <span class="n">v_w1</span> <span class="o">=</span> <span class="n">mw</span> <span class="o">/</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">fluid</span><span class="o">.</span><span class="n">rho_w</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">Dp1i</span><span class="o">**</span><span class="mi">2</span> <span class="o">/</span> <span class="mi">4</span><span class="p">))</span>
 </span><span id="line-945">        <span class="n">crossing_time</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">Lbore</span> <span class="o">/</span> <span class="n">v_w1</span>
@@ -1149,7 +1149,7 @@
 <div class="viewcode-block" id="Helical">
 <a class="viewcode-back" href="../../../carm.properties.html#carm.Helical">[docs]</a>
 </span><span id="line-956"><span class="k">class</span><span class="w"> </span><span class="nc">Helical</span><span class="p">(</span><span class="n">BoreholeProperties</span><span class="p">):</span>
-</span><span id="line-957"><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+</span><span id="line-957"><span class="w">    </span><span class="sd">"""</span>
 </span><span id="line-958"><span class="sd">    Helical pipe BHE configuration.</span>
 </span><span id="line-959">
 </span><span id="line-960"><span class="sd">    A helical coil wound inside the borehole. The geometry is parameterized</span>
@@ -1170,7 +1170,7 @@
 </span><span id="line-975"><span class="sd">    P : float</span>
 </span><span id="line-976"><span class="sd">        Helix pitch [m].</span>
 </span><span id="line-977"><span class="sd">    supply_and_return : str</span>
-</span><span id="line-978"><span class="sd">        Flow direction: ``&#39;1_2&#39;`` (supply in pipe 1) or ``&#39;2_1&#39;`` (supply in pipe 2).</span>
+</span><span id="line-978"><span class="sd">        Flow direction: ``'1_2'`` (supply in pipe 1) or ``'2_1'`` (supply in pipe 2).</span>
 </span><span id="line-979"><span class="sd">    Lp2tot: float</span>
 </span><span id="line-980"><span class="sd">        Total length helical pipe [m].</span>
 </span><span id="line-981"><span class="sd">    k_pipe : float</span>
@@ -1193,7 +1193,7 @@
 </span><span id="line-998"><span class="sd">        Thermal capacitance of the supply fluid [J/K].</span>
 </span><span id="line-999"><span class="sd">    C_fluid2 : float</span>
 </span><span id="line-1000"><span class="sd">        Thermal capacitance of the return fluid [J/K].</span>
-</span><span id="line-1001"><span class="sd">    &quot;&quot;&quot;</span>
+</span><span id="line-1001"><span class="sd">    """</span>
 </span><span id="line-1002">
 </span><span id="line-1003">    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
 </span><span id="line-1004">        <span class="bp">self</span><span class="p">,</span>
@@ -1220,26 +1220,26 @@
 </span><span id="line-1025">            <span class="n">fluid</span><span class="o">=</span><span class="n">fluid</span><span class="p">,</span>
 </span><span id="line-1026">        <span class="p">)</span>
 </span><span id="line-1027">
-</span><span id="line-1028">        <span class="n">allowed_supply_and_return</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;1_2&quot;</span><span class="p">,</span> <span class="s2">&quot;2_1&quot;</span><span class="p">}</span>
+</span><span id="line-1028">        <span class="n">allowed_supply_and_return</span> <span class="o">=</span> <span class="p">{</span><span class="s2">"1_2"</span><span class="p">,</span> <span class="s2">"2_1"</span><span class="p">}</span>
 </span><span id="line-1029">
 </span><span id="line-1030">        <span class="k">if</span> <span class="n">supply_and_return</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">allowed_supply_and_return</span><span class="p">:</span>
-</span><span id="line-1031">            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;supply and return must be 1_2 or 2_1 type&quot;</span><span class="p">)</span>
+</span><span id="line-1031">            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"supply and return must be 1_2 or 2_1 type"</span><span class="p">)</span>
 </span><span id="line-1032">        <span class="k">if</span> <span class="n">Dpi1</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
-</span><span id="line-1033">            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Dp must be &gt; 0&quot;</span><span class="p">)</span>
+</span><span id="line-1033">            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"Dp must be &gt; 0"</span><span class="p">)</span>
 </span><span id="line-1034">        <span class="k">if</span> <span class="n">pipe_thick</span> <span class="o">&lt;=</span> <span class="mi">0</span> <span class="ow">or</span> <span class="n">pipe_thick</span> <span class="o">&gt;=</span> <span class="p">(</span><span class="n">Dpi1</span> <span class="o">/</span> <span class="mi">2</span><span class="p">):</span>
-</span><span id="line-1035">            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Invalid pipe thickness&quot;</span><span class="p">)</span>
+</span><span id="line-1035">            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"Invalid pipe thickness"</span><span class="p">)</span>
 </span><span id="line-1036">        <span class="k">if</span> <span class="n">rih</span> <span class="o">&lt;=</span> <span class="p">(</span><span class="n">Dpi1</span> <span class="o">/</span> <span class="mi">2</span><span class="p">):</span>
-</span><span id="line-1037">            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Invalid helical geometry: rih must be &gt; r1o&quot;</span><span class="p">)</span>
+</span><span id="line-1037">            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"Invalid helical geometry: rih must be &gt; r1o"</span><span class="p">)</span>
 </span><span id="line-1038">        <span class="k">if</span> <span class="p">(</span><span class="n">rih</span> <span class="o">+</span> <span class="n">Dpi2</span> <span class="o">+</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">pipe_thick</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">D0</span> <span class="o">/</span> <span class="mi">2</span><span class="p">:</span>
-</span><span id="line-1039">            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Invalid helical geometry: roh must be &lt; D0/2&quot;</span><span class="p">)</span>
+</span><span id="line-1039">            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"Invalid helical geometry: roh must be &lt; D0/2"</span><span class="p">)</span>
 </span><span id="line-1040">        <span class="k">if</span> <span class="n">Dpi2</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
-</span><span id="line-1041">            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Dp must be &gt; 0&quot;</span><span class="p">)</span>
+</span><span id="line-1041">            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"Dp must be &gt; 0"</span><span class="p">)</span>
 </span><span id="line-1042">        <span class="k">if</span> <span class="n">pipe_thick</span> <span class="o">&lt;=</span> <span class="mi">0</span> <span class="ow">or</span> <span class="n">pipe_thick</span> <span class="o">&gt;=</span> <span class="p">(</span><span class="n">Dpi2</span> <span class="o">/</span> <span class="mi">2</span><span class="p">):</span>
-</span><span id="line-1043">            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Invalid pipe thickness&quot;</span><span class="p">)</span>
+</span><span id="line-1043">            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"Invalid pipe thickness"</span><span class="p">)</span>
 </span><span id="line-1044">        <span class="k">if</span> <span class="nb">abs</span><span class="p">(</span><span class="n">N</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">Lbore</span> <span class="o">/</span> <span class="n">P</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mf">1e-6</span><span class="p">:</span>
-</span><span id="line-1045">            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;N, Lbore, and P must be consistent: N = Lbore / P&quot;</span><span class="p">)</span>
+</span><span id="line-1045">            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">r</span><span class="s2">"N, Lbore, and P must be consistent: N = Lbore / P"</span><span class="p">)</span>
 </span><span id="line-1046">        <span class="k">if</span> <span class="n">Lp2tot</span> <span class="o">&lt;=</span> <span class="mf">0.0</span><span class="p">:</span>
-</span><span id="line-1047">            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;Invalid Lp2tot: Lp2tot must be &gt; 0&quot;</span><span class="p">)</span>
+</span><span id="line-1047">            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">r</span><span class="s2">"Invalid Lp2tot: Lp2tot must be &gt; 0"</span><span class="p">)</span>
 </span><span id="line-1048">
 </span><span id="line-1049">        <span class="bp">self</span><span class="o">.</span><span class="n">Dpi1</span> <span class="o">=</span> <span class="n">Dpi1</span>
 </span><span id="line-1050">        <span class="bp">self</span><span class="o">.</span><span class="n">Dpi2</span> <span class="o">=</span> <span class="n">Dpi2</span>
@@ -1254,7 +1254,7 @@
 </span><span id="line-1059">        <span class="bp">self</span><span class="o">.</span><span class="n">id_shell</span> <span class="o">=</span> <span class="mi">0</span>
 </span><span id="line-1060">        <span class="bp">self</span><span class="o">.</span><span class="n">id_core</span> <span class="o">=</span> <span class="mi">1</span>
 </span><span id="line-1061">        <span class="bp">self</span><span class="o">.</span><span class="n">id_shell_middle</span> <span class="o">=</span> <span class="mi">2</span>
-</span><span id="line-1062">        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">supply_and_return</span> <span class="o">==</span> <span class="s2">&quot;1_2&quot;</span><span class="p">:</span>
+</span><span id="line-1062">        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">supply_and_return</span> <span class="o">==</span> <span class="s2">"1_2"</span><span class="p">:</span>
 </span><span id="line-1063">            <span class="bp">self</span><span class="o">.</span><span class="n">id_inlet</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_equations</span> <span class="o">-</span> <span class="mi">2</span>
 </span><span id="line-1064">            <span class="bp">self</span><span class="o">.</span><span class="n">id_outlet</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_equations</span> <span class="o">-</span> <span class="mi">1</span>
 </span><span id="line-1065">        <span class="k">else</span><span class="p">:</span>
@@ -1494,7 +1494,7 @@
 <div class="viewcode-block" id="Helical.crossing_time_calculation">
 <a class="viewcode-back" href="../../../carm.properties.html#carm.Helical.crossing_time_calculation">[docs]</a>
 </span><span id="line-1299">    <span class="k">def</span><span class="w"> </span><span class="nf">crossing_time_calculation</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mw_tot</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">NDArray</span><span class="p">:</span>
-</span><span id="line-1300"><span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+</span><span id="line-1300"><span class="w">        </span><span class="sd">"""</span>
 </span><span id="line-1301"><span class="sd">        Compute the fluid transit time through the helical pipe.</span>
 </span><span id="line-1302">
 </span><span id="line-1303"><span class="sd">        Parameters</span>
@@ -1506,7 +1506,7 @@
 </span><span id="line-1309"><span class="sd">        -------</span>
 </span><span id="line-1310"><span class="sd">        NDArray</span>
 </span><span id="line-1311"><span class="sd">            Fluid transit time [s].</span>
-</span><span id="line-1312"><span class="sd">        &quot;&quot;&quot;</span>
+</span><span id="line-1312"><span class="sd">        """</span>
 </span><span id="line-1313">        <span class="n">mw</span> <span class="o">=</span> <span class="n">mw_tot</span>
 </span><span id="line-1314">        <span class="n">v_w1</span> <span class="o">=</span> <span class="n">mw</span> <span class="o">/</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">fluid</span><span class="o">.</span><span class="n">rho_w</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">Dpi1</span><span class="o">**</span><span class="mi">2</span> <span class="o">/</span> <span class="mi">4</span><span class="p">))</span>
 </span><span id="line-1315">        <span class="n">crossing_time</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">Lbore</span> <span class="o">/</span> <span class="n">v_w1</span>

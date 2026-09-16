@@ -205,8 +205,8 @@ COP/EER/Picard block; it does not stop circulation.</p>
 </section>
 <section id="output">
 <h2>Output</h2>
-<p>When <code class="docutils literal notranslate"><span class="pre">heat_flux=True</span></code>, the following arrays are populated and saved by
-<code class="xref py py-meth docutils literal notranslate"><span class="pre">_save_results()</span></code>:</p>
+<p>When <code class="docutils literal notranslate"><span class="pre">heat_flux=True</span></code>, the following arrays are populated, and included in
+the <code class="docutils literal notranslate"><span class="pre">.npz</span></code> archive if <code class="docutils literal notranslate"><span class="pre">run(...,</span> <span class="pre">save_results=True)</span></code> is used:</p>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">COP</span></code>, <code class="docutils literal notranslate"><span class="pre">EER</span></code>: heat pump performance coefficients per timestep (<code class="docutils literal notranslate"><span class="pre">NaN</span></code>
 where the corresponding mode is not active).</p></li>

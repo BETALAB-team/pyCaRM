@@ -1520,10 +1520,12 @@ The sum of layer thicknesses must equal the total discretized length.</p>
 </section>
 <section id="module-carm.properties.soil_moisture">
 <span id="carm-properties-soil-moisture-module"></span><h2>carm.properties.soil_moisture module</h2>
-<p>Soil mositure module.</p>
+<p>Soil moisture module.</p>
 <p>Empirical equations are here implemented to account for water content
-in porous means. This module provides insights on borehole
-proprieties variability against water content.</p>
+in porous media. This module provides insights on borehole
+properties variability against water content, tracking a per-timestep
+water volume balance (irrigation input, drainage loss, evaporation loss)
+around the borehole.</p>
 <dl class="py class">
 <dt class="sig sig-object py" id="carm.properties.soil_moisture.SoilMoisture">
 <span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">carm.properties.soil_moisture.</span></span><span class="sig-name descname"><span class="pre">SoilMoisture</span></span><a class="reference internal" href="_modules/carm/properties/soil_moisture.html#SoilMoisture"><span class="viewcode-link"><span class="pre">[source]</span></span></a></dt>
@@ -1533,16 +1535,12 @@ proprieties variability against water content.</p>
 specific heat capacity, density) as a function of volumetric water content,
 using Chung-Horton (1987) for thermal conductivity, de Vries (1963) for
 volumetric heat capacity, and a mass-weighted average for density.</p>
-<dl class="py attribute">
-<dt class="sig sig-object py" id="carm.properties.soil_moisture.SoilMoisture.loss_factor">
-<span class="sig-name descname"><span class="pre">loss_factor</span></span></dt>
-<dd><p>Fraction of water volume lost by drainage at each timestep [-].</p>
-<dl class="field-list simple">
-<dt class="field-odd">Type<span class="colon">:</span></dt>
-<dd class="field-odd"><p>float</p>
-</dd>
-</dl>
-</dd></dl>
+<p>At each timestep, the water volume stored around the borehole is updated
+from a water balance: irrigation input increases it, while gravity
+drainage (Brooks-Corey, 1964, unsaturated hydraulic conductivity) and
+evaporation (driven by the exchanged thermal power) deplete it. The
+resulting volume is converted back to a volumetric water content and fed
+into the property correlations above.</p>
 <dl class="py attribute">
 <dt class="sig sig-object py" id="carm.properties.soil_moisture.SoilMoisture.w_rho">
 <span class="sig-name descname"><span class="pre">w_rho</span></span></dt>
@@ -1568,7 +1566,9 @@ volumetric heat capacity, and a mass-weighted average for density.</p>
 <span class="sig-name descname"><span class="pre">SOIL_PARAMS</span></span></dt>
 <dd><p>Tabulated parameters for sand, loam, and clay soil types.
 Each entry contains: b1, b2, b3 (Chung-Horton), theta_s, theta_r
-(Rawls et al.), xs (solid volume fraction), x0 (organic matter fraction).</p>
+(Rawls et al.), xs (solid volume fraction), x0 (organic matter
+fraction), lambda (Brooks-Corey pore-size distribution index),
+Ks (saturated hydraulic conductivity [m/s]).</p>
 <dl class="field-list simple">
 <dt class="field-odd">Type<span class="colon">:</span></dt>
 <dd class="field-odd"><p>dict</p>
@@ -1666,29 +1666,57 @@ Each entry contains: b1, b2, b3 (Chung-Horton), theta_s, theta_r
 </dl>
 </dd></dl>
 <dl class="py attribute">
-<dt class="sig sig-object py" id="carm.properties.soil_moisture.SoilMoisture.Wvol_prev">
-<span class="sig-name descname"><span class="pre">Wvol_prev</span></span></dt>
-<dd><p>Water volume at the previous timestep [m³].</p>
+<dt class="sig sig-object py" id="carm.properties.soil_moisture.SoilMoisture.lambda_loc">
+<span class="sig-name descname"><span class="pre">lambda_loc</span></span></dt>
+<dd><p>Brooks-Corey pore-size distribution index for the selected soil
+type [-]. Governs how steeply unsaturated hydraulic conductivity
+(and thus drainage loss) drops as water content decreases.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Type<span class="colon">:</span></dt>
 <dd class="field-odd"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="carm.properties.soil_moisture.SoilMoisture.Ks_loc">
+<span class="sig-name descname"><span class="pre">Ks_loc</span></span></dt>
+<dd><p>Saturated hydraulic conductivity for the selected soil type [m/s].</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="carm.properties.soil_moisture.SoilMoisture.Wvol_prev">
+<span class="sig-name descname"><span class="pre">Wvol_prev</span></span></dt>
+<dd><p>Water volume at the previous timestep [m³]. <code class="docutils literal notranslate"><span class="pre">None</span></code> before the
+first call to <code class="xref py py-meth docutils literal notranslate"><span class="pre">_properties_calculation()</span></code>, when it is
+initialized to the residual water volume (<code class="docutils literal notranslate"><span class="pre">theta_r_loc</span> <span class="pre">*</span> <span class="pre">V</span></code>).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float | None</p>
 </dd>
 </dl>
 </dd></dl>
 <dl class="py attribute">
 <dt class="sig sig-object py" id="carm.properties.soil_moisture.SoilMoisture.Wvol_r">
 <span class="sig-name descname"><span class="pre">Wvol_r</span></span></dt>
-<dd><p>Residual water volume at the current timestep [m³].</p>
+<dd><p>Water volume at the current timestep [m³], clipped between the
+residual (<code class="docutils literal notranslate"><span class="pre">theta_r_loc</span> <span class="pre">*</span> <span class="pre">V</span></code>) and saturated (<code class="docutils literal notranslate"><span class="pre">theta_s_loc</span> <span class="pre">*</span> <span class="pre">V</span></code>)
+volumes. <code class="docutils literal notranslate"><span class="pre">None</span></code> until the first call to
+<code class="xref py py-meth docutils literal notranslate"><span class="pre">_properties_calculation()</span></code>.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Type<span class="colon">:</span></dt>
-<dd class="field-odd"><p>float</p>
+<dd class="field-odd"><p>float | None</p>
 </dd>
 </dl>
 </dd></dl>
 <dl class="py attribute">
 <dt class="sig sig-object py" id="carm.properties.soil_moisture.SoilMoisture.Wvol_loss">
 <span class="sig-name descname"><span class="pre">Wvol_loss</span></span></dt>
-<dd><p>Water volume lost by drainage at the current timestep [m³].</p>
+<dd><p>Water volume lost by gravity drainage at the current timestep [m³],
+computed from the Brooks-Corey unsaturated hydraulic conductivity.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Type<span class="colon">:</span></dt>
 <dd class="field-odd"><p>float</p>
@@ -1717,19 +1745,15 @@ Each entry contains: b1, b2, b3 (Chung-Horton), theta_s, theta_r
 </dd></dl>
 <dl class="py attribute">
 <dt class="sig sig-object py" id="id21">
-<span class="sig-name descname"><span class="pre">loss_factor</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0.1</span></span></dt>
-<dd></dd></dl>
-<dl class="py attribute">
-<dt class="sig sig-object py" id="id22">
 <span class="sig-name descname"><span class="pre">w_rho</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">1000.0</span></span></dt>
 <dd></dd></dl>
 <dl class="py attribute">
-<dt class="sig sig-object py" id="id23">
+<dt class="sig sig-object py" id="id22">
 <span class="sig-name descname"><span class="pre">w_latent</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">2250000.0</span></span></dt>
 <dd></dd></dl>
 <dl class="py attribute">
-<dt class="sig sig-object py" id="id24">
-<span class="sig-name descname"><span class="pre">SOIL_PARAMS</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{'clay':</span> <span class="pre">{'b1':</span> <span class="pre">-0.197,</span> <span class="pre">'b2':</span> <span class="pre">-0.962,</span> <span class="pre">'b3':</span> <span class="pre">2.521,</span> <span class="pre">'theta_r':</span> <span class="pre">0.09,</span> <span class="pre">'theta_s':</span> <span class="pre">0.385,</span> <span class="pre">'x0':</span> <span class="pre">0.024,</span> <span class="pre">'xs':</span> <span class="pre">0.591},</span> <span class="pre">'loam':</span> <span class="pre">{'b1':</span> <span class="pre">0.243,</span> <span class="pre">'b2':</span> <span class="pre">0.393,</span> <span class="pre">'b3':</span> <span class="pre">1.534,</span> <span class="pre">'theta_r':</span> <span class="pre">0.027,</span> <span class="pre">'theta_s':</span> <span class="pre">0.434,</span> <span class="pre">'x0':</span> <span class="pre">0.018,</span> <span class="pre">'xs':</span> <span class="pre">0.548},</span> <span class="pre">'sand':</span> <span class="pre">{'b1':</span> <span class="pre">0.228,</span> <span class="pre">'b2':</span> <span class="pre">-2.406,</span> <span class="pre">'b3':</span> <span class="pre">4.909,</span> <span class="pre">'theta_r':</span> <span class="pre">0.02,</span> <span class="pre">'theta_s':</span> <span class="pre">0.417,</span> <span class="pre">'x0':</span> <span class="pre">0.012,</span> <span class="pre">'xs':</span> <span class="pre">0.571}}</span></span></dt>
+<dt class="sig sig-object py" id="id23">
+<span class="sig-name descname"><span class="pre">SOIL_PARAMS</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{'clay':</span> <span class="pre">{'Ks':</span> <span class="pre">1.6699999999999997e-07,</span> <span class="pre">'b1':</span> <span class="pre">-0.197,</span> <span class="pre">'b2':</span> <span class="pre">-0.962,</span> <span class="pre">'b3':</span> <span class="pre">2.521,</span> <span class="pre">'lambda':</span> <span class="pre">0.165,</span> <span class="pre">'theta_r':</span> <span class="pre">0.09,</span> <span class="pre">'theta_s':</span> <span class="pre">0.385,</span> <span class="pre">'x0':</span> <span class="pre">0.024,</span> <span class="pre">'xs':</span> <span class="pre">0.591},</span> <span class="pre">'loam':</span> <span class="pre">{'Ks':</span> <span class="pre">3.6699999999999996e-06,</span> <span class="pre">'b1':</span> <span class="pre">0.243,</span> <span class="pre">'b2':</span> <span class="pre">0.393,</span> <span class="pre">'b3':</span> <span class="pre">1.534,</span> <span class="pre">'lambda':</span> <span class="pre">0.252,</span> <span class="pre">'theta_r':</span> <span class="pre">0.027,</span> <span class="pre">'theta_s':</span> <span class="pre">0.434,</span> <span class="pre">'x0':</span> <span class="pre">0.018,</span> <span class="pre">'xs':</span> <span class="pre">0.548},</span> <span class="pre">'sand':</span> <span class="pre">{'Ks':</span> <span class="pre">5.830000000000001e-05,</span> <span class="pre">'b1':</span> <span class="pre">0.228,</span> <span class="pre">'b2':</span> <span class="pre">-2.406,</span> <span class="pre">'b3':</span> <span class="pre">4.909,</span> <span class="pre">'lambda':</span> <span class="pre">0.694,</span> <span class="pre">'theta_r':</span> <span class="pre">0.0295,</span> <span class="pre">'theta_s':</span> <span class="pre">0.417,</span> <span class="pre">'x0':</span> <span class="pre">0.012,</span> <span class="pre">'xs':</span> <span class="pre">0.571}}</span></span></dt>
 <dd></dd></dl>
 </dd></dl>
 </section>
@@ -1744,16 +1768,12 @@ Each entry contains: b1, b2, b3 (Chung-Horton), theta_s, theta_r
 specific heat capacity, density) as a function of volumetric water content,
 using Chung-Horton (1987) for thermal conductivity, de Vries (1963) for
 volumetric heat capacity, and a mass-weighted average for density.</p>
-<dl class="py attribute">
-<dt class="sig sig-object py" id="carm.properties.SoilMoisture.loss_factor">
-<span class="sig-name descname"><span class="pre">loss_factor</span></span></dt>
-<dd><p>Fraction of water volume lost by drainage at each timestep [-].</p>
-<dl class="field-list simple">
-<dt class="field-odd">Type<span class="colon">:</span></dt>
-<dd class="field-odd"><p>float</p>
-</dd>
-</dl>
-</dd></dl>
+<p>At each timestep, the water volume stored around the borehole is updated
+from a water balance: irrigation input increases it, while gravity
+drainage (Brooks-Corey, 1964, unsaturated hydraulic conductivity) and
+evaporation (driven by the exchanged thermal power) deplete it. The
+resulting volume is converted back to a volumetric water content and fed
+into the property correlations above.</p>
 <dl class="py attribute">
 <dt class="sig sig-object py" id="carm.properties.SoilMoisture.w_rho">
 <span class="sig-name descname"><span class="pre">w_rho</span></span></dt>
@@ -1779,7 +1799,9 @@ volumetric heat capacity, and a mass-weighted average for density.</p>
 <span class="sig-name descname"><span class="pre">SOIL_PARAMS</span></span></dt>
 <dd><p>Tabulated parameters for sand, loam, and clay soil types.
 Each entry contains: b1, b2, b3 (Chung-Horton), theta_s, theta_r
-(Rawls et al.), xs (solid volume fraction), x0 (organic matter fraction).</p>
+(Rawls et al.), xs (solid volume fraction), x0 (organic matter
+fraction), lambda (Brooks-Corey pore-size distribution index),
+Ks (saturated hydraulic conductivity [m/s]).</p>
 <dl class="field-list simple">
 <dt class="field-odd">Type<span class="colon">:</span></dt>
 <dd class="field-odd"><p>dict</p>
@@ -1877,29 +1899,57 @@ Each entry contains: b1, b2, b3 (Chung-Horton), theta_s, theta_r
 </dl>
 </dd></dl>
 <dl class="py attribute">
-<dt class="sig sig-object py" id="carm.properties.SoilMoisture.Wvol_prev">
-<span class="sig-name descname"><span class="pre">Wvol_prev</span></span></dt>
-<dd><p>Water volume at the previous timestep [m³].</p>
+<dt class="sig sig-object py" id="carm.properties.SoilMoisture.lambda_loc">
+<span class="sig-name descname"><span class="pre">lambda_loc</span></span></dt>
+<dd><p>Brooks-Corey pore-size distribution index for the selected soil
+type [-]. Governs how steeply unsaturated hydraulic conductivity
+(and thus drainage loss) drops as water content decreases.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Type<span class="colon">:</span></dt>
 <dd class="field-odd"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="carm.properties.SoilMoisture.Ks_loc">
+<span class="sig-name descname"><span class="pre">Ks_loc</span></span></dt>
+<dd><p>Saturated hydraulic conductivity for the selected soil type [m/s].</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="carm.properties.SoilMoisture.Wvol_prev">
+<span class="sig-name descname"><span class="pre">Wvol_prev</span></span></dt>
+<dd><p>Water volume at the previous timestep [m³]. <code class="docutils literal notranslate"><span class="pre">None</span></code> before the
+first call to <code class="xref py py-meth docutils literal notranslate"><span class="pre">_properties_calculation()</span></code>, when it is
+initialized to the residual water volume (<code class="docutils literal notranslate"><span class="pre">theta_r_loc</span> <span class="pre">*</span> <span class="pre">V</span></code>).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float | None</p>
 </dd>
 </dl>
 </dd></dl>
 <dl class="py attribute">
 <dt class="sig sig-object py" id="carm.properties.SoilMoisture.Wvol_r">
 <span class="sig-name descname"><span class="pre">Wvol_r</span></span></dt>
-<dd><p>Residual water volume at the current timestep [m³].</p>
+<dd><p>Water volume at the current timestep [m³], clipped between the
+residual (<code class="docutils literal notranslate"><span class="pre">theta_r_loc</span> <span class="pre">*</span> <span class="pre">V</span></code>) and saturated (<code class="docutils literal notranslate"><span class="pre">theta_s_loc</span> <span class="pre">*</span> <span class="pre">V</span></code>)
+volumes. <code class="docutils literal notranslate"><span class="pre">None</span></code> until the first call to
+<code class="xref py py-meth docutils literal notranslate"><span class="pre">_properties_calculation()</span></code>.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Type<span class="colon">:</span></dt>
-<dd class="field-odd"><p>float</p>
+<dd class="field-odd"><p>float | None</p>
 </dd>
 </dl>
 </dd></dl>
 <dl class="py attribute">
 <dt class="sig sig-object py" id="carm.properties.SoilMoisture.Wvol_loss">
 <span class="sig-name descname"><span class="pre">Wvol_loss</span></span></dt>
-<dd><p>Water volume lost by drainage at the current timestep [m³].</p>
+<dd><p>Water volume lost by gravity drainage at the current timestep [m³],
+computed from the Brooks-Corey unsaturated hydraulic conductivity.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Type<span class="colon">:</span></dt>
 <dd class="field-odd"><p>float</p>
@@ -1927,20 +1977,16 @@ Each entry contains: b1, b2, b3 (Chung-Horton), theta_s, theta_r
 </dl>
 </dd></dl>
 <dl class="py attribute">
-<dt class="sig sig-object py" id="id25">
-<span class="sig-name descname"><span class="pre">loss_factor</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0.1</span></span></dt>
-<dd></dd></dl>
-<dl class="py attribute">
-<dt class="sig sig-object py" id="id26">
+<dt class="sig sig-object py" id="id24">
 <span class="sig-name descname"><span class="pre">w_rho</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">1000.0</span></span></dt>
 <dd></dd></dl>
 <dl class="py attribute">
-<dt class="sig sig-object py" id="id27">
+<dt class="sig sig-object py" id="id25">
 <span class="sig-name descname"><span class="pre">w_latent</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">2250000.0</span></span></dt>
 <dd></dd></dl>
 <dl class="py attribute">
-<dt class="sig sig-object py" id="id28">
-<span class="sig-name descname"><span class="pre">SOIL_PARAMS</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{'clay':</span> <span class="pre">{'b1':</span> <span class="pre">-0.197,</span> <span class="pre">'b2':</span> <span class="pre">-0.962,</span> <span class="pre">'b3':</span> <span class="pre">2.521,</span> <span class="pre">'theta_r':</span> <span class="pre">0.09,</span> <span class="pre">'theta_s':</span> <span class="pre">0.385,</span> <span class="pre">'x0':</span> <span class="pre">0.024,</span> <span class="pre">'xs':</span> <span class="pre">0.591},</span> <span class="pre">'loam':</span> <span class="pre">{'b1':</span> <span class="pre">0.243,</span> <span class="pre">'b2':</span> <span class="pre">0.393,</span> <span class="pre">'b3':</span> <span class="pre">1.534,</span> <span class="pre">'theta_r':</span> <span class="pre">0.027,</span> <span class="pre">'theta_s':</span> <span class="pre">0.434,</span> <span class="pre">'x0':</span> <span class="pre">0.018,</span> <span class="pre">'xs':</span> <span class="pre">0.548},</span> <span class="pre">'sand':</span> <span class="pre">{'b1':</span> <span class="pre">0.228,</span> <span class="pre">'b2':</span> <span class="pre">-2.406,</span> <span class="pre">'b3':</span> <span class="pre">4.909,</span> <span class="pre">'theta_r':</span> <span class="pre">0.02,</span> <span class="pre">'theta_s':</span> <span class="pre">0.417,</span> <span class="pre">'x0':</span> <span class="pre">0.012,</span> <span class="pre">'xs':</span> <span class="pre">0.571}}</span></span></dt>
+<dt class="sig sig-object py" id="id26">
+<span class="sig-name descname"><span class="pre">SOIL_PARAMS</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{'clay':</span> <span class="pre">{'Ks':</span> <span class="pre">1.6699999999999997e-07,</span> <span class="pre">'b1':</span> <span class="pre">-0.197,</span> <span class="pre">'b2':</span> <span class="pre">-0.962,</span> <span class="pre">'b3':</span> <span class="pre">2.521,</span> <span class="pre">'lambda':</span> <span class="pre">0.165,</span> <span class="pre">'theta_r':</span> <span class="pre">0.09,</span> <span class="pre">'theta_s':</span> <span class="pre">0.385,</span> <span class="pre">'x0':</span> <span class="pre">0.024,</span> <span class="pre">'xs':</span> <span class="pre">0.591},</span> <span class="pre">'loam':</span> <span class="pre">{'Ks':</span> <span class="pre">3.6699999999999996e-06,</span> <span class="pre">'b1':</span> <span class="pre">0.243,</span> <span class="pre">'b2':</span> <span class="pre">0.393,</span> <span class="pre">'b3':</span> <span class="pre">1.534,</span> <span class="pre">'lambda':</span> <span class="pre">0.252,</span> <span class="pre">'theta_r':</span> <span class="pre">0.027,</span> <span class="pre">'theta_s':</span> <span class="pre">0.434,</span> <span class="pre">'x0':</span> <span class="pre">0.018,</span> <span class="pre">'xs':</span> <span class="pre">0.548},</span> <span class="pre">'sand':</span> <span class="pre">{'Ks':</span> <span class="pre">5.830000000000001e-05,</span> <span class="pre">'b1':</span> <span class="pre">0.228,</span> <span class="pre">'b2':</span> <span class="pre">-2.406,</span> <span class="pre">'b3':</span> <span class="pre">4.909,</span> <span class="pre">'lambda':</span> <span class="pre">0.694,</span> <span class="pre">'theta_r':</span> <span class="pre">0.0295,</span> <span class="pre">'theta_s':</span> <span class="pre">0.417,</span> <span class="pre">'x0':</span> <span class="pre">0.012,</span> <span class="pre">'xs':</span> <span class="pre">0.571}}</span></span></dt>
 <dd></dd></dl>
 </dd></dl>
 <dl class="py class">
@@ -2211,27 +2257,27 @@ Required for single-borehole mode; <code class="docutils literal notranslate"><s
 </dl>
 </dd></dl>
 <dl class="py attribute">
-<dt class="sig sig-object py" id="id29">
+<dt class="sig sig-object py" id="id27">
 <span class="sig-name descname"><span class="pre">D0</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">float</span></span></dt>
 <dd></dd></dl>
 <dl class="py attribute">
-<dt class="sig sig-object py" id="id30">
+<dt class="sig sig-object py" id="id28">
 <span class="sig-name descname"><span class="pre">L</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">float</span></span></dt>
 <dd></dd></dl>
 <dl class="py attribute">
-<dt class="sig sig-object py" id="id31">
+<dt class="sig sig-object py" id="id29">
 <span class="sig-name descname"><span class="pre">L_sup</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">float</span></span></dt>
 <dd></dd></dl>
 <dl class="py attribute">
-<dt class="sig sig-object py" id="id32">
+<dt class="sig sig-object py" id="id30">
 <span class="sig-name descname"><span class="pre">L_inf</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">float</span></span></dt>
 <dd></dd></dl>
 <dl class="py attribute">
-<dt class="sig sig-object py" id="id33">
+<dt class="sig sig-object py" id="id31">
 <span class="sig-name descname"><span class="pre">rn</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span></dt>
 <dd></dd></dl>
 <dl class="py property">
-<dt class="sig sig-object py" id="id34">
+<dt class="sig sig-object py" id="id32">
 <span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">r0</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">float</span></span></dt>
 <dd></dd></dl>
 </dd></dl>
@@ -2292,23 +2338,23 @@ rapidly cell thickness increases moving outward from the borehole.</p>
 </dl>
 </dd></dl>
 <dl class="py attribute">
-<dt class="sig sig-object py" id="id35">
+<dt class="sig sig-object py" id="id33">
 <span class="sig-name descname"><span class="pre">n_mesh</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></span></dt>
 <dd></dd></dl>
 <dl class="py attribute">
-<dt class="sig sig-object py" id="id36">
+<dt class="sig sig-object py" id="id34">
 <span class="sig-name descname"><span class="pre">m_mesh</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></span></dt>
 <dd></dd></dl>
 <dl class="py attribute">
-<dt class="sig sig-object py" id="id37">
+<dt class="sig sig-object py" id="id35">
 <span class="sig-name descname"><span class="pre">m_mesh_sup</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></span></dt>
 <dd></dd></dl>
 <dl class="py attribute">
-<dt class="sig sig-object py" id="id38">
+<dt class="sig sig-object py" id="id36">
 <span class="sig-name descname"><span class="pre">m_mesh_inf</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></span></dt>
 <dd></dd></dl>
 <dl class="py attribute">
-<dt class="sig sig-object py" id="id39">
+<dt class="sig sig-object py" id="id37">
 <span class="sig-name descname"><span class="pre">f</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">float</span></span></dt>
 <dd></dd></dl>
 </dd></dl>
@@ -2483,19 +2529,19 @@ heat exchangers.</p>
 </dl>
 </dd></dl>
 <dl class="py attribute">
-<dt class="sig sig-object py" id="id40">
+<dt class="sig sig-object py" id="id38">
 <span class="sig-name descname"><span class="pre">Lbore</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">float</span></span></dt>
 <dd></dd></dl>
 <dl class="py attribute">
-<dt class="sig sig-object py" id="id41">
+<dt class="sig sig-object py" id="id39">
 <span class="sig-name descname"><span class="pre">D0</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">float</span></span></dt>
 <dd></dd></dl>
 <dl class="py attribute">
-<dt class="sig sig-object py" id="id42">
+<dt class="sig sig-object py" id="id40">
 <span class="sig-name descname"><span class="pre">D_irrigation</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">None</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">float</span></span></dt>
 <dd></dd></dl>
 <dl class="py attribute">
-<dt class="sig sig-object py" id="id43">
+<dt class="sig sig-object py" id="id41">
 <span class="sig-name descname"><span class="pre">perf_fraction</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">None</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">float</span></span></dt>
 <dd></dd></dl>
 <dl class="py property">
@@ -2519,7 +2565,7 @@ heat exchangers.</p>
 </dl>
 </dd></dl>
 <dl class="py attribute">
-<dt class="sig sig-object py" id="id44">
+<dt class="sig sig-object py" id="id42">
 <span class="sig-name descname"><span class="pre">m_mesh</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></span></dt>
 <dd></dd></dl>
 </dd></dl>
@@ -2585,23 +2631,23 @@ and the correct properties must be given as input.</p>
 </dl>
 </dd></dl>
 <dl class="py attribute">
-<dt class="sig sig-object py" id="id45">
+<dt class="sig sig-object py" id="id43">
 <span class="sig-name descname"><span class="pre">cp_0</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></span></dt>
 <dd></dd></dl>
 <dl class="py attribute">
-<dt class="sig sig-object py" id="id46">
+<dt class="sig sig-object py" id="id44">
 <span class="sig-name descname"><span class="pre">rho_0</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></span></dt>
 <dd></dd></dl>
 <dl class="py attribute">
-<dt class="sig sig-object py" id="id47">
+<dt class="sig sig-object py" id="id45">
 <span class="sig-name descname"><span class="pre">k0</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></span></dt>
 <dd></dd></dl>
 <dl class="py attribute">
-<dt class="sig sig-object py" id="id48">
+<dt class="sig sig-object py" id="id46">
 <span class="sig-name descname"><span class="pre">stratification</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Sequence</span><span class="p"><span class="pre">[</span></span><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">float</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">float</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">float</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></span></dt>
 <dd></dd></dl>
 <dl class="py attribute">
-<dt class="sig sig-object py" id="id49">
+<dt class="sig sig-object py" id="id47">
 <span class="sig-name descname"><span class="pre">soil_type</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></span></dt>
 <dd></dd></dl>
 </dd></dl>
@@ -3396,7 +3442,6 @@ by the helix radius, pipe diameter, and number of turns.</p>
 </li>
 <li><a :data-current="activeSection === '#module-carm.properties.soil_moisture'" class="reference internal" href="#module-carm.properties.soil_moisture">carm.properties.soil_moisture module</a><ul>
 <li><a :data-current="activeSection === '#carm.properties.soil_moisture.SoilMoisture'" class="reference internal" href="#carm.properties.soil_moisture.SoilMoisture"><code class="docutils literal notranslate"><span class="pre">SoilMoisture</span></code></a><ul>
-<li><a :data-current="activeSection === '#carm.properties.soil_moisture.SoilMoisture.loss_factor'" class="reference internal" href="#carm.properties.soil_moisture.SoilMoisture.loss_factor"><code class="docutils literal notranslate"><span class="pre">SoilMoisture.loss_factor</span></code></a></li>
 <li><a :data-current="activeSection === '#carm.properties.soil_moisture.SoilMoisture.w_rho'" class="reference internal" href="#carm.properties.soil_moisture.SoilMoisture.w_rho"><code class="docutils literal notranslate"><span class="pre">SoilMoisture.w_rho</span></code></a></li>
 <li><a :data-current="activeSection === '#carm.properties.soil_moisture.SoilMoisture.w_latent'" class="reference internal" href="#carm.properties.soil_moisture.SoilMoisture.w_latent"><code class="docutils literal notranslate"><span class="pre">SoilMoisture.w_latent</span></code></a></li>
 <li><a :data-current="activeSection === '#carm.properties.soil_moisture.SoilMoisture.SOIL_PARAMS'" class="reference internal" href="#carm.properties.soil_moisture.SoilMoisture.SOIL_PARAMS"><code class="docutils literal notranslate"><span class="pre">SoilMoisture.SOIL_PARAMS</span></code></a></li>
@@ -3409,22 +3454,22 @@ by the helix radius, pipe diameter, and number of turns.</p>
 <li><a :data-current="activeSection === '#carm.properties.soil_moisture.SoilMoisture.theta_r_loc'" class="reference internal" href="#carm.properties.soil_moisture.SoilMoisture.theta_r_loc"><code class="docutils literal notranslate"><span class="pre">SoilMoisture.theta_r_loc</span></code></a></li>
 <li><a :data-current="activeSection === '#carm.properties.soil_moisture.SoilMoisture.xs_loc'" class="reference internal" href="#carm.properties.soil_moisture.SoilMoisture.xs_loc"><code class="docutils literal notranslate"><span class="pre">SoilMoisture.xs_loc</span></code></a></li>
 <li><a :data-current="activeSection === '#carm.properties.soil_moisture.SoilMoisture.x0_loc'" class="reference internal" href="#carm.properties.soil_moisture.SoilMoisture.x0_loc"><code class="docutils literal notranslate"><span class="pre">SoilMoisture.x0_loc</span></code></a></li>
+<li><a :data-current="activeSection === '#carm.properties.soil_moisture.SoilMoisture.lambda_loc'" class="reference internal" href="#carm.properties.soil_moisture.SoilMoisture.lambda_loc"><code class="docutils literal notranslate"><span class="pre">SoilMoisture.lambda_loc</span></code></a></li>
+<li><a :data-current="activeSection === '#carm.properties.soil_moisture.SoilMoisture.Ks_loc'" class="reference internal" href="#carm.properties.soil_moisture.SoilMoisture.Ks_loc"><code class="docutils literal notranslate"><span class="pre">SoilMoisture.Ks_loc</span></code></a></li>
 <li><a :data-current="activeSection === '#carm.properties.soil_moisture.SoilMoisture.Wvol_prev'" class="reference internal" href="#carm.properties.soil_moisture.SoilMoisture.Wvol_prev"><code class="docutils literal notranslate"><span class="pre">SoilMoisture.Wvol_prev</span></code></a></li>
 <li><a :data-current="activeSection === '#carm.properties.soil_moisture.SoilMoisture.Wvol_r'" class="reference internal" href="#carm.properties.soil_moisture.SoilMoisture.Wvol_r"><code class="docutils literal notranslate"><span class="pre">SoilMoisture.Wvol_r</span></code></a></li>
 <li><a :data-current="activeSection === '#carm.properties.soil_moisture.SoilMoisture.Wvol_loss'" class="reference internal" href="#carm.properties.soil_moisture.SoilMoisture.Wvol_loss"><code class="docutils literal notranslate"><span class="pre">SoilMoisture.Wvol_loss</span></code></a></li>
 <li><a :data-current="activeSection === '#carm.properties.soil_moisture.SoilMoisture.Wvol_evap'" class="reference internal" href="#carm.properties.soil_moisture.SoilMoisture.Wvol_evap"><code class="docutils literal notranslate"><span class="pre">SoilMoisture.Wvol_evap</span></code></a></li>
 <li><a :data-current="activeSection === '#carm.properties.soil_moisture.SoilMoisture.W_content'" class="reference internal" href="#carm.properties.soil_moisture.SoilMoisture.W_content"><code class="docutils literal notranslate"><span class="pre">SoilMoisture.W_content</span></code></a></li>
-<li><a :data-current="activeSection === '#id21'" class="reference internal" href="#id21"><code class="docutils literal notranslate"><span class="pre">SoilMoisture.loss_factor</span></code></a></li>
-<li><a :data-current="activeSection === '#id22'" class="reference internal" href="#id22"><code class="docutils literal notranslate"><span class="pre">SoilMoisture.w_rho</span></code></a></li>
-<li><a :data-current="activeSection === '#id23'" class="reference internal" href="#id23"><code class="docutils literal notranslate"><span class="pre">SoilMoisture.w_latent</span></code></a></li>
-<li><a :data-current="activeSection === '#id24'" class="reference internal" href="#id24"><code class="docutils literal notranslate"><span class="pre">SoilMoisture.SOIL_PARAMS</span></code></a></li>
+<li><a :data-current="activeSection === '#id21'" class="reference internal" href="#id21"><code class="docutils literal notranslate"><span class="pre">SoilMoisture.w_rho</span></code></a></li>
+<li><a :data-current="activeSection === '#id22'" class="reference internal" href="#id22"><code class="docutils literal notranslate"><span class="pre">SoilMoisture.w_latent</span></code></a></li>
+<li><a :data-current="activeSection === '#id23'" class="reference internal" href="#id23"><code class="docutils literal notranslate"><span class="pre">SoilMoisture.SOIL_PARAMS</span></code></a></li>
 </ul>
 </li>
 </ul>
 </li>
 <li><a :data-current="activeSection === '#module-carm.properties'" class="reference internal" href="#module-carm.properties">Module contents</a><ul>
 <li><a :data-current="activeSection === '#carm.properties.SoilMoisture'" class="reference internal" href="#carm.properties.SoilMoisture"><code class="docutils literal notranslate"><span class="pre">SoilMoisture</span></code></a><ul>
-<li><a :data-current="activeSection === '#carm.properties.SoilMoisture.loss_factor'" class="reference internal" href="#carm.properties.SoilMoisture.loss_factor"><code class="docutils literal notranslate"><span class="pre">SoilMoisture.loss_factor</span></code></a></li>
 <li><a :data-current="activeSection === '#carm.properties.SoilMoisture.w_rho'" class="reference internal" href="#carm.properties.SoilMoisture.w_rho"><code class="docutils literal notranslate"><span class="pre">SoilMoisture.w_rho</span></code></a></li>
 <li><a :data-current="activeSection === '#carm.properties.SoilMoisture.w_latent'" class="reference internal" href="#carm.properties.SoilMoisture.w_latent"><code class="docutils literal notranslate"><span class="pre">SoilMoisture.w_latent</span></code></a></li>
 <li><a :data-current="activeSection === '#carm.properties.SoilMoisture.SOIL_PARAMS'" class="reference internal" href="#carm.properties.SoilMoisture.SOIL_PARAMS"><code class="docutils literal notranslate"><span class="pre">SoilMoisture.SOIL_PARAMS</span></code></a></li>
@@ -3437,15 +3482,16 @@ by the helix radius, pipe diameter, and number of turns.</p>
 <li><a :data-current="activeSection === '#carm.properties.SoilMoisture.theta_r_loc'" class="reference internal" href="#carm.properties.SoilMoisture.theta_r_loc"><code class="docutils literal notranslate"><span class="pre">SoilMoisture.theta_r_loc</span></code></a></li>
 <li><a :data-current="activeSection === '#carm.properties.SoilMoisture.xs_loc'" class="reference internal" href="#carm.properties.SoilMoisture.xs_loc"><code class="docutils literal notranslate"><span class="pre">SoilMoisture.xs_loc</span></code></a></li>
 <li><a :data-current="activeSection === '#carm.properties.SoilMoisture.x0_loc'" class="reference internal" href="#carm.properties.SoilMoisture.x0_loc"><code class="docutils literal notranslate"><span class="pre">SoilMoisture.x0_loc</span></code></a></li>
+<li><a :data-current="activeSection === '#carm.properties.SoilMoisture.lambda_loc'" class="reference internal" href="#carm.properties.SoilMoisture.lambda_loc"><code class="docutils literal notranslate"><span class="pre">SoilMoisture.lambda_loc</span></code></a></li>
+<li><a :data-current="activeSection === '#carm.properties.SoilMoisture.Ks_loc'" class="reference internal" href="#carm.properties.SoilMoisture.Ks_loc"><code class="docutils literal notranslate"><span class="pre">SoilMoisture.Ks_loc</span></code></a></li>
 <li><a :data-current="activeSection === '#carm.properties.SoilMoisture.Wvol_prev'" class="reference internal" href="#carm.properties.SoilMoisture.Wvol_prev"><code class="docutils literal notranslate"><span class="pre">SoilMoisture.Wvol_prev</span></code></a></li>
 <li><a :data-current="activeSection === '#carm.properties.SoilMoisture.Wvol_r'" class="reference internal" href="#carm.properties.SoilMoisture.Wvol_r"><code class="docutils literal notranslate"><span class="pre">SoilMoisture.Wvol_r</span></code></a></li>
 <li><a :data-current="activeSection === '#carm.properties.SoilMoisture.Wvol_loss'" class="reference internal" href="#carm.properties.SoilMoisture.Wvol_loss"><code class="docutils literal notranslate"><span class="pre">SoilMoisture.Wvol_loss</span></code></a></li>
 <li><a :data-current="activeSection === '#carm.properties.SoilMoisture.Wvol_evap'" class="reference internal" href="#carm.properties.SoilMoisture.Wvol_evap"><code class="docutils literal notranslate"><span class="pre">SoilMoisture.Wvol_evap</span></code></a></li>
 <li><a :data-current="activeSection === '#carm.properties.SoilMoisture.W_content'" class="reference internal" href="#carm.properties.SoilMoisture.W_content"><code class="docutils literal notranslate"><span class="pre">SoilMoisture.W_content</span></code></a></li>
-<li><a :data-current="activeSection === '#id25'" class="reference internal" href="#id25"><code class="docutils literal notranslate"><span class="pre">SoilMoisture.loss_factor</span></code></a></li>
-<li><a :data-current="activeSection === '#id26'" class="reference internal" href="#id26"><code class="docutils literal notranslate"><span class="pre">SoilMoisture.w_rho</span></code></a></li>
-<li><a :data-current="activeSection === '#id27'" class="reference internal" href="#id27"><code class="docutils literal notranslate"><span class="pre">SoilMoisture.w_latent</span></code></a></li>
-<li><a :data-current="activeSection === '#id28'" class="reference internal" href="#id28"><code class="docutils literal notranslate"><span class="pre">SoilMoisture.SOIL_PARAMS</span></code></a></li>
+<li><a :data-current="activeSection === '#id24'" class="reference internal" href="#id24"><code class="docutils literal notranslate"><span class="pre">SoilMoisture.w_rho</span></code></a></li>
+<li><a :data-current="activeSection === '#id25'" class="reference internal" href="#id25"><code class="docutils literal notranslate"><span class="pre">SoilMoisture.w_latent</span></code></a></li>
+<li><a :data-current="activeSection === '#id26'" class="reference internal" href="#id26"><code class="docutils literal notranslate"><span class="pre">SoilMoisture.SOIL_PARAMS</span></code></a></li>
 </ul>
 </li>
 <li><a :data-current="activeSection === '#carm.properties.GroundProperties'" class="reference internal" href="#carm.properties.GroundProperties"><code class="docutils literal notranslate"><span class="pre">GroundProperties</span></code></a><ul>
@@ -3477,12 +3523,12 @@ by the helix radius, pipe diameter, and number of turns.</p>
 <li><a :data-current="activeSection === '#carm.properties.GroundGeometry.L_inf'" class="reference internal" href="#carm.properties.GroundGeometry.L_inf"><code class="docutils literal notranslate"><span class="pre">GroundGeometry.L_inf</span></code></a></li>
 <li><a :data-current="activeSection === '#carm.properties.GroundGeometry.rn'" class="reference internal" href="#carm.properties.GroundGeometry.rn"><code class="docutils literal notranslate"><span class="pre">GroundGeometry.rn</span></code></a></li>
 <li><a :data-current="activeSection === '#carm.properties.GroundGeometry.r0'" class="reference internal" href="#carm.properties.GroundGeometry.r0"><code class="docutils literal notranslate"><span class="pre">GroundGeometry.r0</span></code></a></li>
-<li><a :data-current="activeSection === '#id29'" class="reference internal" href="#id29"><code class="docutils literal notranslate"><span class="pre">GroundGeometry.D0</span></code></a></li>
-<li><a :data-current="activeSection === '#id30'" class="reference internal" href="#id30"><code class="docutils literal notranslate"><span class="pre">GroundGeometry.L</span></code></a></li>
-<li><a :data-current="activeSection === '#id31'" class="reference internal" href="#id31"><code class="docutils literal notranslate"><span class="pre">GroundGeometry.L_sup</span></code></a></li>
-<li><a :data-current="activeSection === '#id32'" class="reference internal" href="#id32"><code class="docutils literal notranslate"><span class="pre">GroundGeometry.L_inf</span></code></a></li>
-<li><a :data-current="activeSection === '#id33'" class="reference internal" href="#id33"><code class="docutils literal notranslate"><span class="pre">GroundGeometry.rn</span></code></a></li>
-<li><a :data-current="activeSection === '#id34'" class="reference internal" href="#id34"><code class="docutils literal notranslate"><span class="pre">GroundGeometry.r0</span></code></a></li>
+<li><a :data-current="activeSection === '#id27'" class="reference internal" href="#id27"><code class="docutils literal notranslate"><span class="pre">GroundGeometry.D0</span></code></a></li>
+<li><a :data-current="activeSection === '#id28'" class="reference internal" href="#id28"><code class="docutils literal notranslate"><span class="pre">GroundGeometry.L</span></code></a></li>
+<li><a :data-current="activeSection === '#id29'" class="reference internal" href="#id29"><code class="docutils literal notranslate"><span class="pre">GroundGeometry.L_sup</span></code></a></li>
+<li><a :data-current="activeSection === '#id30'" class="reference internal" href="#id30"><code class="docutils literal notranslate"><span class="pre">GroundGeometry.L_inf</span></code></a></li>
+<li><a :data-current="activeSection === '#id31'" class="reference internal" href="#id31"><code class="docutils literal notranslate"><span class="pre">GroundGeometry.rn</span></code></a></li>
+<li><a :data-current="activeSection === '#id32'" class="reference internal" href="#id32"><code class="docutils literal notranslate"><span class="pre">GroundGeometry.r0</span></code></a></li>
 </ul>
 </li>
 <li><a :data-current="activeSection === '#carm.properties.GroundMesh'" class="reference internal" href="#carm.properties.GroundMesh"><code class="docutils literal notranslate"><span class="pre">GroundMesh</span></code></a><ul>
@@ -3491,11 +3537,11 @@ by the helix radius, pipe diameter, and number of turns.</p>
 <li><a :data-current="activeSection === '#carm.properties.GroundMesh.m_mesh_sup'" class="reference internal" href="#carm.properties.GroundMesh.m_mesh_sup"><code class="docutils literal notranslate"><span class="pre">GroundMesh.m_mesh_sup</span></code></a></li>
 <li><a :data-current="activeSection === '#carm.properties.GroundMesh.m_mesh_inf'" class="reference internal" href="#carm.properties.GroundMesh.m_mesh_inf"><code class="docutils literal notranslate"><span class="pre">GroundMesh.m_mesh_inf</span></code></a></li>
 <li><a :data-current="activeSection === '#carm.properties.GroundMesh.f'" class="reference internal" href="#carm.properties.GroundMesh.f"><code class="docutils literal notranslate"><span class="pre">GroundMesh.f</span></code></a></li>
-<li><a :data-current="activeSection === '#id35'" class="reference internal" href="#id35"><code class="docutils literal notranslate"><span class="pre">GroundMesh.n_mesh</span></code></a></li>
-<li><a :data-current="activeSection === '#id36'" class="reference internal" href="#id36"><code class="docutils literal notranslate"><span class="pre">GroundMesh.m_mesh</span></code></a></li>
-<li><a :data-current="activeSection === '#id37'" class="reference internal" href="#id37"><code class="docutils literal notranslate"><span class="pre">GroundMesh.m_mesh_sup</span></code></a></li>
-<li><a :data-current="activeSection === '#id38'" class="reference internal" href="#id38"><code class="docutils literal notranslate"><span class="pre">GroundMesh.m_mesh_inf</span></code></a></li>
-<li><a :data-current="activeSection === '#id39'" class="reference internal" href="#id39"><code class="docutils literal notranslate"><span class="pre">GroundMesh.f</span></code></a></li>
+<li><a :data-current="activeSection === '#id33'" class="reference internal" href="#id33"><code class="docutils literal notranslate"><span class="pre">GroundMesh.n_mesh</span></code></a></li>
+<li><a :data-current="activeSection === '#id34'" class="reference internal" href="#id34"><code class="docutils literal notranslate"><span class="pre">GroundMesh.m_mesh</span></code></a></li>
+<li><a :data-current="activeSection === '#id35'" class="reference internal" href="#id35"><code class="docutils literal notranslate"><span class="pre">GroundMesh.m_mesh_sup</span></code></a></li>
+<li><a :data-current="activeSection === '#id36'" class="reference internal" href="#id36"><code class="docutils literal notranslate"><span class="pre">GroundMesh.m_mesh_inf</span></code></a></li>
+<li><a :data-current="activeSection === '#id37'" class="reference internal" href="#id37"><code class="docutils literal notranslate"><span class="pre">GroundMesh.f</span></code></a></li>
 </ul>
 </li>
 <li><a :data-current="activeSection === '#carm.properties.BoreholeProperties'" class="reference internal" href="#carm.properties.BoreholeProperties"><code class="docutils literal notranslate"><span class="pre">BoreholeProperties</span></code></a><ul>
@@ -3517,16 +3563,16 @@ by the helix radius, pipe diameter, and number of turns.</p>
 <li><a :data-current="activeSection === '#carm.properties.BoreholeGeometry.D0'" class="reference internal" href="#carm.properties.BoreholeGeometry.D0"><code class="docutils literal notranslate"><span class="pre">BoreholeGeometry.D0</span></code></a></li>
 <li><a :data-current="activeSection === '#carm.properties.BoreholeGeometry.D_irrigation'" class="reference internal" href="#carm.properties.BoreholeGeometry.D_irrigation"><code class="docutils literal notranslate"><span class="pre">BoreholeGeometry.D_irrigation</span></code></a></li>
 <li><a :data-current="activeSection === '#carm.properties.BoreholeGeometry.perf_fraction'" class="reference internal" href="#carm.properties.BoreholeGeometry.perf_fraction"><code class="docutils literal notranslate"><span class="pre">BoreholeGeometry.perf_fraction</span></code></a></li>
-<li><a :data-current="activeSection === '#id40'" class="reference internal" href="#id40"><code class="docutils literal notranslate"><span class="pre">BoreholeGeometry.Lbore</span></code></a></li>
-<li><a :data-current="activeSection === '#id41'" class="reference internal" href="#id41"><code class="docutils literal notranslate"><span class="pre">BoreholeGeometry.D0</span></code></a></li>
-<li><a :data-current="activeSection === '#id42'" class="reference internal" href="#id42"><code class="docutils literal notranslate"><span class="pre">BoreholeGeometry.D_irrigation</span></code></a></li>
-<li><a :data-current="activeSection === '#id43'" class="reference internal" href="#id43"><code class="docutils literal notranslate"><span class="pre">BoreholeGeometry.perf_fraction</span></code></a></li>
+<li><a :data-current="activeSection === '#id38'" class="reference internal" href="#id38"><code class="docutils literal notranslate"><span class="pre">BoreholeGeometry.Lbore</span></code></a></li>
+<li><a :data-current="activeSection === '#id39'" class="reference internal" href="#id39"><code class="docutils literal notranslate"><span class="pre">BoreholeGeometry.D0</span></code></a></li>
+<li><a :data-current="activeSection === '#id40'" class="reference internal" href="#id40"><code class="docutils literal notranslate"><span class="pre">BoreholeGeometry.D_irrigation</span></code></a></li>
+<li><a :data-current="activeSection === '#id41'" class="reference internal" href="#id41"><code class="docutils literal notranslate"><span class="pre">BoreholeGeometry.perf_fraction</span></code></a></li>
 <li><a :data-current="activeSection === '#carm.properties.BoreholeGeometry.r0'" class="reference internal" href="#carm.properties.BoreholeGeometry.r0"><code class="docutils literal notranslate"><span class="pre">BoreholeGeometry.r0</span></code></a></li>
 </ul>
 </li>
 <li><a :data-current="activeSection === '#carm.properties.BoreholeMesh'" class="reference internal" href="#carm.properties.BoreholeMesh"><code class="docutils literal notranslate"><span class="pre">BoreholeMesh</span></code></a><ul>
 <li><a :data-current="activeSection === '#carm.properties.BoreholeMesh.m_mesh'" class="reference internal" href="#carm.properties.BoreholeMesh.m_mesh"><code class="docutils literal notranslate"><span class="pre">BoreholeMesh.m_mesh</span></code></a></li>
-<li><a :data-current="activeSection === '#id44'" class="reference internal" href="#id44"><code class="docutils literal notranslate"><span class="pre">BoreholeMesh.m_mesh</span></code></a></li>
+<li><a :data-current="activeSection === '#id42'" class="reference internal" href="#id42"><code class="docutils literal notranslate"><span class="pre">BoreholeMesh.m_mesh</span></code></a></li>
 </ul>
 </li>
 <li><a :data-current="activeSection === '#carm.properties.BoreholeThermalProperties'" class="reference internal" href="#carm.properties.BoreholeThermalProperties"><code class="docutils literal notranslate"><span class="pre">BoreholeThermalProperties</span></code></a><ul>
@@ -3535,11 +3581,11 @@ by the helix radius, pipe diameter, and number of turns.</p>
 <li><a :data-current="activeSection === '#carm.properties.BoreholeThermalProperties.k0'" class="reference internal" href="#carm.properties.BoreholeThermalProperties.k0"><code class="docutils literal notranslate"><span class="pre">BoreholeThermalProperties.k0</span></code></a></li>
 <li><a :data-current="activeSection === '#carm.properties.BoreholeThermalProperties.stratification'" class="reference internal" href="#carm.properties.BoreholeThermalProperties.stratification"><code class="docutils literal notranslate"><span class="pre">BoreholeThermalProperties.stratification</span></code></a></li>
 <li><a :data-current="activeSection === '#carm.properties.BoreholeThermalProperties.soil_type'" class="reference internal" href="#carm.properties.BoreholeThermalProperties.soil_type"><code class="docutils literal notranslate"><span class="pre">BoreholeThermalProperties.soil_type</span></code></a></li>
-<li><a :data-current="activeSection === '#id45'" class="reference internal" href="#id45"><code class="docutils literal notranslate"><span class="pre">BoreholeThermalProperties.cp_0</span></code></a></li>
-<li><a :data-current="activeSection === '#id46'" class="reference internal" href="#id46"><code class="docutils literal notranslate"><span class="pre">BoreholeThermalProperties.rho_0</span></code></a></li>
-<li><a :data-current="activeSection === '#id47'" class="reference internal" href="#id47"><code class="docutils literal notranslate"><span class="pre">BoreholeThermalProperties.k0</span></code></a></li>
-<li><a :data-current="activeSection === '#id48'" class="reference internal" href="#id48"><code class="docutils literal notranslate"><span class="pre">BoreholeThermalProperties.stratification</span></code></a></li>
-<li><a :data-current="activeSection === '#id49'" class="reference internal" href="#id49"><code class="docutils literal notranslate"><span class="pre">BoreholeThermalProperties.soil_type</span></code></a></li>
+<li><a :data-current="activeSection === '#id43'" class="reference internal" href="#id43"><code class="docutils literal notranslate"><span class="pre">BoreholeThermalProperties.cp_0</span></code></a></li>
+<li><a :data-current="activeSection === '#id44'" class="reference internal" href="#id44"><code class="docutils literal notranslate"><span class="pre">BoreholeThermalProperties.rho_0</span></code></a></li>
+<li><a :data-current="activeSection === '#id45'" class="reference internal" href="#id45"><code class="docutils literal notranslate"><span class="pre">BoreholeThermalProperties.k0</span></code></a></li>
+<li><a :data-current="activeSection === '#id46'" class="reference internal" href="#id46"><code class="docutils literal notranslate"><span class="pre">BoreholeThermalProperties.stratification</span></code></a></li>
+<li><a :data-current="activeSection === '#id47'" class="reference internal" href="#id47"><code class="docutils literal notranslate"><span class="pre">BoreholeThermalProperties.soil_type</span></code></a></li>
 </ul>
 </li>
 <li><a :data-current="activeSection === '#carm.properties.SingleUtube'" class="reference internal" href="#carm.properties.SingleUtube"><code class="docutils literal notranslate"><span class="pre">SingleUtube</span></code></a><ul>

@@ -491,7 +491,7 @@ Available only if <code class="docutils literal notranslate"><span class="pre">e
 <dd></dd></dl>
 <dl class="py method">
 <dt class="sig sig-object py" id="carm.simulation.solver.Simulation.run">
-<span class="sig-name descname"><span class="pre">run</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">parallel</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">series</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/carm/simulation/solver.html#Simulation.run"><span class="viewcode-link"><span class="pre">[source]</span></span></a></dt>
+<span class="sig-name descname"><span class="pre">run</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">parallel</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">series</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save_results</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/carm/simulation/solver.html#Simulation.run"><span class="viewcode-link"><span class="pre">[source]</span></span></a></dt>
 <dd><p>Run the simulation in parallel or series mode.</p>
 <p>Dispatches to <code class="docutils literal notranslate"><span class="pre">_run_parallel()</span></code> or <code class="docutils literal notranslate"><span class="pre">_run_series()</span></code> based on the
 provided flags. For single-borehole configurations, <code class="docutils literal notranslate"><span class="pre">parallel</span></code> and
@@ -501,6 +501,11 @@ provided flags. For single-borehole configurations, <code class="docutils litera
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>parallel</strong> (<em>bool</em><em> or </em><em>None</em>) – Set to <code class="docutils literal notranslate"><span class="pre">True</span></code> to run in parallel mode (independent boreholes).</p></li>
 <li><p><strong>series</strong> (<em>bool</em><em> or </em><em>None</em>) – Set to <code class="docutils literal notranslate"><span class="pre">True</span></code> to run in series mode (fluid outlet chaining).</p></li>
+<li><p><strong>save_results</strong> (<em>bool</em>) – If <code class="docutils literal notranslate"><span class="pre">True</span></code>, write a timestamped <code class="docutils literal notranslate"><span class="pre">.npz</span></code> archive of the results
+to a <code class="docutils literal notranslate"><span class="pre">results/</span></code> directory (created if needed) in the current
+working directory. <code class="docutils literal notranslate"><span class="pre">False</span></code> by default: the caller decides
+whether and where to persist <code class="docutils literal notranslate"><span class="pre">T_history</span></code> and the other arrays.
+See <code class="docutils literal notranslate"><span class="pre">examples/</span></code> for how to save results manually.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
@@ -895,7 +900,7 @@ Available only if <code class="docutils literal notranslate"><span class="pre">e
 <dd></dd></dl>
 <dl class="py method">
 <dt class="sig sig-object py" id="carm.simulation.Simulation.run">
-<span class="sig-name descname"><span class="pre">run</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">parallel</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">series</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/carm/simulation/solver.html#Simulation.run"><span class="viewcode-link"><span class="pre">[source]</span></span></a></dt>
+<span class="sig-name descname"><span class="pre">run</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">parallel</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">series</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save_results</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/carm/simulation/solver.html#Simulation.run"><span class="viewcode-link"><span class="pre">[source]</span></span></a></dt>
 <dd><p>Run the simulation in parallel or series mode.</p>
 <p>Dispatches to <code class="docutils literal notranslate"><span class="pre">_run_parallel()</span></code> or <code class="docutils literal notranslate"><span class="pre">_run_series()</span></code> based on the
 provided flags. For single-borehole configurations, <code class="docutils literal notranslate"><span class="pre">parallel</span></code> and
@@ -905,6 +910,11 @@ provided flags. For single-borehole configurations, <code class="docutils litera
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>parallel</strong> (<em>bool</em><em> or </em><em>None</em>) – Set to <code class="docutils literal notranslate"><span class="pre">True</span></code> to run in parallel mode (independent boreholes).</p></li>
 <li><p><strong>series</strong> (<em>bool</em><em> or </em><em>None</em>) – Set to <code class="docutils literal notranslate"><span class="pre">True</span></code> to run in series mode (fluid outlet chaining).</p></li>
+<li><p><strong>save_results</strong> (<em>bool</em>) – If <code class="docutils literal notranslate"><span class="pre">True</span></code>, write a timestamped <code class="docutils literal notranslate"><span class="pre">.npz</span></code> archive of the results
+to a <code class="docutils literal notranslate"><span class="pre">results/</span></code> directory (created if needed) in the current
+working directory. <code class="docutils literal notranslate"><span class="pre">False</span></code> by default: the caller decides
+whether and where to persist <code class="docutils literal notranslate"><span class="pre">T_history</span></code> and the other arrays.
+See <code class="docutils literal notranslate"><span class="pre">examples/</span></code> for how to save results manually.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
