@@ -125,8 +125,8 @@ When ``heat_flux=True``:
 Output
 ------
 
-When ``heat_flux=True``, the following arrays are populated and saved by
-:meth:`~carm.simulation.Simulation._save_results`:
+When ``heat_flux=True``, the following arrays are populated, and included in
+the ``.npz`` archive if ``run(..., save_results=True)`` is used:
 
 - ``COP``, ``EER``: heat pump performance coefficients per timestep (``NaN``
   where the corresponding mode is not active).

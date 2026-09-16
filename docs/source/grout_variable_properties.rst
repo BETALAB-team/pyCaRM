@@ -6,6 +6,18 @@ conductivity, volumetric heat capacity, and density over time as a function
 of volumetric water content, to account for irrigation-driven moisture
 changes around the borehole.
 
+At each timestep, a water volume balance is tracked around the borehole:
+irrigation adds water, while gravity drainage and evaporation remove it.
+Drainage loss follows the Brooks-Corey (1964) unsaturated hydraulic
+conductivity model, so it depends on the current water content relative to
+the soil's residual and saturated values (``theta_r``, ``theta_s``) and on
+two soil-specific parameters, the saturated hydraulic conductivity ``Ks``
+and the pore-size distribution index ``lambda``. Evaporation loss is driven
+by the thermal power exchanged with the ground. The resulting water volume
+is clipped between the residual and saturated volumes and converted back to
+a volumetric water content, which feeds the Chung-Horton/de Vries
+correlations for thermal conductivity, heat capacity, and density.
+
 .. autoclass:: carm.properties.SoilMoisture
    :members:
    :undoc-members:
