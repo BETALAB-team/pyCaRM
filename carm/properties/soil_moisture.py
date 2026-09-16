@@ -209,7 +209,7 @@ class SoilMoisture:
         f_cp = (
             lambda wr: 1.92 * 10**6 * self.xs_loc + 2.51 * 10**6 * self.x0_loc + 4.18 * 10**6 * wr
         )
-        f_rho = lambda wr: wr * self.w_rho + (1 - wr) * self.rho_dry
+        f_rho = lambda wr: wr * self.w_rho + self.rho_dry
         # Brooks-Corey (1964) unsaturated hydraulic conductivity, driving gravity drainage.
         f_hydr_k = lambda theta: self.Ks_loc * (
             (theta - self.theta_r_loc) / (self.theta_s_loc - self.theta_r_loc)
