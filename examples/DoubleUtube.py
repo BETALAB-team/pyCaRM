@@ -5,8 +5,6 @@ Example: Single borehole with double U-tube configuration.
 
 import numpy as np
 
-from pathlib import Path
-
 from carm import (
     BoreholeGeometry,
     BoreholeMesh,
@@ -20,15 +18,26 @@ from carm import PhysicalModel
 from carm import Simulation
 
 
+def _synthetic_weather(n_steps: int, dt: float) -> tuple[np.ndarray, np.ndarray]:
+    """
+    Synthetic external air temperature / solar irradiance profile (seasonal +
+    daily cycle), used here in place of measured data. For real data, build
+    ``T_ext``/``SolarRad`` from your own source (e.g. ``pandas.read_excel``)
+    and pass them to ``EnvironmentalTimeSeries.from_array``.
+    """
+    hours = np.arange(n_steps) * dt / 3600.0
+    T_ext = 12.5 - 11.0 * np.cos(2 * np.pi * hours / 8760.0) + 3.0 * np.sin(2 * np.pi * hours / 24.0)
+    daylight = np.clip(np.sin(2 * np.pi * (hours % 24.0 - 6.0) / 24.0), 0.0, None)
+    seasonal = 0.5 - 0.5 * np.cos(2 * np.pi * hours / 8760.0)
+    SolarRad = 900.0 * daylight * seasonal
+    return T_ext, SolarRad
+
+
 def main():
 
     # -------------------------------------------------------------------------
     # Input parameters
     # -------------------------------------------------------------------------
-
-    BASE_DIR = Path(__file__).parent
-
-    path = BASE_DIR / "input_env.xlsx"
 
     stratification = [(1.8, 947.37, 1900, 23)]
     n_mesh = 20
@@ -105,7 +114,8 @@ def main():
         n_mesh=n_mesh, m_mesh=m_mesh, m_mesh_sup=m_mesh_sup, m_mesh_inf=m_mesh_inf
     )
 
-    env_input = EnvironmentalTimeSeries.from_excel(Tm=Tm, path=path)
+    T_ext, SolarRad = _synthetic_weather(n_steps, dt)
+    env_input = EnvironmentalTimeSeries.from_array(Tm=Tm, T_ext=T_ext, SolarRad=SolarRad)
     env_props = EnvironmentalProperties(
         R_ext=R_ext,
         absorptance=absorptance,

@@ -17,16 +17,16 @@ dependencies = [
     "numpy",       # array
     "scipy",       # scientific functions
     "matplotlib",  # data plot
-    "pandas",      # data handling
     "shapely",     # field geometry
     "networkx",    # borehole neighbor graph
-    "openpyxl",    # excel input
 ]
 
 [project.optional-dependencies]
 dev = [
     "pygfunction",
     "pytest",
+    "pandas",      # only needed by examples/Excel_input.py and the test suite
+    "openpyxl",    # excel engine for the pandas round-trip in that example
 ]
 
 docs = [

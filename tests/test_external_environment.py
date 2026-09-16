@@ -4,9 +4,6 @@ Tests for environmental conditions module.
 
 Covers: EnvironmentalProperties, EnvironmentalTimeSeries (from_array),
         ExternalEnvironment.
-
-from_excel is intentionally not tested here — it delegates I/O to pandas
-and the validation logic is identical to from_array.
 """
 import numpy as np
 import pytest

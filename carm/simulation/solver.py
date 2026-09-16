@@ -11,7 +11,7 @@ the next) configurations.
 from dataclasses import dataclass, field
 
 from numpy.typing import NDArray
-from typing import Sequence, Dict
+from typing import Dict
 
 from ..matrix import build_global_matrix, build_global_rhs
 from ..external_environment import (
@@ -308,7 +308,10 @@ class Simulation:
             )
 
     def run(
-        self, parallel: bool | None = None, series: bool | None = None
+        self,
+        parallel: bool | None = None,
+        series: bool | None = None,
+        save_results: bool = False,
     ) -> NDArray[np.float64]:
         """
         Run the simulation in parallel or series mode.
@@ -323,6 +326,12 @@ class Simulation:
             Set to ``True`` to run in parallel mode (independent boreholes).
         series : bool or None
             Set to ``True`` to run in series mode (fluid outlet chaining).
+        save_results : bool
+            If ``True``, write a timestamped ``.npz`` archive of the results
+            to a ``results/`` directory (created if needed) in the current
+            working directory. ``False`` by default: the caller decides
+            whether and where to persist ``T_history`` and the other arrays.
+            See ``examples/`` for how to save results manually.
 
         Returns
         -------
@@ -344,7 +353,7 @@ class Simulation:
         if len(self.model.ground) > 1:
 
             if parallel is True and series is None:
-                return self._run_parallel()
+                return self._run_parallel(save_results=save_results)
 
             elif parallel is None and series is True:
                 nodes = sorted(list(self.model.field._borehole_graph))
@@ -360,7 +369,7 @@ class Simulation:
                     if not all(b in neighbors[a] for a, b in zip(group, group[1:])):
                         raise ValueError("Some borehole can't be connected in series")
 
-                return self._run_series()
+                return self._run_series(save_results=save_results)
 
             else:
                 raise ValueError(
@@ -372,9 +381,9 @@ class Simulation:
                     "Series and Parallel must be set as None when running single borehole configuration"
                 )
             else:
-                return self._run_parallel()
+                return self._run_parallel(save_results=save_results)
 
-    def _run_parallel(self) -> NDArray[np.float64]:
+    def _run_parallel(self, save_results: bool = False) -> NDArray[np.float64]:
         tic = time.time()  # start simulation
 
         model = self.model
@@ -416,7 +425,7 @@ class Simulation:
             f_COP = (
                 lambda dT: 10.29 - 0.21 * dT + 0.0012 * dT**2.0
             )  # here it is possible to change the polynomial function
-            f_EER = copy.deepcopy(f_COP)
+            f_EER = lambda dT: 10.29 - 0.21 * dT + 0.0012 * dT**2
             self.Tf1 = np.zeros((n, self.n_steps), dtype=np.float64)
             self.Tf1[:, 0] = self.T_history[0, :, ns + nm + borehole.id_inlet]
 
@@ -437,7 +446,6 @@ class Simulation:
 
             currstate.save_old()
 
-            # borehole properties are updated according to the following condition
             properties_changed = False
             if self.envinput.water_input is not None and step != 0:
                 tol = 1e-3
@@ -616,12 +624,14 @@ class Simulation:
 
         print(f"Simulation loop running time: {(toc - tic)} seconds")
 
-        self._save_results()
+        if save_results:
+            self._save_results()
 
         return self.T_history
 
     def _run_series(
         self,
+        save_results: bool = False,
     ) -> NDArray[
         np.float64
     ]:
@@ -865,7 +875,8 @@ class Simulation:
 
         print(f"Simulation loop running time: {(toc - tic)} seconds")
 
-        self._save_results()
+        if save_results:
+            self._save_results()
 
         return self.T_history
 
@@ -875,6 +886,7 @@ class Simulation:
             step=step,
             timesteps=self.timesteps,
             V=np.pi * (borehole.D0**2) / 4.0 * borehole.Lbore,
+            L=borehole.Lbore,
             A_irr=np.pi
             * borehole.D_irrigation
             * borehole.perf_fraction

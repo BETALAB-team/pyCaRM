@@ -11,8 +11,6 @@ Runs a 9-borehole field in parallel mode and plots:
 import matplotlib.pyplot as plt
 import numpy as np
 
-from pathlib import Path
-
 from carm import (
     BoreholeGeometry,
     BoreholeMesh,
@@ -27,16 +25,26 @@ from carm import PhysicalModel
 from carm import Simulation
 
 
+def _synthetic_weather(n_steps: int, dt: float) -> tuple[np.ndarray, np.ndarray]:
+    """
+    Synthetic external air temperature / solar irradiance profile (seasonal +
+    daily cycle), used here in place of measured data. For real data, build
+    ``T_ext``/``SolarRad`` from your own source (e.g. ``pandas.read_excel``)
+    and pass them to ``EnvironmentalTimeSeries.from_array``.
+    """
+    hours = np.arange(n_steps) * dt / 3600.0
+    T_ext = 12.5 - 11.0 * np.cos(2 * np.pi * hours / 8760.0) + 3.0 * np.sin(2 * np.pi * hours / 24.0)
+    daylight = np.clip(np.sin(2 * np.pi * (hours % 24.0 - 6.0) / 24.0), 0.0, None)
+    seasonal = 0.5 - 0.5 * np.cos(2 * np.pi * hours / 8760.0)
+    SolarRad = 900.0 * daylight * seasonal
+    return T_ext, SolarRad
+
+
 def main():
 
     # -------------------------------------------------------------------------
     # Input parameters
     # -------------------------------------------------------------------------
-
-    BASE_DIR = Path(__file__).parent
-
-    field_path = BASE_DIR / "spacing.xlsx"
-    path = BASE_DIR / "input_env.xlsx"
 
     n_bhes = 9
     x_min, y_min = -2.5, -2.5
@@ -87,7 +95,8 @@ def main():
     # -------------------------------------------------------------------------
 
     myfield = FieldInput(n_bhes=n_bhes, xmin=x_min, ymin=y_min, xmax=x_max, ymax=y_max, rb = D0 / 2.0)
-    myfield.from_excel(field_path)
+    grid_x, grid_y = np.meshgrid(np.linspace(0, 10, 3), np.linspace(0, 10, 3))
+    myfield.from_array(grid_x.ravel(), grid_y.ravel())
 
     fluid = Fluid(k_w=k_w, rho_w=rho_w, cp_w=cp_w, ni_w=ni_w)
 
@@ -115,7 +124,8 @@ def main():
         m_mesh_inf=m_mesh_inf,
     )
 
-    env_input = EnvironmentalTimeSeries.from_excel(Tm=Tm, path=path)
+    T_ext, SolarRad = _synthetic_weather(n_steps, dt)
+    env_input = EnvironmentalTimeSeries.from_array(Tm=Tm, T_ext=T_ext, SolarRad=SolarRad)
     env_props = EnvironmentalProperties(
         R_ext=R_ext,
         absorptance=absorptance,

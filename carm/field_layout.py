@@ -5,8 +5,6 @@ Borehole field geometry module.
 Defines the spatial layout of the borehole field: coordinate input and validation
 (``FieldInput``), Voronoi decomposition, distance matrix, and neighbor graph (``Field``).
 """
-from pathlib import Path
-
 from typing import Sequence, Dict
 from numpy.typing import NDArray
 from matplotlib.figure import Figure
@@ -18,7 +16,6 @@ from shapely import voronoi_polygons, intersection
 
 import numpy as np
 import networkx as nx
-import pandas as pd
 import matplotlib.pyplot as plt
 
 
@@ -85,33 +82,6 @@ class FieldInput:
     @property
     def borehole_coordinates(self) -> Sequence[tuple[float, float]]:
         return self._borehole_coordinates
-
-    def from_excel(self, path: Path | str) -> None:
-        """
-        Load borehole coordinates from an Excel file.
-
-        The file must contain columns named ``x`` and ``y``.
-
-        Parameters
-        ----------
-        path : Path or str
-            Path to the Excel file (.xlsx).
-
-        Raises
-        ------
-        ValueError
-            If coordinates are non-finite, outside the bounding box,
-            or the number of rows does not match ``n_bhes``.
-
-        Examples
-        --------
-        >>> fi = FieldInput(n_bhes=4, xmin=0, ymin=0, xmax=10, ymax=10)
-        >>> fi.from_excel("data/field.xlsx")
-        >>> fi.borehole_coordinates
-        [(2.5, 2.5), (7.5, 2.5), (2.5, 7.5), (7.5, 7.5)]
-        """
-        df = pd.read_excel(path)
-        self._validate_and_set_coordinates(df["x"].to_numpy(), df["y"].to_numpy())
 
     def from_array(self, x: NDArray, y: NDArray) -> None:
         """

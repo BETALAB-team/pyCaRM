@@ -7,13 +7,11 @@ used as boundary conditions in the borehole heat exchanger simulation.
 """
 
 from dataclasses import dataclass, field
-from pathlib import Path
 
 from typing import Self
 from numpy.typing import NDArray
 
 import numpy as np
-import pandas as pd
 
 
 @dataclass(frozen=True, slots=True)
@@ -94,55 +92,6 @@ class EnvironmentalTimeSeries:
     T_ext: NDArray[np.float64]
     SolarRad: NDArray[np.float64]
     water_input: NDArray[np.float64] | None = None
-
-    @classmethod
-    def from_excel(cls, Tm: float, path: Path | str) -> Self:
-        """
-        Construct an instance from an Excel file.
-
-        The file must contain columns named ``T_ext`` and ``SolarRad``.
-        All values must be finite (no NaN or Inf).
-
-        Parameters
-        ----------
-        Tm : float
-            Mean annual air temperature [°C].
-        path : Path or str
-            Path to the Excel file (.xlsx).
-
-        Returns
-        -------
-        EnvironmentalTimeSeries
-            A validated instance populated from the file.
-
-        Raises
-        ------
-        ValueError
-            If ``T_ext``, ``SolarRad``, or ``water_input`` contain non-finite values.
-
-        Examples
-        --------
-        >>> env = EnvironmentalTimeSeries.from_excel(12.0, "data/climate.xlsx")
-        >>> env.T_ext.shape
-        (8760,)
-        """
-        df = pd.read_excel(path)
-
-        arrays = {"T_ext": df["T_ext"], "SolarRad": df["SolarRad"]}
-        if "water_input" in df.columns:
-            arrays["water_input"] = df["water_input"]
-
-        invalid = [name for name, arr in arrays.items() if not np.all(np.isfinite(arr))]
-        if invalid:
-            raise ValueError(f"{', '.join(invalid)} may contain invalid values")
-
-        T_ext = np.array(df["T_ext"])
-        SolarRad = np.array(df["SolarRad"])
-        water_input = (
-            np.array(df["water_input"]) if "water_input" in df.columns else None
-        )
-
-        return cls(Tm, T_ext, SolarRad, water_input)
 
     @classmethod
     def from_array(

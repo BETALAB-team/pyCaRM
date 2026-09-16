@@ -39,6 +39,7 @@ FAST_EXAMPLES = [
     "Helical",
     "Helical_variable_properties",
     "SingleUtube_multi_parallel",
+    "Excel_input",
 ]
 
 # 9 boreholes x 8760 steps: import-only, too slow to run on every test pass.
