@@ -7,7 +7,7 @@ Covers: SoilMoisture (constructor, validation, _properties_calculation).
 Reference formulas (see carm/properties/soil_moisture.py):
     k  = b1 + b2 * wr + b3 * sqrt(wr)                          (Chung-Horton, 1987)
     cp = (1.92e6 * xs + 2.51e6 * x0 + 4.18e6 * wr) / rho        (de Vries, 1963)
-    rho = wr * rho_water + (1 - wr) * rho_dry
+    rho = wr * rho_water + rho_dry
     Wvol_loss = Ks * ((wr - theta_r) / (theta_s - theta_r)) ** (3 + 2/lambda)
                 * (V / L) * timesteps                          (Brooks-Corey, 1964)
 """
@@ -209,7 +209,7 @@ def test_rho_formula(sand):
         step=0, timesteps=3600.0, V=V, L=30.0, A_irr=0.5, q=0.0
     )
     wr = sand.W_content
-    expected_rho = wr * sand.w_rho + (1 - wr) * sand.rho_dry
+    expected_rho = wr * sand.w_rho + sand.rho_dry
     assert rho == pytest.approx(expected_rho)
 
 
