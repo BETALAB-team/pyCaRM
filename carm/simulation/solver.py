@@ -723,7 +723,15 @@ class Simulation:
             if len(idx_null) > 0:
                 self.Tf1_groups[idx_null, step] = currstate.T_old[
                     group_inlet_fluid_idx[idx_null], ns + nm + (borehole.id_inlet)
-                ] # 
+                ] #
+
+            # When mw is on and heat_flux is False, the head-of-group known
+            # term must come from the user-provided Tf1. In heat_flux mode
+            # self.Tf1 is None; Tf1_groups is instead set below from Q_ground.
+            if not self.heat_flux:
+                idx_on = np.where(self.mw_tot[:, step] != 0)[0]
+                if len(idx_on) > 0:
+                    self.Tf1_groups[idx_on, step] = self.Tf1[idx_on, step]
 
             # Tfout and boundary condition are extracted and copied before entering in Picard cycle
 
