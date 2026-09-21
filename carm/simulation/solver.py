@@ -11,7 +11,7 @@ the next) configurations.
 from dataclasses import dataclass, field
 
 from numpy.typing import NDArray
-from typing import Dict
+from typing import Callable, Dict
 
 from ..matrix import build_global_matrix, build_global_rhs
 from ..external_environment import (
@@ -473,6 +473,124 @@ class Simulation:
 
         return T_new_j
 
+    def _picard_step(
+        self,
+        step: int,
+        currstate: State,
+        outlet_idx,
+        tf1_array: NDArray[np.float64],
+        tf1_bookkeeping: Callable[[], None],
+        solve_and_chain: Callable[[], NDArray[np.float64]],
+        q_nbhes_seed: Callable[[str], None],
+    ) -> None:
+        """Run one timestep's Picard fixed-point iteration.
+
+        Owns the outer skeleton shared by ``_run_parallel``/``_run_series``:
+        the ``while`` loop control, the COP/EER/``Q_ground`` block, the
+        convergence check, and the ``T_history`` write. Adapters supply
+        ``tf1_bookkeeping`` (idx_null/idx_on handling), ``solve_and_chain``
+        (the per-unit solve: parallel's flat loop vs. series' chained
+        groups, built on ``_solve_borehole``), and ``q_nbhes_seed`` (FLS-
+        forcing seeding, invoked here at three fixed points via a
+        ``phase`` of "pre_loop"/"in_loop"/"post_loop" — each adapter acts
+        only on the phase(s) it needs, per spec decisions 3-4).
+        """
+        model = self.model
+        ground = model.ground[0]
+        borehole = model.borehole
+        ns = ground.m_mesh_sup + 1
+        nm = ground.m_mesh * ground.n_mesh
+
+        maxerr = 10  # W
+        Niter = 200  # -
+
+        tf1_bookkeeping()
+
+        T_bc_base = self.T_bc[step].copy()
+
+        Tfout_iter = np.mean(
+            currstate.T_state[outlet_idx, ns + nm + borehole.id_outlet]
+        )
+
+        # COP, EER and Qground values are calculated before entering in Picard loop if heat_flux mode is True
+        if self.heat_flux and step != 0 and self.heat_flux_mode.Q_buildings[step] != 0:
+
+            Tfout = currstate.T_state[outlet_idx, ns + nm + borehole.id_outlet]
+            Tfout_iter = np.sum(self.mw_tot[:, step] * Tfout) / np.sum(
+                self.mw_tot[:, step]
+            )  # Temperature weighted average according to mass flow
+
+            if self.heat_flux_mode.Q_buildings[step] > 0:
+
+                self.COP[step] = self.heat_flux_mode.cop_curve(
+                    self.heat_flux_mode.T_supply[step] - Tfout_iter
+                )
+                self.Q_ground[step] = -self.heat_flux_mode.Q_buildings[step] * (
+                    1 - 1 / self.COP[step]
+                )
+
+            elif self.heat_flux_mode.Q_buildings[step] < 0:
+
+                self.EER[step] = self.heat_flux_mode.eer_curve(
+                    Tfout_iter - self.heat_flux_mode.T_supply[step]
+                )
+                self.Q_ground[step] = -self.heat_flux_mode.Q_buildings[step] * (
+                    1 + 1 / self.EER[step]
+                )
+
+        q_nbhes_seed("pre_loop")
+
+        err = np.inf
+        it = 0
+
+        # Picard iteration to calculate Tfout untile 200 iterations are reached or Qground (from COP / EER) - q_liv (m*cp*dT) < 10 W
+        while err > maxerr and it < Niter:
+
+            if self.heat_flux and step != 0 and self.heat_flux_mode.Q_buildings[step] != 0:
+                tf1_array[:, step] = Tfout_iter + self.Q_ground[step] / (
+                    np.sum(self.mw_tot[:, step]) * self.model.fluid.cp_w
+                )
+
+            q_nbhes_seed("in_loop")
+
+            # Boundary condition is updated on T_bc_base to avoid cumulating penalty temeprature during the while cycle according to new q_nbhes
+            if self.fls is not None:
+                self.T_bc[step] = T_bc_base + self.fls._compute_delta_t(
+                    q_nbhes=self.q_nbhes, step=step
+                )
+
+            T_new_step = solve_and_chain()
+
+            currstate.update(T_new_step)
+
+            if self.heat_flux and step != 0 and self.heat_flux_mode.Q_buildings[step] != 0:
+                Tfout = currstate.T_state[outlet_idx, ns + nm + borehole.id_outlet]
+                Tfout_iter = np.sum(self.mw_tot[:, step] * Tfout) / np.sum(
+                    self.mw_tot[:, step]
+                )
+                q_liv = (
+                    np.sum(self.mw_tot[:, step])
+                    * self.model.fluid.cp_w
+                    * (Tfout_iter - np.mean(tf1_array[:, step]))
+                )
+                err = abs(self.Q_ground[step] - (-q_liv))
+                it += 1
+
+                self.abs_err[step] = err
+
+            else:
+                err = 0.0
+                break
+
+        if self.heat_flux:
+            print(
+                f"step {step:5d} | it {it:3d} | EER {self.EER[step]:7.3f} | COP {self.COP[step]:7.3f} | Q_ground {self.Q_ground[step]:10.1f} | Tf1 {np.mean(tf1_array[:, step]):7.2f} | Tfout {Tfout_iter:7.2f} | err {err:8.2f}"
+            )
+
+        q_nbhes_seed("post_loop")
+
+        self.T_history[step + 1] = currstate.T_state.copy()
+
     def _run_parallel(self, save_results: bool = False) -> NDArray[np.float64]:
         tic = time.time()  # start simulation
 
@@ -515,9 +633,6 @@ class Simulation:
             self.Tf1 = np.zeros((n, self.n_steps), dtype=np.float64)
             self.Tf1[:, 0] = self.T_history[0, :, ns + nm + borehole.id_inlet]
 
-        maxerr = 10  # W
-        Niter = 200  # -
-
         for step in range(self.n_steps):
             # external environment aliasing
             T_ext = self.envinput.T_ext[step]
@@ -541,20 +656,6 @@ class Simulation:
                     properties_changed = True
                     borehole._update_properties(k_bh, cp_bh, rho_bh)
 
-            # Tf1 is updated according to simulated values for boreholes in off-status
-            idx_null = np.where(self.mw_tot[:, step] == 0)[0]
-            if len(idx_null) > 0:
-                self.Tf1[idx_null, step] = currstate.T_old[
-                    idx_null, ns + nm + (borehole.id_inlet)
-                ]
-
-            # Tfout and boundary condition are extracted and copied before entering in Picard cycle
-            Tfout = currstate.T_old[:, ns + nm + borehole.id_outlet]
-
-            T_new_step = np.zeros((n, (ns + nm + nb + ninf)))
-
-            T_bc_base = self.T_bc[step].copy()
-
             # coefficient matrix is built for each borehole
             for j, gr_p in enumerate(model.ground):
                 if self._matrix_needs_rebuild(
@@ -564,58 +665,16 @@ class Simulation:
                         j, gr_p, self.mw_tot[j, step], self.adiabatic
                     )
 
-            Tfout_iter = np.mean(Tfout)
+            def tf1_bookkeeping() -> None:
+                # Tf1 is updated according to simulated values for boreholes in off-status
+                idx_null = np.where(self.mw_tot[:, step] == 0)[0]
+                if len(idx_null) > 0:
+                    self.Tf1[idx_null, step] = currstate.T_old[
+                        idx_null, ns + nm + (borehole.id_inlet)
+                    ]
 
-            # COP, EER and Qground values are calculated before entering in Picard loop if heat_flux mode is True
-            if self.heat_flux and step != 0 and self.heat_flux_mode.Q_buildings[step] != 0:
-
-                Tfout_iter = np.sum(self.mw_tot[:, step] * Tfout) / np.sum(
-                    self.mw_tot[:, step]
-                )  # Temperature weighted average according to mass flow
-
-                if self.heat_flux_mode.Q_buildings[step] > 0:
-
-                    self.COP[step] = self.heat_flux_mode.cop_curve(
-                        self.heat_flux_mode.T_supply[step] - Tfout_iter
-                    )
-                    self.Q_ground[step] = -self.heat_flux_mode.Q_buildings[step] * (
-                        1 - 1 / self.COP[step]
-                    )
-
-                elif self.heat_flux_mode.Q_buildings[step] < 0:
-
-                    self.EER[step] = self.heat_flux_mode.eer_curve(
-                        Tfout_iter - self.heat_flux_mode.T_supply[step]
-                    )
-                    self.Q_ground[step] = -self.heat_flux_mode.Q_buildings[step] * (
-                        1 + 1 / self.EER[step]
-                    )
-
-            err = np.inf
-            it = 0
-
-            # Picard iteration to calculate Tfout untile 200 iterations are reached or Qground (from COP / EER) - q_liv (m*cp*dT) < 10 W
-            while err > maxerr and it < Niter:
-
-                if self.heat_flux and step != 0 and self.heat_flux_mode.Q_buildings[step] != 0:
-                    self.Tf1[:, step] = Tfout_iter + self.Q_ground[step] / (
-                        np.sum(self.mw_tot[:, step]) * self.model.fluid.cp_w
-                    )
-
-                if step != 0:
-                    qfluid = (
-                        self.mw_tot[:, step]
-                        * model.fluid.cp_w
-                        * (self.Tf1[:, step] - Tfout)
-                    )
-                    self.q_nbhes[step] = qfluid
-
-                # Boundary condition is updated on T_bc_base to avoid cumulating penalty temeprature during the while cycle according to new q_nbhes
-                if self.fls is not None:
-                    self.T_bc[step] = T_bc_base + self.fls._compute_delta_t(
-                        q_nbhes=self.q_nbhes, step=step
-                    )
-
+            def solve_and_chain() -> NDArray[np.float64]:
+                T_new_step = np.zeros((n, (ns + nm + nb + ninf)))
                 for j, gr_p in enumerate(model.ground):
 
                     old_state = self.model._get_temperatures(currstate, j, use_old=True)
@@ -636,43 +695,34 @@ class Simulation:
 
                     T_new_step[j, :] = T_new_j
 
-                currstate.update(T_new_step)
+                return T_new_step
 
-                if self.heat_flux and step != 0 and self.heat_flux_mode.Q_buildings[step] != 0:
-                    Tfout = currstate.T_state[:, ns + nm + borehole.id_outlet]
-                    Tfout_iter = np.sum(self.mw_tot[:, step] * Tfout) / np.sum(
+            def q_nbhes_seed(phase: str) -> None:
+                if phase == "in_loop" and step != 0:
+                    Tfout_now = currstate.T_state[:, ns + nm + borehole.id_outlet]
+                    self.q_nbhes[step] = (
                         self.mw_tot[:, step]
+                        * model.fluid.cp_w
+                        * (self.Tf1[:, step] - Tfout_now)
                     )
-                    q_liv = (
-                        np.sum(self.mw_tot[:, step])
-                        * self.model.fluid.cp_w
-                        * (Tfout_iter - np.mean(self.Tf1[:, step]))
+                elif phase == "post_loop" and self.heat_flux and step != 0:
+                    # If heat_flux is True the new q_nbhes is evaluated according to last Tfout calculated
+                    Tfout_fin = currstate.T_state[:, ns + nm + borehole.id_outlet]
+                    self.q_nbhes[step] = (
+                        self.mw_tot[:, step]
+                        * model.fluid.cp_w
+                        * (self.Tf1[:, step] - Tfout_fin)
                     )
-                    err = abs(self.Q_ground[step] - (-q_liv))
-                    it += 1
 
-                    self.abs_err[step] = err
-
-                else:
-                    err = 0.0
-                    break
-
-            if self.heat_flux:
-                print(
-                    f"step {step:5d} | it {it:3d} | EER {self.EER[step]:7.3f} | COP {self.COP[step]:7.3f} | Q_ground {self.Q_ground[step]:10.1f} | Tf1 {np.mean(self.Tf1[:, step]):7.2f} | Tfout {Tfout_iter:7.2f} | err {err:8.2f}"
-                )
-
-            # If heat_flux is True the new q_nbhes is evaluated according to last Tfout calculated
-
-            if self.heat_flux and step != 0:
-                Tfout_fin = currstate.T_state[:, ns + nm + borehole.id_outlet]
-                self.q_nbhes[step] = (
-                    self.mw_tot[:, step]
-                    * model.fluid.cp_w
-                    * (self.Tf1[:, step] - Tfout_fin)
-                )
-
-            self.T_history[step + 1] = currstate.T_state.copy()
+            self._picard_step(
+                step,
+                currstate,
+                outlet_idx=slice(None),
+                tf1_array=self.Tf1,
+                tf1_bookkeeping=tf1_bookkeeping,
+                solve_and_chain=solve_and_chain,
+                q_nbhes_seed=q_nbhes_seed,
+            )
 
         toc = time.time()
 
@@ -734,9 +784,6 @@ class Simulation:
         self.Tf1_groups = np.zeros((n_groups, self.n_steps), dtype=np.float64)
         self.Tf1_groups[:, 0] = self.T_history[0, group_outlet_fluid_idx, ns + nm + borehole.id_inlet]
 
-        maxerr = 10  # W
-        Niter = 200  # -
-
         for step in range(self.n_steps):
             # external environment aliasing
             T_ext = self.envinput.T_ext[step]
@@ -761,78 +808,23 @@ class Simulation:
                     properties_changed = True
                     borehole._update_properties(k_bh, cp_bh, rho_bh)
 
-            idx_null = np.where(self.mw_tot[:, step] == 0)[0]
-            if len(idx_null) > 0:
-                self.Tf1_groups[idx_null, step] = currstate.T_old[
-                    group_inlet_fluid_idx[idx_null], ns + nm + (borehole.id_inlet)
-                ] #
+            def tf1_bookkeeping() -> None:
+                idx_null = np.where(self.mw_tot[:, step] == 0)[0]
+                if len(idx_null) > 0:
+                    self.Tf1_groups[idx_null, step] = currstate.T_old[
+                        group_inlet_fluid_idx[idx_null], ns + nm + (borehole.id_inlet)
+                    ]
 
-            # When mw is on and heat_flux is False, the head-of-group known
-            # term must come from the user-provided Tf1. In heat_flux mode
-            # self.Tf1 is None; Tf1_groups is instead set below from Q_ground.
-            if not self.heat_flux:
-                idx_on = np.where(self.mw_tot[:, step] != 0)[0]
-                if len(idx_on) > 0:
-                    self.Tf1_groups[idx_on, step] = self.Tf1[idx_on, step]
+                # When mw is on and heat_flux is False, the head-of-group known
+                # term must come from the user-provided Tf1. In heat_flux mode
+                # self.Tf1 is None; Tf1_groups is instead set below from Q_ground.
+                if not self.heat_flux:
+                    idx_on = np.where(self.mw_tot[:, step] != 0)[0]
+                    if len(idx_on) > 0:
+                        self.Tf1_groups[idx_on, step] = self.Tf1[idx_on, step]
 
-            # Tfout and boundary condition are extracted and copied before entering in Picard cycle
-
-            Tfout = currstate.T_old[group_outlet_fluid_idx, ns + nm + borehole.id_outlet]
-            Tfinlet_fls = currstate.T_old[:, ns + nm + borehole.id_inlet]
-            Tfout_fls = currstate.T_old[:, ns + nm + borehole.id_outlet]
-            T_new_step = np.zeros((n, (ns + nm + nb + ninf)))
-            T_bc_base = self.T_bc[step].copy()
-            Tfout_iter = np.mean(Tfout)
-
-            # COP, EER and Qground values are calculated before entering in Picard loop if heat_flux mode is True
-            if self.heat_flux and step != 0 and self.heat_flux_mode.Q_buildings[step] != 0:
-
-                Tfout_iter = np.sum(self.mw_tot[:, step] * Tfout) / np.sum(
-                    self.mw_tot[:, step]
-                )  # Temperature weighted average according to mass flow
-
-                if self.heat_flux_mode.Q_buildings[step] > 0:
-
-                    self.COP[step] = self.heat_flux_mode.cop_curve(
-                        self.heat_flux_mode.T_supply[step] - Tfout_iter
-                    )
-                    self.Q_ground[step] = -self.heat_flux_mode.Q_buildings[step] * (
-                        1 - 1 / self.COP[step]
-                    )
-
-                elif self.heat_flux_mode.Q_buildings[step] < 0:
-
-                    self.EER[step] = self.heat_flux_mode.eer_curve(
-                        Tfout_iter - self.heat_flux_mode.T_supply[step]
-                    )
-                    self.Q_ground[step] = -self.heat_flux_mode.Q_buildings[step] * (
-                        1 + 1 / self.EER[step]
-                    )
-
-            if step != 0:
-                    qfluid[step] = (
-                        mw_boreholes[:, step]
-                        * model.fluid.cp_w
-                        * (Tfinlet_fls - Tfout_fls)
-                    )
-                    self.q_nbhes[step] = qfluid[step]
-
-            err = np.inf
-            it = 0
-
-            while err > maxerr and it < Niter:
-
-                if self.heat_flux and step != 0 and self.heat_flux_mode.Q_buildings[step] != 0:
-                    self.Tf1_groups[:, step] = Tfout_iter + self.Q_ground[step] / (
-                        np.sum(self.mw_tot[:, step]) * self.model.fluid.cp_w
-                    )
-
-                # Boundary condition is updated on T_bc_base to avoid cumulating penalty temeprature during the while cycle according to new q_nbhes
-                if self.fls is not None:
-                    self.T_bc[step] = T_bc_base + self.fls._compute_delta_t(
-                        q_nbhes=self.q_nbhes, step=step
-                    )
-
+            def solve_and_chain() -> NDArray[np.float64]:
+                T_new_step = np.zeros((n, (ns + nm + nb + ninf)))
                 for i, group in enumerate(self.groups.values()):
 
                     mw_loc = self.mw_tot[i, step]
@@ -868,35 +860,28 @@ class Simulation:
 
                         T_new_step[j, :] = T_new_i_j
 
-                currstate.update(T_new_step)
+                return T_new_step
 
-                if self.heat_flux and step != 0 and self.heat_flux_mode.Q_buildings[step] != 0:
-                    Tfout = currstate.T_state[
-                        group_outlet_fluid_idx, ns + nm + borehole.id_outlet
-                    ]
-                    Tfout_iter = np.sum(self.mw_tot[:, step] * Tfout) / np.sum(
-                        self.mw_tot[:, step]
+            def q_nbhes_seed(phase: str) -> None:
+                if phase == "pre_loop" and step != 0:
+                    Tfinlet_fls = currstate.T_old[:, ns + nm + borehole.id_inlet]
+                    Tfout_fls = currstate.T_old[:, ns + nm + borehole.id_outlet]
+                    qfluid[step] = (
+                        mw_boreholes[:, step]
+                        * model.fluid.cp_w
+                        * (Tfinlet_fls - Tfout_fls)
                     )
-                    q_liv = (
-                        np.sum(self.mw_tot[:, step])
-                        * self.model.fluid.cp_w
-                        * (Tfout_iter - np.mean(self.Tf1_groups[:, step]))
-                    )
-                    err = abs(self.Q_ground[step] - (-q_liv))
-                    it += 1
+                    self.q_nbhes[step] = qfluid[step]
 
-                    self.abs_err[step] = err
-
-                else:
-                    err = 0.0
-                    break
-
-            if self.heat_flux:
-                print(
-                    f"step {step:5d} | it {it:3d} | EER {self.EER[step]:7.3f} | COP {self.COP[step]:7.3f} | Q_ground {self.Q_ground[step]:10.1f} | Tf1 {np.mean(self.Tf1_groups[:, step]):7.2f} | Tfout {Tfout_iter:7.2f} | err {err:8.2f}"
-                )
-
-            self.T_history[step + 1] = currstate.T_state.copy()
+            self._picard_step(
+                step,
+                currstate,
+                outlet_idx=group_outlet_fluid_idx,
+                tf1_array=self.Tf1_groups,
+                tf1_bookkeeping=tf1_bookkeeping,
+                solve_and_chain=solve_and_chain,
+                q_nbhes_seed=q_nbhes_seed,
+            )
 
         toc = time.time()
 
