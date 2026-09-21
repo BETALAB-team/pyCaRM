@@ -26,11 +26,6 @@ def kusuda_achenbach(ground, borehole, envprops, Tm, timesteps, n_steps) -> tupl
     for j in range(1 + ground.m_mesh_sup + ground.m_mesh + ground.m_mesh_inf):
         z = z + dz_tot[j] / 2
 
-        if j == 0:
-            idx = j
-        else:
-            idx = j - 1
-
         T_kusuda[:, j] = Tm - At * np.exp(-z * np.sqrt(np.pi / (tau_y * a_mean))) * np.cos(
             (2.0 * np.pi / tau_y)
             * (tau_array - tau_shift - z / 2.0 * np.sqrt(tau_y / (np.pi * a_mean)))

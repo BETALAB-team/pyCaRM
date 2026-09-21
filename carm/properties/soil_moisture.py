@@ -205,15 +205,24 @@ class SoilMoisture:
             Density [kg/m³].
         """
 
-        f_k = lambda wr: self.b1_loc + self.b2_loc * wr + self.b3_loc * wr**0.5
-        f_cp = (
-            lambda wr: 1.92 * 10**6 * self.xs_loc + 2.51 * 10**6 * self.x0_loc + 4.18 * 10**6 * wr
-        )
-        f_rho = lambda wr: wr * self.w_rho + self.rho_dry
+        def f_k(wr):
+            return self.b1_loc + self.b2_loc * wr + self.b3_loc * wr**0.5
+
+        def f_cp(wr):
+            return (
+                1.92 * 10**6 * self.xs_loc
+                + 2.51 * 10**6 * self.x0_loc
+                + 4.18 * 10**6 * wr
+            )
+
+        def f_rho(wr):
+            return wr * self.w_rho + self.rho_dry
+
         # Brooks-Corey (1964) unsaturated hydraulic conductivity, driving gravity drainage.
-        f_hydr_k = lambda theta: self.Ks_loc * (
-            (theta - self.theta_r_loc) / (self.theta_s_loc - self.theta_r_loc)
-        ) ** (3 + 2 / self.lambda_loc)
+        def f_hydr_k(theta):
+            return self.Ks_loc * (
+                (theta - self.theta_r_loc) / (self.theta_s_loc - self.theta_r_loc)
+            ) ** (3 + 2 / self.lambda_loc)
 
         if self.Wvol_prev is None:
             self.Wvol_prev = self.theta_r_loc * V

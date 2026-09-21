@@ -118,14 +118,11 @@ class FiniteLineSolution:
         a = 1 / np.sqrt(4 * alpha_mean * self.time_hist)
         b = np.concatenate(([np.inf], a[:-1]))
 
-        func = (
-            lambda s: s**-2.0
-            * np.exp(-(d**2.0) * s**2.0)
-            * (
+        def func(s):
+            return s**-2.0 * np.exp(-(d**2.0) * s**2.0) * (
                 (s * L) * erf(s * L)
                 - (1.0 / np.sqrt(np.pi)) * (1.0 - np.exp(-((s * L) ** 2.0)))
             )
-        )
 
         arrays = [1 / L * quad_vec(func, a_i, b_i)[0] for a_i, b_i in zip(a, b)]
         arrays_stacked = np.stack(arrays, axis=0)
@@ -167,10 +164,11 @@ class FiniteLineSolution:
         dy = y[None, :, None] - y[:, None, None] + req[None, :, None] * np.sin(theta)[None, None, :]
         d = np.maximum(np.sqrt(dx**2 + dy**2), rb)
 
-        func = lambda s: s**-2.0 * np.exp(-(d**2.0) * s**2.0) * (
-            (s * L) * erf(s * L)
-            - (1.0 / np.sqrt(np.pi)) * (1.0 - np.exp(-((s * L) ** 2.0)))
-        )
+        def func(s):
+            return s**-2.0 * np.exp(-(d**2.0) * s**2.0) * (
+                (s * L) * erf(s * L)
+                - (1.0 / np.sqrt(np.pi)) * (1.0 - np.exp(-((s * L) ** 2.0)))
+            )
 
         arrays = [1 / L * np.mean(quad_vec(func, a_i, b_i)[0], axis=-1)
                 for a_i, b_i in zip(a, b)]

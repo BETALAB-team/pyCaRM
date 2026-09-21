@@ -96,7 +96,6 @@ def build_coefficient_matrix_bhe_single_u_tube(model, gr_p, timesteps, mw_tot_j)
         # ----------------------------------------------------------------------
 
         t = j * n + id_shell
-        g = j * n + id_shell
 
         if id_core is not None:
             k = j * n + id_core

@@ -8,14 +8,12 @@ layout. Handles both single-borehole and multi-borehole configurations.
 """
 from dataclasses import dataclass, field
 from typing import Sequence
-from numpy.typing import NDArray
 
 from .properties import GroundProperties, GroundGeometry, GroundMesh
 from .properties import SingleUtube, DoubleUtube, Helical, Coaxial
 from .fluid import Fluid
 from .field_layout import FieldInput, Field
 
-import numpy as np
 
 @dataclass
 class PhysicalModel:

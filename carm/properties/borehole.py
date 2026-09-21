@@ -17,7 +17,6 @@ from dataclasses import dataclass
 from typing import Sequence
 from numpy.typing import NDArray
 
-import math
 import numpy as np
 
 from ..fluid import Fluid
@@ -546,7 +545,6 @@ class SingleUtube(Utube):
         return alpha_w
 
     def _borehole_resistances(self, mw_tot: float) -> float:
-        mw = mw_tot
         alpha_w = self._alpha_calculation(mw_tot=mw_tot)
         R_conv = 1 / (np.pi * (self.Dpi) * alpha_w * self.dz)
 
