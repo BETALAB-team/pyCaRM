@@ -4,8 +4,8 @@
 
 # pyCaRM
 
-[![PyPI version](https://img.shields.io/pypi/v/pyCaRM-BHE.svg)](https://pypi.org/project/pyCaRM-BHE/)
-[![Python versions](https://img.shields.io/pypi/pyversions/pyCaRM-BHE.svg)](https://pypi.org/project/pyCaRM-BHE/)
+[![PyPI version](https://img.shields.io/pypi/v/pyCaRM-BHE.svg?cacheSeconds=1)](https://pypi.org/project/pyCaRM-BHE/)
+[![Python versions](https://img.shields.io/pypi/pyversions/pyCaRM-BHE.svg?cacheSeconds=1)](https://pypi.org/project/pyCaRM-BHE/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 **pyCaRM** (CApacity Resistance Model) is a Python library for the simulation of 
