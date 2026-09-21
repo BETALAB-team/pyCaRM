@@ -12,6 +12,14 @@ carm.simulation.solver module
    :show-inheritance:
    :undoc-members:
 
+carm.simulation.heat\_flux\_mode module
+----------------------------------------
+
+.. automodule:: carm.simulation.heat_flux_mode
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
 Module contents
 ---------------
 

@@ -113,7 +113,8 @@ temperature instead of a prescribed inlet fluid temperature. In this mode,
 the inlet fluid temperature <code class="docutils literal notranslate"><span class="pre">Tf1</span></code> is not an input: it is solved for at each
 timestep so that the heat extracted from (or rejected to) the ground matches
 the building load once heat pump performance is accounted for. This mode is
-enabled by setting <code class="docutils literal notranslate"><span class="pre">heat_flux=True</span></code> on <a class="reference internal" href="carm.simulation.html#carm.simulation.Simulation" title="carm.simulation.Simulation"><code class="xref py py-class docutils literal notranslate"><span class="pre">Simulation</span></code></a>.</p>
+enabled by passing a <a class="reference internal" href="carm.simulation.html#carm.simulation.HeatFluxMode" title="carm.simulation.HeatFluxMode"><code class="xref py py-class docutils literal notranslate"><span class="pre">HeatFluxMode</span></code></a> instance as
+<code class="docutils literal notranslate"><span class="pre">heat_flux_mode</span></code> on <a class="reference internal" href="carm.simulation.html#carm.simulation.Simulation" title="carm.simulation.Simulation"><code class="xref py py-class docutils literal notranslate"><span class="pre">Simulation</span></code></a>.</p>
 <section id="overview">
 <h2>Overview</h2>
 <p>At each timestep, the building thermal load <span class="math notranslate nohighlight">\(Q_{building}\)</span> and the
@@ -134,17 +135,29 @@ heat pump:</p>
 </section>
 <section id="performance-function">
 <h2>Performance function</h2>
-<p><span class="math notranslate nohighlight">\(f\)</span> is currently <strong>hardcoded</strong> in the solver as the quadratic
-ground-source heat pump (GSHP) regression from Ruhnau <em>et al.</em> (2019) <a class="footnote-reference brackets" href="#id2" id="id1" role="doc-noteref"><span class="fn-bracket">[</span>1<span class="fn-bracket">]</span></a>:</p>
+<p>The COP and EER curves are configured independently via
+<a class="reference internal" href="carm.simulation.html#carm.simulation.HeatFluxMode" title="carm.simulation.HeatFluxMode"><code class="xref py py-class docutils literal notranslate"><span class="pre">HeatFluxMode</span></code></a>’s <code class="docutils literal notranslate"><span class="pre">cop_curve</span></code> and <code class="docutils literal notranslate"><span class="pre">eer_curve</span></code>
+fields, each a <code class="docutils literal notranslate"><span class="pre">Callable[[float],</span> <span class="pre">float]</span></code> mapping the temperature lift
+<span class="math notranslate nohighlight">\(\Delta T\)</span> to a performance coefficient. Both default to the same
+quadratic ground-source heat pump (GSHP) regression from Ruhnau
+<em>et al.</em> (2019) <a class="footnote-reference brackets" href="#id2" id="id1" role="doc-noteref"><span class="fn-bracket">[</span>1<span class="fn-bracket">]</span></a>:</p>
 <div class="math notranslate nohighlight">
 \[f(\Delta T) = 10.29 - 0.21\,\Delta T + 0.0012\,\Delta T^2\]</div>
-<p>where <span class="math notranslate nohighlight">\(\Delta T\)</span> is the temperature lift defined above. The same
-function is used for both COP and EER in the current implementation.</p>
-<p>This is not exposed as a configurable parameter: to use a different
-correlation (e.g. air-source or water-source coefficients from the same
-reference, or a manufacturer-specific curve), fork the repository and edit
-<code class="docutils literal notranslate"><span class="pre">f_COP</span></code> directly in <code class="docutils literal notranslate"><span class="pre">carm/simulation/solver.py</span></code>, in both
-<code class="docutils literal notranslate"><span class="pre">_run_parallel</span></code> and <code class="docutils literal notranslate"><span class="pre">_run_series</span></code>.</p>
+<p>To use a different correlation (e.g. air-source or water-source
+coefficients from the same reference, or a manufacturer-specific curve),
+pass your own callable(s):</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="k">def</span><span class="w"> </span><span class="nf">my_cop_curve</span><span class="p">(</span><span class="n">dT</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+</span><span id="line-2">    <span class="k">return</span> <span class="mf">9.5</span> <span class="o">-</span> <span class="mf">0.18</span> <span class="o">*</span> <span class="n">dT</span> <span class="o">+</span> <span class="mf">0.0010</span> <span class="o">*</span> <span class="n">dT</span><span class="o">**</span><span class="mi">2</span>
+</span><span id="line-3">
+</span><span id="line-4"><span class="n">heat_flux_mode</span> <span class="o">=</span> <span class="n">HeatFluxMode</span><span class="p">(</span>
+</span><span id="line-5">    <span class="n">Q_buildings</span><span class="o">=</span><span class="n">Q_buildings</span><span class="p">,</span> <span class="n">T_supply</span><span class="o">=</span><span class="n">T_supply</span><span class="p">,</span>
+</span><span id="line-6">    <span class="n">cop_curve</span><span class="o">=</span><span class="n">my_cop_curve</span><span class="p">,</span>  <span class="c1"># eer_curve left at its default</span>
+</span><span id="line-7"><span class="p">)</span>
+</span></code></pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">HeatFluxMode</span></code> does not validate curve output beyond requiring it to be
+callable; a curve producing non-finite values is caught by the solver’s
+own finite-value assertions at the first affected timestep.</p>
 </section>
 <section id="picard-iteration">
 <h2>Picard iteration</h2>
@@ -174,11 +187,11 @@ fluid coupling.</p>
 </section>
 <section id="usage">
 <h2>Usage</h2>
-<p>When <code class="docutils literal notranslate"><span class="pre">heat_flux=True</span></code>:</p>
+<p>When <code class="docutils literal notranslate"><span class="pre">heat_flux_mode</span></code> is set:</p>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">Tf1</span></code> must be <code class="docutils literal notranslate"><span class="pre">None</span></code> (it is computed internally).</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">Q_buildings</span></code> and <code class="docutils literal notranslate"><span class="pre">T_supply</span></code> must be provided as 1D time series of
-length <code class="docutils literal notranslate"><span class="pre">n_steps</span></code>, shared across the whole field.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">HeatFluxMode.Q_buildings</span></code> and <code class="docutils literal notranslate"><span class="pre">HeatFluxMode.T_supply</span></code> must be 1D time
+series of length <code class="docutils literal notranslate"><span class="pre">n_steps</span></code>, shared across the whole field.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">mw_tot</span></code> follows the usual shape convention: <code class="docutils literal notranslate"><span class="pre">(n_bhes,</span> <span class="pre">n_steps)</span></code> in
 parallel mode, <code class="docutils literal notranslate"><span class="pre">(n_groups,</span> <span class="pre">n_steps)</span></code> in series mode.</p></li>
 </ul>
@@ -187,12 +200,14 @@ parallel mode, <code class="docutils literal notranslate"><span class="pre">(n_g
 </span><span id="line-3">
 </span><span id="line-4"><span class="n">T_supply</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="n">n_steps</span><span class="p">,</span> <span class="mf">45.0</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
 </span><span id="line-5">
-</span><span id="line-6"><span class="n">simulation</span> <span class="o">=</span> <span class="n">Simulation</span><span class="p">(</span>
-</span><span id="line-7">    <span class="n">model</span><span class="o">=</span><span class="n">model</span><span class="p">,</span> <span class="n">envinput</span><span class="o">=</span><span class="n">env_input</span><span class="p">,</span> <span class="n">timesteps</span><span class="o">=</span><span class="n">dt</span><span class="p">,</span> <span class="n">n_steps</span><span class="o">=</span><span class="n">n_steps</span><span class="p">,</span>
-</span><span id="line-8">    <span class="n">envprops</span><span class="o">=</span><span class="n">env_props</span><span class="p">,</span> <span class="n">mw_tot</span><span class="o">=</span><span class="n">mw_tot</span><span class="p">,</span> <span class="n">Tf1</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-</span><span id="line-9">    <span class="n">heat_flux</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">Q_buildings</span><span class="o">=</span><span class="n">Q_buildings</span><span class="p">,</span> <span class="n">T_supply</span><span class="o">=</span><span class="n">T_supply</span><span class="p">,</span>
-</span><span id="line-10"><span class="p">)</span>
-</span><span id="line-11"><span class="n">T_history</span> <span class="o">=</span> <span class="n">simulation</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">parallel</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>  <span class="c1"># or series=True with groups defined</span>
+</span><span id="line-6"><span class="n">heat_flux_mode</span> <span class="o">=</span> <span class="n">HeatFluxMode</span><span class="p">(</span><span class="n">Q_buildings</span><span class="o">=</span><span class="n">Q_buildings</span><span class="p">,</span> <span class="n">T_supply</span><span class="o">=</span><span class="n">T_supply</span><span class="p">)</span>
+</span><span id="line-7">
+</span><span id="line-8"><span class="n">simulation</span> <span class="o">=</span> <span class="n">Simulation</span><span class="p">(</span>
+</span><span id="line-9">    <span class="n">model</span><span class="o">=</span><span class="n">model</span><span class="p">,</span> <span class="n">envinput</span><span class="o">=</span><span class="n">env_input</span><span class="p">,</span> <span class="n">timesteps</span><span class="o">=</span><span class="n">dt</span><span class="p">,</span> <span class="n">n_steps</span><span class="o">=</span><span class="n">n_steps</span><span class="p">,</span>
+</span><span id="line-10">    <span class="n">envprops</span><span class="o">=</span><span class="n">env_props</span><span class="p">,</span> <span class="n">mw_tot</span><span class="o">=</span><span class="n">mw_tot</span><span class="p">,</span> <span class="n">Tf1</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+</span><span id="line-11">    <span class="n">heat_flux_mode</span><span class="o">=</span><span class="n">heat_flux_mode</span><span class="p">,</span>
+</span><span id="line-12"><span class="p">)</span>
+</span><span id="line-13"><span class="n">T_history</span> <span class="o">=</span> <span class="n">simulation</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">parallel</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>  <span class="c1"># or series=True with groups defined</span>
 </span></code></pre></div>
 </div>
 <div class="admonition note">
@@ -205,8 +220,8 @@ COP/EER/Picard block; it does not stop circulation.</p>
 </section>
 <section id="output">
 <h2>Output</h2>
-<p>When <code class="docutils literal notranslate"><span class="pre">heat_flux=True</span></code>, the following arrays are populated, and included in
-the <code class="docutils literal notranslate"><span class="pre">.npz</span></code> archive if <code class="docutils literal notranslate"><span class="pre">run(...,</span> <span class="pre">save_results=True)</span></code> is used:</p>
+<p>When <code class="docutils literal notranslate"><span class="pre">heat_flux_mode</span></code> is set, the following arrays are populated, and
+included in the <code class="docutils literal notranslate"><span class="pre">.npz</span></code> archive if <code class="docutils literal notranslate"><span class="pre">run(...,</span> <span class="pre">save_results=True)</span></code> is used:</p>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">COP</span></code>, <code class="docutils literal notranslate"><span class="pre">EER</span></code>: heat pump performance coefficients per timestep (<code class="docutils literal notranslate"><span class="pre">NaN</span></code>
 where the corresponding mode is not active).</p></li>

@@ -209,6 +209,19 @@ When mw is 0 this value must be set as NaN.</p>
 </dl>
 </dd></dl>
 <dl class="py attribute">
+<dt class="sig sig-object py" id="carm.simulation.solver.Simulation.heat_flux_mode">
+<span class="sig-name descname"><span class="pre">heat_flux_mode</span></span></dt>
+<dd><p>Building-side load, supply temperature, and heat pump performance
+curves. When set, <code class="docutils literal notranslate"><span class="pre">Tf1</span></code> must be <code class="docutils literal notranslate"><span class="pre">None</span></code>: the inlet fluid
+temperature is solved for internally each timestep instead of
+being prescribed. <code class="docutils literal notranslate"><span class="pre">None</span></code> by default (<code class="docutils literal notranslate"><span class="pre">Tf1</span></code>-driven mode).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="carm.html#carm.HeatFluxMode" title="carm.HeatFluxMode">HeatFluxMode</a> or None</p>
+</dd>
+</dl>
+</dd></dl>
+<dl class="py attribute">
 <dt class="sig sig-object py" id="carm.simulation.solver.Simulation.fls_mode">
 <span class="sig-name descname"><span class="pre">fls_mode</span></span></dt>
 <dd><p>FLS simulation mode. Accepts <code class="docutils literal notranslate"><span class="pre">'sqrt'</span></code> or <code class="docutils literal notranslate"><span class="pre">'continuous'</span></code>.
@@ -442,52 +455,48 @@ Available only if <code class="docutils literal notranslate"><span class="pre">e
 <span class="sig-name descname"><span class="pre">Tf1</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">ndarray</span><span class="p"><span class="pre">[</span></span><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">Any</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">dtype</span><span class="p"><span class="pre">[</span></span><span class="pre">float64</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></span></dt>
 <dd></dd></dl>
 <dl class="py attribute">
-<dt class="sig sig-object py" id="carm.simulation.solver.Simulation.heat_flux">
-<span class="sig-name descname"><span class="pre">heat_flux</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">False</span></span></dt>
-<dd></dd></dl>
-<dl class="py attribute">
-<dt class="sig sig-object py" id="carm.simulation.solver.Simulation.Q_buildings">
-<span class="sig-name descname"><span class="pre">Q_buildings</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">ndarray</span><span class="p"><span class="pre">[</span></span><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">Any</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">dtype</span><span class="p"><span class="pre">[</span></span><span class="pre">float64</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></span></dt>
-<dd></dd></dl>
-<dl class="py attribute">
-<dt class="sig sig-object py" id="carm.simulation.solver.Simulation.T_supply">
-<span class="sig-name descname"><span class="pre">T_supply</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">ndarray</span><span class="p"><span class="pre">[</span></span><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">Any</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">dtype</span><span class="p"><span class="pre">[</span></span><span class="pre">float64</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></span></dt>
-<dd></dd></dl>
-<dl class="py attribute">
 <dt class="sig sig-object py" id="id7">
-<span class="sig-name descname"><span class="pre">fls_mode</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'sqrt'</span></span></dt>
+<span class="sig-name descname"><span class="pre">heat_flux_mode</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="#carm.simulation.heat_flux_mode.HeatFluxMode" title="carm.simulation.heat_flux_mode.HeatFluxMode"><span class="pre">HeatFluxMode</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></span></dt>
 <dd></dd></dl>
 <dl class="py attribute">
 <dt class="sig sig-object py" id="id8">
-<span class="sig-name descname"><span class="pre">groups</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Dict</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></span></dt>
+<span class="sig-name descname"><span class="pre">fls_mode</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'sqrt'</span></span></dt>
 <dd></dd></dl>
 <dl class="py attribute">
 <dt class="sig sig-object py" id="id9">
-<span class="sig-name descname"><span class="pre">T_sup_kusuda</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">ndarray</span><span class="p"><span class="pre">[</span></span><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">Any</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">dtype</span><span class="p"><span class="pre">[</span></span><span class="pre">float64</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></dt>
+<span class="sig-name descname"><span class="pre">groups</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Dict</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></span></dt>
 <dd></dd></dl>
 <dl class="py attribute">
 <dt class="sig sig-object py" id="id10">
-<span class="sig-name descname"><span class="pre">T_middle_kusuda</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">ndarray</span><span class="p"><span class="pre">[</span></span><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">Any</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">dtype</span><span class="p"><span class="pre">[</span></span><span class="pre">float64</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></dt>
+<span class="sig-name descname"><span class="pre">T_sup_kusuda</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">ndarray</span><span class="p"><span class="pre">[</span></span><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">Any</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">dtype</span><span class="p"><span class="pre">[</span></span><span class="pre">float64</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></dt>
 <dd></dd></dl>
 <dl class="py attribute">
 <dt class="sig sig-object py" id="id11">
-<span class="sig-name descname"><span class="pre">T_inf_kusuda</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">ndarray</span><span class="p"><span class="pre">[</span></span><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">Any</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">dtype</span><span class="p"><span class="pre">[</span></span><span class="pre">float64</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></dt>
+<span class="sig-name descname"><span class="pre">T_middle_kusuda</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">ndarray</span><span class="p"><span class="pre">[</span></span><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">Any</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">dtype</span><span class="p"><span class="pre">[</span></span><span class="pre">float64</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></dt>
 <dd></dd></dl>
 <dl class="py attribute">
 <dt class="sig sig-object py" id="id12">
-<span class="sig-name descname"><span class="pre">env</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="carm.html#carm.external_environment.ExternalEnvironment" title="carm.external_environment.ExternalEnvironment"><span class="pre">ExternalEnvironment</span></a></span></dt>
+<span class="sig-name descname"><span class="pre">T_inf_kusuda</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">ndarray</span><span class="p"><span class="pre">[</span></span><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">Any</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">dtype</span><span class="p"><span class="pre">[</span></span><span class="pre">float64</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></dt>
 <dd></dd></dl>
 <dl class="py attribute">
 <dt class="sig sig-object py" id="id13">
-<span class="sig-name descname"><span class="pre">T_bc</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">ndarray</span><span class="p"><span class="pre">[</span></span><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">Any</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">dtype</span><span class="p"><span class="pre">[</span></span><span class="pre">float64</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></dt>
+<span class="sig-name descname"><span class="pre">env</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="carm.html#carm.external_environment.ExternalEnvironment" title="carm.external_environment.ExternalEnvironment"><span class="pre">ExternalEnvironment</span></a></span></dt>
 <dd></dd></dl>
 <dl class="py attribute">
 <dt class="sig sig-object py" id="id14">
-<span class="sig-name descname"><span class="pre">T_history</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">ndarray</span><span class="p"><span class="pre">[</span></span><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">Any</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">dtype</span><span class="p"><span class="pre">[</span></span><span class="pre">float64</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></dt>
+<span class="sig-name descname"><span class="pre">T_bc</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">ndarray</span><span class="p"><span class="pre">[</span></span><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">Any</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">dtype</span><span class="p"><span class="pre">[</span></span><span class="pre">float64</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></dt>
 <dd></dd></dl>
 <dl class="py attribute">
 <dt class="sig sig-object py" id="id15">
+<span class="sig-name descname"><span class="pre">T_history</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">ndarray</span><span class="p"><span class="pre">[</span></span><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">Any</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">dtype</span><span class="p"><span class="pre">[</span></span><span class="pre">float64</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></dt>
+<dd></dd></dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id16">
 <span class="sig-name descname"><span class="pre">fls</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="carm.thermal_interference.html#carm.thermal_interference.fls.FiniteLineSolution" title="carm.thermal_interference.fls.FiniteLineSolution"><span class="pre">FiniteLineSolution</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></span></dt>
+<dd></dd></dl>
+<dl class="py property">
+<dt class="sig sig-object py" id="carm.simulation.solver.Simulation.heat_flux">
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">heat_flux</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></span></dt>
 <dd></dd></dl>
 <dl class="py method">
 <dt class="sig sig-object py" id="carm.simulation.solver.Simulation.run">
@@ -525,6 +534,86 @@ See <code class="docutils literal notranslate"><span class="pre">examples/</span
 </span></code></pre></div>
 </div>
 </dd></dl>
+</dd></dl>
+</section>
+<section id="module-carm.simulation.heat_flux_mode">
+<span id="carm-simulation-heat-flux-mode-module"></span><h2>carm.simulation.heat_flux_mode module</h2>
+<p>Heat-flux-mode configuration for the BHE simulation.</p>
+<p>Groups the building-side load, supply temperature, and heat pump
+performance curves needed to drive <code class="docutils literal notranslate"><span class="pre">Simulation</span></code> from a building thermal
+load instead of a prescribed inlet fluid temperature.</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="carm.simulation.heat_flux_mode.HeatFluxMode">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">carm.simulation.heat_flux_mode.</span></span><span class="sig-name descname"><span class="pre">HeatFluxMode</span></span><a class="reference internal" href="_modules/carm/simulation/heat_flux_mode.html#HeatFluxMode"><span class="viewcode-link"><span class="pre">[source]</span></span></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Building-side load and heat pump performance configuration.</p>
+<p><code class="docutils literal notranslate"><span class="pre">eq=False</span></code> keeps the default identity-based <code class="docutils literal notranslate"><span class="pre">__eq__</span></code>/<code class="docutils literal notranslate"><span class="pre">__hash__</span></code>:
+the array fields make the auto-generated dataclass <code class="docutils literal notranslate"><span class="pre">__eq__</span></code> raise
+(elementwise array comparison has no unambiguous truth value) and
+<code class="docutils literal notranslate"><span class="pre">__hash__</span></code> raise (arrays are unhashable).</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="carm.simulation.heat_flux_mode.HeatFluxMode.Q_buildings">
+<span class="sig-name descname"><span class="pre">Q_buildings</span></span></dt>
+<dd><p>Building thermal load time series, shape (n_steps,) [W].
+Positive values are a heating load (COP branch), negative values
+a cooling load (EER branch), zero skips the heat pump update for
+that step.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>NDArray[np.float64]</p>
+</dd>
+</dl>
+</dd></dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="carm.simulation.heat_flux_mode.HeatFluxMode.T_supply">
+<span class="sig-name descname"><span class="pre">T_supply</span></span></dt>
+<dd><p>Supply temperature time series to the building, shape (n_steps,) [°C].</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>NDArray[np.float64]</p>
+</dd>
+</dl>
+</dd></dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="carm.simulation.heat_flux_mode.HeatFluxMode.cop_curve">
+<span class="sig-name descname"><span class="pre">cop_curve</span></span></dt>
+<dd><p>Heat pump COP as a function of the temperature lift
+<code class="docutils literal notranslate"><span class="pre">T_supply</span> <span class="pre">-</span> <span class="pre">T_f,out</span></code> [-]. Defaults to the shared default
+performance curve.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Callable[[float], float]</p>
+</dd>
+</dl>
+</dd></dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="carm.simulation.heat_flux_mode.HeatFluxMode.eer_curve">
+<span class="sig-name descname"><span class="pre">eer_curve</span></span></dt>
+<dd><p>Heat pump EER as a function of the temperature lift
+<code class="docutils literal notranslate"><span class="pre">T_f,out</span> <span class="pre">-</span> <span class="pre">T_supply</span></code> [-]. Defaults to the shared default
+performance curve.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Callable[[float], float]</p>
+</dd>
+</dl>
+</dd></dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id17">
+<span class="sig-name descname"><span class="pre">Q_buildings</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">ndarray</span><span class="p"><span class="pre">[</span></span><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">Any</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">dtype</span><span class="p"><span class="pre">[</span></span><span class="pre">float64</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></dt>
+<dd></dd></dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id18">
+<span class="sig-name descname"><span class="pre">T_supply</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">ndarray</span><span class="p"><span class="pre">[</span></span><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">Any</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">dtype</span><span class="p"><span class="pre">[</span></span><span class="pre">float64</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></dt>
+<dd></dd></dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id19">
+<span class="sig-name descname"><span class="pre">cop_curve</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Callable</span><span class="p"><span class="pre">[</span></span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">float</span><span class="p"><span class="pre">]</span></span></span></dt>
+<dd></dd></dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id20">
+<span class="sig-name descname"><span class="pre">eer_curve</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Callable</span><span class="p"><span class="pre">[</span></span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">float</span><span class="p"><span class="pre">]</span></span></span></dt>
+<dd></dd></dl>
 </dd></dl>
 </section>
 <section id="module-carm.simulation">
@@ -614,6 +703,19 @@ When mw is 0 this value must be set as NaN.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Type<span class="colon">:</span></dt>
 <dd class="field-odd"><p>NDArray[np.float64]</p>
+</dd>
+</dl>
+</dd></dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="carm.simulation.Simulation.heat_flux_mode">
+<span class="sig-name descname"><span class="pre">heat_flux_mode</span></span></dt>
+<dd><p>Building-side load, supply temperature, and heat pump performance
+curves. When set, <code class="docutils literal notranslate"><span class="pre">Tf1</span></code> must be <code class="docutils literal notranslate"><span class="pre">None</span></code>: the inlet fluid
+temperature is solved for internally each timestep instead of
+being prescribed. <code class="docutils literal notranslate"><span class="pre">None</span></code> by default (<code class="docutils literal notranslate"><span class="pre">Tf1</span></code>-driven mode).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="#carm.simulation.HeatFluxMode" title="carm.simulation.HeatFluxMode">HeatFluxMode</a> or None</p>
 </dd>
 </dl>
 </dd></dl>
@@ -823,80 +925,76 @@ Available only if <code class="docutils literal notranslate"><span class="pre">e
 </dl>
 </dd></dl>
 <dl class="py attribute">
-<dt class="sig sig-object py" id="id16">
+<dt class="sig sig-object py" id="id21">
 <span class="sig-name descname"><span class="pre">model</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="carm.html#carm.model.PhysicalModel" title="carm.model.PhysicalModel"><span class="pre">PhysicalModel</span></a></span></dt>
 <dd></dd></dl>
 <dl class="py attribute">
-<dt class="sig sig-object py" id="id17">
+<dt class="sig sig-object py" id="id22">
 <span class="sig-name descname"><span class="pre">envprops</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="carm.html#carm.external_environment.EnvironmentalProperties" title="carm.external_environment.EnvironmentalProperties"><span class="pre">EnvironmentalProperties</span></a></span></dt>
 <dd></dd></dl>
 <dl class="py attribute">
-<dt class="sig sig-object py" id="id18">
+<dt class="sig sig-object py" id="id23">
 <span class="sig-name descname"><span class="pre">envinput</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="carm.html#carm.external_environment.EnvironmentalTimeSeries" title="carm.external_environment.EnvironmentalTimeSeries"><span class="pre">EnvironmentalTimeSeries</span></a></span></dt>
 <dd></dd></dl>
 <dl class="py attribute">
-<dt class="sig sig-object py" id="id19">
+<dt class="sig sig-object py" id="id24">
 <span class="sig-name descname"><span class="pre">timesteps</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">float</span></span></dt>
 <dd></dd></dl>
 <dl class="py attribute">
-<dt class="sig sig-object py" id="id20">
+<dt class="sig sig-object py" id="id25">
 <span class="sig-name descname"><span class="pre">n_steps</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></span></dt>
 <dd></dd></dl>
 <dl class="py attribute">
-<dt class="sig sig-object py" id="id21">
+<dt class="sig sig-object py" id="id26">
 <span class="sig-name descname"><span class="pre">mw_tot</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">ndarray</span><span class="p"><span class="pre">[</span></span><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">Any</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">dtype</span><span class="p"><span class="pre">[</span></span><span class="pre">float64</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></dt>
 <dd></dd></dl>
 <dl class="py attribute">
-<dt class="sig sig-object py" id="id22">
+<dt class="sig sig-object py" id="id27">
 <span class="sig-name descname"><span class="pre">Tf1</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">ndarray</span><span class="p"><span class="pre">[</span></span><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">Any</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">dtype</span><span class="p"><span class="pre">[</span></span><span class="pre">float64</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></span></dt>
 <dd></dd></dl>
 <dl class="py attribute">
-<dt class="sig sig-object py" id="carm.simulation.Simulation.heat_flux">
-<span class="sig-name descname"><span class="pre">heat_flux</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">False</span></span></dt>
-<dd></dd></dl>
-<dl class="py attribute">
-<dt class="sig sig-object py" id="carm.simulation.Simulation.Q_buildings">
-<span class="sig-name descname"><span class="pre">Q_buildings</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">ndarray</span><span class="p"><span class="pre">[</span></span><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">Any</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">dtype</span><span class="p"><span class="pre">[</span></span><span class="pre">float64</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></span></dt>
-<dd></dd></dl>
-<dl class="py attribute">
-<dt class="sig sig-object py" id="carm.simulation.Simulation.T_supply">
-<span class="sig-name descname"><span class="pre">T_supply</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">ndarray</span><span class="p"><span class="pre">[</span></span><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">Any</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">dtype</span><span class="p"><span class="pre">[</span></span><span class="pre">float64</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></span></dt>
-<dd></dd></dl>
-<dl class="py attribute">
-<dt class="sig sig-object py" id="id23">
-<span class="sig-name descname"><span class="pre">fls_mode</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'sqrt'</span></span></dt>
-<dd></dd></dl>
-<dl class="py attribute">
-<dt class="sig sig-object py" id="id24">
-<span class="sig-name descname"><span class="pre">groups</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Dict</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></span></dt>
-<dd></dd></dl>
-<dl class="py attribute">
-<dt class="sig sig-object py" id="id25">
-<span class="sig-name descname"><span class="pre">T_sup_kusuda</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">ndarray</span><span class="p"><span class="pre">[</span></span><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">Any</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">dtype</span><span class="p"><span class="pre">[</span></span><span class="pre">float64</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></dt>
-<dd></dd></dl>
-<dl class="py attribute">
-<dt class="sig sig-object py" id="id26">
-<span class="sig-name descname"><span class="pre">T_middle_kusuda</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">ndarray</span><span class="p"><span class="pre">[</span></span><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">Any</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">dtype</span><span class="p"><span class="pre">[</span></span><span class="pre">float64</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></dt>
-<dd></dd></dl>
-<dl class="py attribute">
-<dt class="sig sig-object py" id="id27">
-<span class="sig-name descname"><span class="pre">T_inf_kusuda</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">ndarray</span><span class="p"><span class="pre">[</span></span><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">Any</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">dtype</span><span class="p"><span class="pre">[</span></span><span class="pre">float64</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></dt>
-<dd></dd></dl>
-<dl class="py attribute">
 <dt class="sig sig-object py" id="id28">
-<span class="sig-name descname"><span class="pre">env</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="carm.html#carm.external_environment.ExternalEnvironment" title="carm.external_environment.ExternalEnvironment"><span class="pre">ExternalEnvironment</span></a></span></dt>
+<span class="sig-name descname"><span class="pre">heat_flux_mode</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="#carm.simulation.heat_flux_mode.HeatFluxMode" title="carm.simulation.heat_flux_mode.HeatFluxMode"><span class="pre">HeatFluxMode</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></span></dt>
 <dd></dd></dl>
 <dl class="py attribute">
 <dt class="sig sig-object py" id="id29">
-<span class="sig-name descname"><span class="pre">T_bc</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">ndarray</span><span class="p"><span class="pre">[</span></span><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">Any</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">dtype</span><span class="p"><span class="pre">[</span></span><span class="pre">float64</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></dt>
+<span class="sig-name descname"><span class="pre">fls_mode</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'sqrt'</span></span></dt>
 <dd></dd></dl>
 <dl class="py attribute">
 <dt class="sig sig-object py" id="id30">
-<span class="sig-name descname"><span class="pre">T_history</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">ndarray</span><span class="p"><span class="pre">[</span></span><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">Any</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">dtype</span><span class="p"><span class="pre">[</span></span><span class="pre">float64</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></dt>
+<span class="sig-name descname"><span class="pre">groups</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Dict</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></span></dt>
 <dd></dd></dl>
 <dl class="py attribute">
 <dt class="sig sig-object py" id="id31">
+<span class="sig-name descname"><span class="pre">T_sup_kusuda</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">ndarray</span><span class="p"><span class="pre">[</span></span><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">Any</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">dtype</span><span class="p"><span class="pre">[</span></span><span class="pre">float64</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></dt>
+<dd></dd></dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id32">
+<span class="sig-name descname"><span class="pre">T_middle_kusuda</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">ndarray</span><span class="p"><span class="pre">[</span></span><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">Any</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">dtype</span><span class="p"><span class="pre">[</span></span><span class="pre">float64</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></dt>
+<dd></dd></dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id33">
+<span class="sig-name descname"><span class="pre">T_inf_kusuda</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">ndarray</span><span class="p"><span class="pre">[</span></span><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">Any</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">dtype</span><span class="p"><span class="pre">[</span></span><span class="pre">float64</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></dt>
+<dd></dd></dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id34">
+<span class="sig-name descname"><span class="pre">env</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="carm.html#carm.external_environment.ExternalEnvironment" title="carm.external_environment.ExternalEnvironment"><span class="pre">ExternalEnvironment</span></a></span></dt>
+<dd></dd></dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id35">
+<span class="sig-name descname"><span class="pre">T_bc</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">ndarray</span><span class="p"><span class="pre">[</span></span><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">Any</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">dtype</span><span class="p"><span class="pre">[</span></span><span class="pre">float64</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></dt>
+<dd></dd></dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id36">
+<span class="sig-name descname"><span class="pre">T_history</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">ndarray</span><span class="p"><span class="pre">[</span></span><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">Any</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">dtype</span><span class="p"><span class="pre">[</span></span><span class="pre">float64</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></dt>
+<dd></dd></dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id37">
 <span class="sig-name descname"><span class="pre">fls</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="carm.thermal_interference.html#carm.thermal_interference.fls.FiniteLineSolution" title="carm.thermal_interference.fls.FiniteLineSolution"><span class="pre">FiniteLineSolution</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></span></dt>
+<dd></dd></dl>
+<dl class="py property">
+<dt class="sig sig-object py" id="carm.simulation.Simulation.heat_flux">
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">heat_flux</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></span></dt>
 <dd></dd></dl>
 <dl class="py method">
 <dt class="sig sig-object py" id="carm.simulation.Simulation.run">
@@ -935,6 +1033,79 @@ See <code class="docutils literal notranslate"><span class="pre">examples/</span
 </div>
 </dd></dl>
 </dd></dl>
+<dl class="py class">
+<dt class="sig sig-object py" id="carm.simulation.HeatFluxMode">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">carm.simulation.</span></span><span class="sig-name descname"><span class="pre">HeatFluxMode</span></span><a class="reference internal" href="_modules/carm/simulation/heat_flux_mode.html#HeatFluxMode"><span class="viewcode-link"><span class="pre">[source]</span></span></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Building-side load and heat pump performance configuration.</p>
+<p><code class="docutils literal notranslate"><span class="pre">eq=False</span></code> keeps the default identity-based <code class="docutils literal notranslate"><span class="pre">__eq__</span></code>/<code class="docutils literal notranslate"><span class="pre">__hash__</span></code>:
+the array fields make the auto-generated dataclass <code class="docutils literal notranslate"><span class="pre">__eq__</span></code> raise
+(elementwise array comparison has no unambiguous truth value) and
+<code class="docutils literal notranslate"><span class="pre">__hash__</span></code> raise (arrays are unhashable).</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="carm.simulation.HeatFluxMode.Q_buildings">
+<span class="sig-name descname"><span class="pre">Q_buildings</span></span></dt>
+<dd><p>Building thermal load time series, shape (n_steps,) [W].
+Positive values are a heating load (COP branch), negative values
+a cooling load (EER branch), zero skips the heat pump update for
+that step.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>NDArray[np.float64]</p>
+</dd>
+</dl>
+</dd></dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="carm.simulation.HeatFluxMode.T_supply">
+<span class="sig-name descname"><span class="pre">T_supply</span></span></dt>
+<dd><p>Supply temperature time series to the building, shape (n_steps,) [°C].</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>NDArray[np.float64]</p>
+</dd>
+</dl>
+</dd></dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="carm.simulation.HeatFluxMode.cop_curve">
+<span class="sig-name descname"><span class="pre">cop_curve</span></span></dt>
+<dd><p>Heat pump COP as a function of the temperature lift
+<code class="docutils literal notranslate"><span class="pre">T_supply</span> <span class="pre">-</span> <span class="pre">T_f,out</span></code> [-]. Defaults to the shared default
+performance curve.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Callable[[float], float]</p>
+</dd>
+</dl>
+</dd></dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="carm.simulation.HeatFluxMode.eer_curve">
+<span class="sig-name descname"><span class="pre">eer_curve</span></span></dt>
+<dd><p>Heat pump EER as a function of the temperature lift
+<code class="docutils literal notranslate"><span class="pre">T_f,out</span> <span class="pre">-</span> <span class="pre">T_supply</span></code> [-]. Defaults to the shared default
+performance curve.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Callable[[float], float]</p>
+</dd>
+</dl>
+</dd></dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id38">
+<span class="sig-name descname"><span class="pre">Q_buildings</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">ndarray</span><span class="p"><span class="pre">[</span></span><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">Any</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">dtype</span><span class="p"><span class="pre">[</span></span><span class="pre">float64</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></dt>
+<dd></dd></dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id39">
+<span class="sig-name descname"><span class="pre">T_supply</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">ndarray</span><span class="p"><span class="pre">[</span></span><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">Any</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">dtype</span><span class="p"><span class="pre">[</span></span><span class="pre">float64</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></dt>
+<dd></dd></dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id40">
+<span class="sig-name descname"><span class="pre">cop_curve</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Callable</span><span class="p"><span class="pre">[</span></span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">float</span><span class="p"><span class="pre">]</span></span></span></dt>
+<dd></dd></dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id41">
+<span class="sig-name descname"><span class="pre">eer_curve</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Callable</span><span class="p"><span class="pre">[</span></span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">float</span><span class="p"><span class="pre">]</span></span></span></dt>
+<dd></dd></dl>
+</dd></dl>
 </section>
 </section>
 </div></div><aside class="hidden text-sm xl:block" id="right-sidebar">
@@ -950,6 +1121,7 @@ See <code class="docutils literal notranslate"><span class="pre">examples/</span
 <li><a :data-current="activeSection === '#carm.simulation.solver.Simulation.n_steps'" class="reference internal" href="#carm.simulation.solver.Simulation.n_steps"><code class="docutils literal notranslate"><span class="pre">Simulation.n_steps</span></code></a></li>
 <li><a :data-current="activeSection === '#carm.simulation.solver.Simulation.mw_tot'" class="reference internal" href="#carm.simulation.solver.Simulation.mw_tot"><code class="docutils literal notranslate"><span class="pre">Simulation.mw_tot</span></code></a></li>
 <li><a :data-current="activeSection === '#carm.simulation.solver.Simulation.Tf1'" class="reference internal" href="#carm.simulation.solver.Simulation.Tf1"><code class="docutils literal notranslate"><span class="pre">Simulation.Tf1</span></code></a></li>
+<li><a :data-current="activeSection === '#carm.simulation.solver.Simulation.heat_flux_mode'" class="reference internal" href="#carm.simulation.solver.Simulation.heat_flux_mode"><code class="docutils literal notranslate"><span class="pre">Simulation.heat_flux_mode</span></code></a></li>
 <li><a :data-current="activeSection === '#carm.simulation.solver.Simulation.fls_mode'" class="reference internal" href="#carm.simulation.solver.Simulation.fls_mode"><code class="docutils literal notranslate"><span class="pre">Simulation.fls_mode</span></code></a></li>
 <li><a :data-current="activeSection === '#carm.simulation.solver.Simulation.groups'" class="reference internal" href="#carm.simulation.solver.Simulation.groups"><code class="docutils literal notranslate"><span class="pre">Simulation.groups</span></code></a></li>
 <li><a :data-current="activeSection === '#carm.simulation.solver.Simulation.env'" class="reference internal" href="#carm.simulation.solver.Simulation.env"><code class="docutils literal notranslate"><span class="pre">Simulation.env</span></code></a></li>
@@ -976,19 +1148,32 @@ See <code class="docutils literal notranslate"><span class="pre">examples/</span
 <li><a :data-current="activeSection === '#id4'" class="reference internal" href="#id4"><code class="docutils literal notranslate"><span class="pre">Simulation.n_steps</span></code></a></li>
 <li><a :data-current="activeSection === '#id5'" class="reference internal" href="#id5"><code class="docutils literal notranslate"><span class="pre">Simulation.mw_tot</span></code></a></li>
 <li><a :data-current="activeSection === '#id6'" class="reference internal" href="#id6"><code class="docutils literal notranslate"><span class="pre">Simulation.Tf1</span></code></a></li>
+<li><a :data-current="activeSection === '#id7'" class="reference internal" href="#id7"><code class="docutils literal notranslate"><span class="pre">Simulation.heat_flux_mode</span></code></a></li>
+<li><a :data-current="activeSection === '#id8'" class="reference internal" href="#id8"><code class="docutils literal notranslate"><span class="pre">Simulation.fls_mode</span></code></a></li>
+<li><a :data-current="activeSection === '#id9'" class="reference internal" href="#id9"><code class="docutils literal notranslate"><span class="pre">Simulation.groups</span></code></a></li>
+<li><a :data-current="activeSection === '#id10'" class="reference internal" href="#id10"><code class="docutils literal notranslate"><span class="pre">Simulation.T_sup_kusuda</span></code></a></li>
+<li><a :data-current="activeSection === '#id11'" class="reference internal" href="#id11"><code class="docutils literal notranslate"><span class="pre">Simulation.T_middle_kusuda</span></code></a></li>
+<li><a :data-current="activeSection === '#id12'" class="reference internal" href="#id12"><code class="docutils literal notranslate"><span class="pre">Simulation.T_inf_kusuda</span></code></a></li>
+<li><a :data-current="activeSection === '#id13'" class="reference internal" href="#id13"><code class="docutils literal notranslate"><span class="pre">Simulation.env</span></code></a></li>
+<li><a :data-current="activeSection === '#id14'" class="reference internal" href="#id14"><code class="docutils literal notranslate"><span class="pre">Simulation.T_bc</span></code></a></li>
+<li><a :data-current="activeSection === '#id15'" class="reference internal" href="#id15"><code class="docutils literal notranslate"><span class="pre">Simulation.T_history</span></code></a></li>
+<li><a :data-current="activeSection === '#id16'" class="reference internal" href="#id16"><code class="docutils literal notranslate"><span class="pre">Simulation.fls</span></code></a></li>
 <li><a :data-current="activeSection === '#carm.simulation.solver.Simulation.heat_flux'" class="reference internal" href="#carm.simulation.solver.Simulation.heat_flux"><code class="docutils literal notranslate"><span class="pre">Simulation.heat_flux</span></code></a></li>
-<li><a :data-current="activeSection === '#carm.simulation.solver.Simulation.Q_buildings'" class="reference internal" href="#carm.simulation.solver.Simulation.Q_buildings"><code class="docutils literal notranslate"><span class="pre">Simulation.Q_buildings</span></code></a></li>
-<li><a :data-current="activeSection === '#carm.simulation.solver.Simulation.T_supply'" class="reference internal" href="#carm.simulation.solver.Simulation.T_supply"><code class="docutils literal notranslate"><span class="pre">Simulation.T_supply</span></code></a></li>
-<li><a :data-current="activeSection === '#id7'" class="reference internal" href="#id7"><code class="docutils literal notranslate"><span class="pre">Simulation.fls_mode</span></code></a></li>
-<li><a :data-current="activeSection === '#id8'" class="reference internal" href="#id8"><code class="docutils literal notranslate"><span class="pre">Simulation.groups</span></code></a></li>
-<li><a :data-current="activeSection === '#id9'" class="reference internal" href="#id9"><code class="docutils literal notranslate"><span class="pre">Simulation.T_sup_kusuda</span></code></a></li>
-<li><a :data-current="activeSection === '#id10'" class="reference internal" href="#id10"><code class="docutils literal notranslate"><span class="pre">Simulation.T_middle_kusuda</span></code></a></li>
-<li><a :data-current="activeSection === '#id11'" class="reference internal" href="#id11"><code class="docutils literal notranslate"><span class="pre">Simulation.T_inf_kusuda</span></code></a></li>
-<li><a :data-current="activeSection === '#id12'" class="reference internal" href="#id12"><code class="docutils literal notranslate"><span class="pre">Simulation.env</span></code></a></li>
-<li><a :data-current="activeSection === '#id13'" class="reference internal" href="#id13"><code class="docutils literal notranslate"><span class="pre">Simulation.T_bc</span></code></a></li>
-<li><a :data-current="activeSection === '#id14'" class="reference internal" href="#id14"><code class="docutils literal notranslate"><span class="pre">Simulation.T_history</span></code></a></li>
-<li><a :data-current="activeSection === '#id15'" class="reference internal" href="#id15"><code class="docutils literal notranslate"><span class="pre">Simulation.fls</span></code></a></li>
 <li><a :data-current="activeSection === '#carm.simulation.solver.Simulation.run'" class="reference internal" href="#carm.simulation.solver.Simulation.run"><code class="docutils literal notranslate"><span class="pre">Simulation.run()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a :data-current="activeSection === '#module-carm.simulation.heat_flux_mode'" class="reference internal" href="#module-carm.simulation.heat_flux_mode">carm.simulation.heat_flux_mode module</a><ul>
+<li><a :data-current="activeSection === '#carm.simulation.heat_flux_mode.HeatFluxMode'" class="reference internal" href="#carm.simulation.heat_flux_mode.HeatFluxMode"><code class="docutils literal notranslate"><span class="pre">HeatFluxMode</span></code></a><ul>
+<li><a :data-current="activeSection === '#carm.simulation.heat_flux_mode.HeatFluxMode.Q_buildings'" class="reference internal" href="#carm.simulation.heat_flux_mode.HeatFluxMode.Q_buildings"><code class="docutils literal notranslate"><span class="pre">HeatFluxMode.Q_buildings</span></code></a></li>
+<li><a :data-current="activeSection === '#carm.simulation.heat_flux_mode.HeatFluxMode.T_supply'" class="reference internal" href="#carm.simulation.heat_flux_mode.HeatFluxMode.T_supply"><code class="docutils literal notranslate"><span class="pre">HeatFluxMode.T_supply</span></code></a></li>
+<li><a :data-current="activeSection === '#carm.simulation.heat_flux_mode.HeatFluxMode.cop_curve'" class="reference internal" href="#carm.simulation.heat_flux_mode.HeatFluxMode.cop_curve"><code class="docutils literal notranslate"><span class="pre">HeatFluxMode.cop_curve</span></code></a></li>
+<li><a :data-current="activeSection === '#carm.simulation.heat_flux_mode.HeatFluxMode.eer_curve'" class="reference internal" href="#carm.simulation.heat_flux_mode.HeatFluxMode.eer_curve"><code class="docutils literal notranslate"><span class="pre">HeatFluxMode.eer_curve</span></code></a></li>
+<li><a :data-current="activeSection === '#id17'" class="reference internal" href="#id17"><code class="docutils literal notranslate"><span class="pre">HeatFluxMode.Q_buildings</span></code></a></li>
+<li><a :data-current="activeSection === '#id18'" class="reference internal" href="#id18"><code class="docutils literal notranslate"><span class="pre">HeatFluxMode.T_supply</span></code></a></li>
+<li><a :data-current="activeSection === '#id19'" class="reference internal" href="#id19"><code class="docutils literal notranslate"><span class="pre">HeatFluxMode.cop_curve</span></code></a></li>
+<li><a :data-current="activeSection === '#id20'" class="reference internal" href="#id20"><code class="docutils literal notranslate"><span class="pre">HeatFluxMode.eer_curve</span></code></a></li>
 </ul>
 </li>
 </ul>
@@ -1002,6 +1187,7 @@ See <code class="docutils literal notranslate"><span class="pre">examples/</span
 <li><a :data-current="activeSection === '#carm.simulation.Simulation.n_steps'" class="reference internal" href="#carm.simulation.Simulation.n_steps"><code class="docutils literal notranslate"><span class="pre">Simulation.n_steps</span></code></a></li>
 <li><a :data-current="activeSection === '#carm.simulation.Simulation.mw_tot'" class="reference internal" href="#carm.simulation.Simulation.mw_tot"><code class="docutils literal notranslate"><span class="pre">Simulation.mw_tot</span></code></a></li>
 <li><a :data-current="activeSection === '#carm.simulation.Simulation.Tf1'" class="reference internal" href="#carm.simulation.Simulation.Tf1"><code class="docutils literal notranslate"><span class="pre">Simulation.Tf1</span></code></a></li>
+<li><a :data-current="activeSection === '#carm.simulation.Simulation.heat_flux_mode'" class="reference internal" href="#carm.simulation.Simulation.heat_flux_mode"><code class="docutils literal notranslate"><span class="pre">Simulation.heat_flux_mode</span></code></a></li>
 <li><a :data-current="activeSection === '#carm.simulation.Simulation.fls_mode'" class="reference internal" href="#carm.simulation.Simulation.fls_mode"><code class="docutils literal notranslate"><span class="pre">Simulation.fls_mode</span></code></a></li>
 <li><a :data-current="activeSection === '#carm.simulation.Simulation.groups'" class="reference internal" href="#carm.simulation.Simulation.groups"><code class="docutils literal notranslate"><span class="pre">Simulation.groups</span></code></a></li>
 <li><a :data-current="activeSection === '#carm.simulation.Simulation.env'" class="reference internal" href="#carm.simulation.Simulation.env"><code class="docutils literal notranslate"><span class="pre">Simulation.env</span></code></a></li>
@@ -1021,26 +1207,36 @@ See <code class="docutils literal notranslate"><span class="pre">examples/</span
 <li><a :data-current="activeSection === '#carm.simulation.Simulation.rho_borehole_history'" class="reference internal" href="#carm.simulation.Simulation.rho_borehole_history"><code class="docutils literal notranslate"><span class="pre">Simulation.rho_borehole_history</span></code></a></li>
 <li><a :data-current="activeSection === '#carm.simulation.Simulation.wc_history_ground'" class="reference internal" href="#carm.simulation.Simulation.wc_history_ground"><code class="docutils literal notranslate"><span class="pre">Simulation.wc_history_ground</span></code></a></li>
 <li><a :data-current="activeSection === '#carm.simulation.Simulation.wc_history_borehole'" class="reference internal" href="#carm.simulation.Simulation.wc_history_borehole"><code class="docutils literal notranslate"><span class="pre">Simulation.wc_history_borehole</span></code></a></li>
-<li><a :data-current="activeSection === '#id16'" class="reference internal" href="#id16"><code class="docutils literal notranslate"><span class="pre">Simulation.model</span></code></a></li>
-<li><a :data-current="activeSection === '#id17'" class="reference internal" href="#id17"><code class="docutils literal notranslate"><span class="pre">Simulation.envprops</span></code></a></li>
-<li><a :data-current="activeSection === '#id18'" class="reference internal" href="#id18"><code class="docutils literal notranslate"><span class="pre">Simulation.envinput</span></code></a></li>
-<li><a :data-current="activeSection === '#id19'" class="reference internal" href="#id19"><code class="docutils literal notranslate"><span class="pre">Simulation.timesteps</span></code></a></li>
-<li><a :data-current="activeSection === '#id20'" class="reference internal" href="#id20"><code class="docutils literal notranslate"><span class="pre">Simulation.n_steps</span></code></a></li>
-<li><a :data-current="activeSection === '#id21'" class="reference internal" href="#id21"><code class="docutils literal notranslate"><span class="pre">Simulation.mw_tot</span></code></a></li>
-<li><a :data-current="activeSection === '#id22'" class="reference internal" href="#id22"><code class="docutils literal notranslate"><span class="pre">Simulation.Tf1</span></code></a></li>
+<li><a :data-current="activeSection === '#id21'" class="reference internal" href="#id21"><code class="docutils literal notranslate"><span class="pre">Simulation.model</span></code></a></li>
+<li><a :data-current="activeSection === '#id22'" class="reference internal" href="#id22"><code class="docutils literal notranslate"><span class="pre">Simulation.envprops</span></code></a></li>
+<li><a :data-current="activeSection === '#id23'" class="reference internal" href="#id23"><code class="docutils literal notranslate"><span class="pre">Simulation.envinput</span></code></a></li>
+<li><a :data-current="activeSection === '#id24'" class="reference internal" href="#id24"><code class="docutils literal notranslate"><span class="pre">Simulation.timesteps</span></code></a></li>
+<li><a :data-current="activeSection === '#id25'" class="reference internal" href="#id25"><code class="docutils literal notranslate"><span class="pre">Simulation.n_steps</span></code></a></li>
+<li><a :data-current="activeSection === '#id26'" class="reference internal" href="#id26"><code class="docutils literal notranslate"><span class="pre">Simulation.mw_tot</span></code></a></li>
+<li><a :data-current="activeSection === '#id27'" class="reference internal" href="#id27"><code class="docutils literal notranslate"><span class="pre">Simulation.Tf1</span></code></a></li>
+<li><a :data-current="activeSection === '#id28'" class="reference internal" href="#id28"><code class="docutils literal notranslate"><span class="pre">Simulation.heat_flux_mode</span></code></a></li>
+<li><a :data-current="activeSection === '#id29'" class="reference internal" href="#id29"><code class="docutils literal notranslate"><span class="pre">Simulation.fls_mode</span></code></a></li>
+<li><a :data-current="activeSection === '#id30'" class="reference internal" href="#id30"><code class="docutils literal notranslate"><span class="pre">Simulation.groups</span></code></a></li>
+<li><a :data-current="activeSection === '#id31'" class="reference internal" href="#id31"><code class="docutils literal notranslate"><span class="pre">Simulation.T_sup_kusuda</span></code></a></li>
+<li><a :data-current="activeSection === '#id32'" class="reference internal" href="#id32"><code class="docutils literal notranslate"><span class="pre">Simulation.T_middle_kusuda</span></code></a></li>
+<li><a :data-current="activeSection === '#id33'" class="reference internal" href="#id33"><code class="docutils literal notranslate"><span class="pre">Simulation.T_inf_kusuda</span></code></a></li>
+<li><a :data-current="activeSection === '#id34'" class="reference internal" href="#id34"><code class="docutils literal notranslate"><span class="pre">Simulation.env</span></code></a></li>
+<li><a :data-current="activeSection === '#id35'" class="reference internal" href="#id35"><code class="docutils literal notranslate"><span class="pre">Simulation.T_bc</span></code></a></li>
+<li><a :data-current="activeSection === '#id36'" class="reference internal" href="#id36"><code class="docutils literal notranslate"><span class="pre">Simulation.T_history</span></code></a></li>
+<li><a :data-current="activeSection === '#id37'" class="reference internal" href="#id37"><code class="docutils literal notranslate"><span class="pre">Simulation.fls</span></code></a></li>
 <li><a :data-current="activeSection === '#carm.simulation.Simulation.heat_flux'" class="reference internal" href="#carm.simulation.Simulation.heat_flux"><code class="docutils literal notranslate"><span class="pre">Simulation.heat_flux</span></code></a></li>
-<li><a :data-current="activeSection === '#carm.simulation.Simulation.Q_buildings'" class="reference internal" href="#carm.simulation.Simulation.Q_buildings"><code class="docutils literal notranslate"><span class="pre">Simulation.Q_buildings</span></code></a></li>
-<li><a :data-current="activeSection === '#carm.simulation.Simulation.T_supply'" class="reference internal" href="#carm.simulation.Simulation.T_supply"><code class="docutils literal notranslate"><span class="pre">Simulation.T_supply</span></code></a></li>
-<li><a :data-current="activeSection === '#id23'" class="reference internal" href="#id23"><code class="docutils literal notranslate"><span class="pre">Simulation.fls_mode</span></code></a></li>
-<li><a :data-current="activeSection === '#id24'" class="reference internal" href="#id24"><code class="docutils literal notranslate"><span class="pre">Simulation.groups</span></code></a></li>
-<li><a :data-current="activeSection === '#id25'" class="reference internal" href="#id25"><code class="docutils literal notranslate"><span class="pre">Simulation.T_sup_kusuda</span></code></a></li>
-<li><a :data-current="activeSection === '#id26'" class="reference internal" href="#id26"><code class="docutils literal notranslate"><span class="pre">Simulation.T_middle_kusuda</span></code></a></li>
-<li><a :data-current="activeSection === '#id27'" class="reference internal" href="#id27"><code class="docutils literal notranslate"><span class="pre">Simulation.T_inf_kusuda</span></code></a></li>
-<li><a :data-current="activeSection === '#id28'" class="reference internal" href="#id28"><code class="docutils literal notranslate"><span class="pre">Simulation.env</span></code></a></li>
-<li><a :data-current="activeSection === '#id29'" class="reference internal" href="#id29"><code class="docutils literal notranslate"><span class="pre">Simulation.T_bc</span></code></a></li>
-<li><a :data-current="activeSection === '#id30'" class="reference internal" href="#id30"><code class="docutils literal notranslate"><span class="pre">Simulation.T_history</span></code></a></li>
-<li><a :data-current="activeSection === '#id31'" class="reference internal" href="#id31"><code class="docutils literal notranslate"><span class="pre">Simulation.fls</span></code></a></li>
 <li><a :data-current="activeSection === '#carm.simulation.Simulation.run'" class="reference internal" href="#carm.simulation.Simulation.run"><code class="docutils literal notranslate"><span class="pre">Simulation.run()</span></code></a></li>
+</ul>
+</li>
+<li><a :data-current="activeSection === '#carm.simulation.HeatFluxMode'" class="reference internal" href="#carm.simulation.HeatFluxMode"><code class="docutils literal notranslate"><span class="pre">HeatFluxMode</span></code></a><ul>
+<li><a :data-current="activeSection === '#carm.simulation.HeatFluxMode.Q_buildings'" class="reference internal" href="#carm.simulation.HeatFluxMode.Q_buildings"><code class="docutils literal notranslate"><span class="pre">HeatFluxMode.Q_buildings</span></code></a></li>
+<li><a :data-current="activeSection === '#carm.simulation.HeatFluxMode.T_supply'" class="reference internal" href="#carm.simulation.HeatFluxMode.T_supply"><code class="docutils literal notranslate"><span class="pre">HeatFluxMode.T_supply</span></code></a></li>
+<li><a :data-current="activeSection === '#carm.simulation.HeatFluxMode.cop_curve'" class="reference internal" href="#carm.simulation.HeatFluxMode.cop_curve"><code class="docutils literal notranslate"><span class="pre">HeatFluxMode.cop_curve</span></code></a></li>
+<li><a :data-current="activeSection === '#carm.simulation.HeatFluxMode.eer_curve'" class="reference internal" href="#carm.simulation.HeatFluxMode.eer_curve"><code class="docutils literal notranslate"><span class="pre">HeatFluxMode.eer_curve</span></code></a></li>
+<li><a :data-current="activeSection === '#id38'" class="reference internal" href="#id38"><code class="docutils literal notranslate"><span class="pre">HeatFluxMode.Q_buildings</span></code></a></li>
+<li><a :data-current="activeSection === '#id39'" class="reference internal" href="#id39"><code class="docutils literal notranslate"><span class="pre">HeatFluxMode.T_supply</span></code></a></li>
+<li><a :data-current="activeSection === '#id40'" class="reference internal" href="#id40"><code class="docutils literal notranslate"><span class="pre">HeatFluxMode.cop_curve</span></code></a></li>
+<li><a :data-current="activeSection === '#id41'" class="reference internal" href="#id41"><code class="docutils literal notranslate"><span class="pre">HeatFluxMode.eer_curve</span></code></a></li>
 </ul>
 </li>
 </ul>
