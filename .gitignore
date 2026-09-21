@@ -47,3 +47,9 @@ build/
 
 # Saved simulation results
 results/
+
+# Claude Code / Matt Pocock skills workflow
+.claude/
+CLAUDE.md
+docs/agents/
+.scratch/
