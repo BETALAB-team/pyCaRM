@@ -392,6 +392,87 @@ class Simulation:
             else:
                 return self._run_parallel(save_results=save_results)
 
+    @staticmethod
+    def _matrix_needs_rebuild(
+        step: int, mw: float, mw_prev: float, properties_changed: bool
+    ) -> bool:
+        """Whether a borehole's cached system matrix must be rebuilt: the
+        first step, a mass-flow change since the previous step, or a
+        thermophysical-property update.
+
+        Callers decide *how often* to evaluate this (``_run_parallel`` once
+        per step, ``_run_series`` once per Picard iteration, matching each
+        adapter's pre-existing cadence) so the formula lives in one place
+        without forcing one adapter to adopt the other's rebuild frequency.
+        """
+        return step == 0 or mw != mw_prev or properties_changed
+
+    def _rebuild_matrix_cache(self, j: int, gr_p, mw: float, adiabatic: bool) -> None:
+        self.A[j] = build_global_matrix(
+            self.model, gr_p, self.env, self.timesteps, mw, adiabatic
+        )
+        self.A_inv[j] = splu(self.A[j])
+
+    def _solve_borehole(
+        self,
+        j: int,
+        gr_p,
+        mw: float,
+        rebuild: bool,
+        Tf1_j: float,
+        T_bc_j: NDArray[np.float64],
+        old_state: tuple,
+        T_ext: float,
+        T_sky: float,
+        SolarRad: float,
+        adiabatic: bool,
+    ) -> NDArray[np.float64]:
+        """Solve one borehole for one Picard iteration.
+
+        Rebuilds and caches ``self.A[j]``/``self.A_inv[j]`` when ``rebuild``
+        is True (see ``_matrix_needs_rebuild``); assembles the RHS from the
+        previous-timestep state (``old_state``, the tuple returned by
+        ``PhysicalModel._get_temperatures``); and solves for the new
+        borehole state.
+        """
+        if rebuild:
+            self._rebuild_matrix_cache(j, gr_p, mw, adiabatic)
+
+        T_borehole_old, T_ground_old, T_ground_sup_old, T_ground_inf_old, Ts_old = (
+            old_state
+        )
+
+        b = build_global_rhs(
+            self.model,
+            gr_p,
+            self.env,
+            self.timesteps,
+            T_ground_old,
+            T_borehole_old,
+            T_ground_sup_old,
+            T_ground_inf_old,
+            Ts_old,
+            T_ext,
+            T_sky,
+            T_bc_j,
+            SolarRad,
+            mw,
+            Tf1_j,
+            adiabatic,
+        )
+
+        assert np.all(np.isfinite(self.A[j].data)), "A contains NaN or Inf"  # type: ignore
+        assert np.all(np.isfinite(b)), "b contains NaN or Inf"
+
+        T_new_j = self.A_inv[j].solve(b)  # type: ignore
+
+        assert np.all(np.isfinite(T_new_j)), "T_new is not finite"
+
+        r = self.A[j] @ T_new_j - b
+        assert np.max(np.abs(r)) < 1e-6
+
+        return T_new_j
+
     def _run_parallel(self, save_results: bool = False) -> NDArray[np.float64]:
         tic = time.time()  # start simulation
 
@@ -476,21 +557,12 @@ class Simulation:
 
             # coefficient matrix is built for each borehole
             for j, gr_p in enumerate(model.ground):
-
-                if (
-                    step == 0
-                    or (self.mw_tot[j, step] != self.mw_tot[j, step - 1])
-                    or properties_changed
+                if self._matrix_needs_rebuild(
+                    step, self.mw_tot[j, step], self.mw_tot[j, step - 1], properties_changed
                 ):
-                    self.A[j] = build_global_matrix(
-                        self.model,
-                        gr_p,
-                        self.env,
-                        self.timesteps,
-                        self.mw_tot[j, step],
-                        self.adiabatic,
+                    self._rebuild_matrix_cache(
+                        j, gr_p, self.mw_tot[j, step], self.adiabatic
                     )
-                    self.A_inv[j] = splu(self.A[j])
 
             Tfout_iter = np.mean(Tfout)
 
@@ -546,42 +618,21 @@ class Simulation:
 
                 for j, gr_p in enumerate(model.ground):
 
-                    (
-                        T_borehole_old,
-                        T_ground_old,
-                        T_ground_sup_old,
-                        T_ground_inf_old,
-                        Ts_old,
-                    ) = self.model._get_temperatures(currstate, j, use_old=True)
+                    old_state = self.model._get_temperatures(currstate, j, use_old=True)
 
-                    self.b = build_global_rhs(
-                        self.model,
+                    T_new_j = self._solve_borehole(
+                        j,
                         gr_p,
-                        self.env,
-                        self.timesteps,
-                        T_ground_old,
-                        T_borehole_old,
-                        T_ground_sup_old,
-                        T_ground_inf_old,
-                        Ts_old,
+                        self.mw_tot[j, step],
+                        False,  # matrix already (re)built above, once per step
+                        self.Tf1[j, step],
+                        self.T_bc[step, j],
+                        old_state,
                         T_ext,
                         T_sky,
-                        self.T_bc[step, j],
                         SolarRad,
-                        self.mw_tot[j, step],
-                        self.Tf1[j, step],
                         self.adiabatic,
                     )
-
-                    assert np.all(np.isfinite(self.A[j].data)), "A contains NaN or Inf"  # type: ignore
-                    assert np.all(np.isfinite(self.b)), "b contains NaN or Inf"  # type: ignore
-
-                    T_new_j = self.A_inv[j].solve(self.b)  # type: ignore
-
-                    assert np.all(np.isfinite(T_new_j)), "T_new is not finite"
-
-                    r = self.A[j] @ T_new_j - self.b
-                    assert np.max(np.abs(r)) < 1e-6
 
                     T_new_step[j, :] = T_new_j
 
@@ -789,52 +840,25 @@ class Simulation:
                     for j in group:
                         gr_p = self.model.ground[j]
 
-                        (
-                            T_borehole_old,
-                            T_ground_old,
-                            T_ground_sup_old,
-                            T_ground_inf_old,
-                            Ts_old,
-                        ) = self.model._get_temperatures(currstate, j, use_old=True)
+                        old_state = self.model._get_temperatures(currstate, j, use_old=True)
 
-                        if (
-                            (step == 0)
-                            or (mw_loc != self.mw_tot[i, step - 1])
-                            or properties_changed
-                        ):
-                            self.A[j] = build_global_matrix(
-                                self.model, gr_p, self.env, self.timesteps, mw_loc, adiabatic=False
-                            )
-                            self.A_inv[j] = splu(self.A[j])
-
-                        b = build_global_rhs(
-                            self.model,
-                            gr_p,
-                            self.env,
-                            self.timesteps,
-                            T_ground_old,
-                            T_borehole_old,
-                            T_ground_sup_old,
-                            T_ground_inf_old,
-                            Ts_old,
-                            T_ext,
-                            T_sky,
-                            self.T_bc[step, j],
-                            SolarRad,
-                            mw_loc,
-                            Tf1_loc,
-                            adiabatic=False,
+                        rebuild = self._matrix_needs_rebuild(
+                            step, mw_loc, self.mw_tot[i, step - 1], properties_changed
                         )
 
-                        assert np.all(np.isfinite(self.A[j].data)), "A contains NaN or Inf"  # type: ignore
-                        assert np.all(np.isfinite(b)), "b contains NaN or Inf"  # type: ignore
-
-                        T_new_i_j = self.A_inv[j].solve(b)  # type: ignore
-
-                        assert np.all(np.isfinite(T_new_i_j)), "T_new is not finite"
-
-                        r = self.A[j] @ T_new_i_j - b
-                        assert np.max(np.abs(r)) < 1e-6
+                        T_new_i_j = self._solve_borehole(
+                            j,
+                            gr_p,
+                            mw_loc,
+                            rebuild,
+                            Tf1_loc,
+                            self.T_bc[step, j],
+                            old_state,
+                            T_ext,
+                            T_sky,
+                            SolarRad,
+                            False,
+                        )
 
                         Tfout_loc = T_new_i_j[ns + nm + borehole.id_outlet]
                         qfluid[step, j] = mw_loc * model.fluid.cp_w * (Tf1_loc - Tfout_loc)
