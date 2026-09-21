@@ -52,23 +52,11 @@ pip install -e ".[dev]"
 
 ## Optional Dependencies
 
-- - [CoolProp](http://www.coolprop.org) — for computing fluid thermophysical properties. See [Fluid Properties](https://betalab-team.github.io/pyCaRM/fluid_properties.html) for usage.
+- [CoolProp](http://www.coolprop.org) — for computing fluid thermophysical properties. Install with `pip install pyCaRM-BHE[coolprop]`. See [Fluid Properties](https://betalab-team.github.io/pyCaRM/fluid_properties.html) for usage.
 
 ## Documentation
 
-Full documentation is available at **https://betalab-team.github.io/pyCaRM/**
-
-To build the documentation locally, install the documentation dependencies first:
-```bash
-cd pyCaRM
-pip install -e ".[docs]"
-```
-Then build:
-```bash
-cd docs
-make html
-```
-The HTML documentation will be available in `docs/build/html/`.
+Full documentation is available at **https://betalab-team.github.io/pyCaRM/**.
 
 ## Examples
 
