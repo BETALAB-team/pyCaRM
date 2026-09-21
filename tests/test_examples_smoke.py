@@ -12,7 +12,7 @@ Single-borehole examples and the 9-borehole parallel example run in a
 few seconds each and are executed here. The two full-year (n_steps=8760),
 9-borehole series examples are only import-checked for speed (still
 catches renamed/removed public API used at import time); the same
-_run_series/heat_flux=True code paths are exercised end-to-end at a
+_run_series/heat_flux_mode code paths are exercised end-to-end at a
 reduced scale in tests/test_results/test_series_and_heat_flux.py.
 
 matplotlib.use("Agg") avoids blocking on plt.show()/opening windows.

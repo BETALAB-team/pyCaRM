@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Results test: series connection (_run_series) and heat_flux=True (COP/EER)
+Results test: series connection (_run_series) and heat_flux_mode (COP/EER)
 mode, executed end-to-end.
 
 Both code paths existed only as construction/validation checks before this
@@ -32,6 +32,7 @@ from carm import (
     EnvironmentalProperties,
     EnvironmentalTimeSeries,
     Simulation,
+    HeatFluxMode,
 )
 
 N_STEPS = 24
@@ -163,7 +164,7 @@ def test_series_heat_flux_rhs_old_state_frozen_across_picard_iterations(
     exactly as ``_run_parallel`` does by passing ``use_old=True`` to
     ``model._get_temperatures``. ``_run_series`` called it without
     ``use_old=True``, so from the second Picard iteration onward (only
-    reachable when heat_flux=True forces the while-loop to iterate) it fed
+    reachable when heat_flux_mode forces the while-loop to iterate) it fed
     back the *previous iteration's own solve* instead — collapsing the
     transient term at convergence. Same class of bug as the Tf1_groups fix
     (a value read before/instead of being pinned to its correct point in
@@ -177,11 +178,12 @@ def test_series_heat_flux_rhs_old_state_frozen_across_picard_iterations(
     mw_tot = np.full((1, N_STEPS), 0.2, dtype=np.float64)
     Q_buildings = np.full(N_STEPS, 3000.0, dtype=np.float64)
     T_supply = np.full(N_STEPS, 45.0, dtype=np.float64)
+    heat_flux_mode = HeatFluxMode(Q_buildings=Q_buildings, T_supply=T_supply)
 
     sim = Simulation(
         model=two_bhe_series_model, envprops=env_props, envinput=env_series,
         timesteps=3600.0, n_steps=N_STEPS, mw_tot=mw_tot, Tf1=None, groups=groups,
-        heat_flux=True, Q_buildings=Q_buildings, T_supply=T_supply,
+        heat_flux_mode=heat_flux_mode,
     )
 
     step_counter = {"step": -1}
@@ -227,7 +229,7 @@ def test_series_heat_flux_rhs_old_state_frozen_across_picard_iterations(
 
 
 # ============================================================
-# heat_flux=True mode (COP/EER)
+# heat_flux_mode (COP/EER)
 # ============================================================
 
 @pytest.fixture
@@ -251,12 +253,13 @@ def test_heat_flux_extraction_gives_negative_q_ground(
 
     Q_buildings = np.full(N_STEPS, 1000.0, dtype=np.float64)
     T_supply = np.full(N_STEPS, 45.0, dtype=np.float64)
+    heat_flux_mode = HeatFluxMode(Q_buildings=Q_buildings, T_supply=T_supply)
     mw_tot = np.full((1, N_STEPS), 0.2, dtype=np.float64)
 
     sim = Simulation(
         model=single_bhe_model, envprops=env_props, envinput=env_series,
         timesteps=3600.0, n_steps=N_STEPS, mw_tot=mw_tot, Tf1=None,
-        heat_flux=True, Q_buildings=Q_buildings, T_supply=T_supply,
+        heat_flux_mode=heat_flux_mode,
     )
     sim.run()
 
@@ -265,6 +268,47 @@ def test_heat_flux_extraction_gives_negative_q_ground(
     assert np.all(sim.COP[1:] > 1.0)
     assert np.all(sim.Q_ground[1:] < 0.0)
     assert np.all(sim.q_nbhes[1:, 0] < 0.0)
+
+
+def test_heat_flux_mode_independent_curves_produce_different_cop_and_eer(
+    single_bhe_model, env_props, env_series, tmp_path, monkeypatch
+):
+    """cop_curve and eer_curve are configured independently on HeatFluxMode:
+    distinct constant curves must produce COP/EER equal to those constants,
+    not the shared default polynomial (and not each other's value)."""
+    monkeypatch.chdir(tmp_path)
+
+    mw_tot = np.full((1, N_STEPS), 0.2, dtype=np.float64)
+
+    heating_mode = HeatFluxMode(
+        Q_buildings=np.full(N_STEPS, 1000.0, dtype=np.float64),
+        T_supply=np.full(N_STEPS, 45.0, dtype=np.float64),
+        cop_curve=lambda dT: 3.0,
+        eer_curve=lambda dT: 4.0,
+    )
+    sim_heating = Simulation(
+        model=single_bhe_model, envprops=env_props, envinput=env_series,
+        timesteps=3600.0, n_steps=N_STEPS, mw_tot=mw_tot, Tf1=None,
+        heat_flux_mode=heating_mode,
+    )
+    sim_heating.run()
+    assert np.allclose(sim_heating.COP[1:], 3.0)
+    assert np.all(np.isnan(sim_heating.EER))
+
+    cooling_mode = HeatFluxMode(
+        Q_buildings=np.full(N_STEPS, -1000.0, dtype=np.float64),
+        T_supply=np.full(N_STEPS, 7.0, dtype=np.float64),
+        cop_curve=lambda dT: 3.0,
+        eer_curve=lambda dT: 4.0,
+    )
+    sim_cooling = Simulation(
+        model=single_bhe_model, envprops=env_props, envinput=env_series,
+        timesteps=3600.0, n_steps=N_STEPS, mw_tot=mw_tot, Tf1=None,
+        heat_flux_mode=cooling_mode,
+    )
+    sim_cooling.run()
+    assert np.allclose(sim_cooling.EER[1:], 4.0)
+    assert np.all(np.isnan(sim_cooling.COP))
 
 
 def test_heat_flux_off_gives_zero_load(
@@ -276,12 +320,13 @@ def test_heat_flux_off_gives_zero_load(
 
     Q_buildings = np.zeros(N_STEPS, dtype=np.float64)
     T_supply = np.full(N_STEPS, 45.0, dtype=np.float64)
+    heat_flux_mode = HeatFluxMode(Q_buildings=Q_buildings, T_supply=T_supply)
     mw_tot = np.full((1, N_STEPS), 0.2, dtype=np.float64)
 
     sim = Simulation(
         model=single_bhe_model, envprops=env_props, envinput=env_series,
         timesteps=3600.0, n_steps=N_STEPS, mw_tot=mw_tot, Tf1=None,
-        heat_flux=True, Q_buildings=Q_buildings, T_supply=T_supply,
+        heat_flux_mode=heat_flux_mode,
     )
     sim.run()
 
@@ -300,12 +345,13 @@ def test_heat_flux_rejection_gives_positive_q_ground(
 
     Q_buildings = np.full(N_STEPS, -1000.0, dtype=np.float64)
     T_supply = np.full(N_STEPS, 7.0, dtype=np.float64)
+    heat_flux_mode = HeatFluxMode(Q_buildings=Q_buildings, T_supply=T_supply)
     mw_tot = np.full((1, N_STEPS), 0.2, dtype=np.float64)
 
     sim = Simulation(
         model=single_bhe_model, envprops=env_props, envinput=env_series,
         timesteps=3600.0, n_steps=N_STEPS, mw_tot=mw_tot, Tf1=None,
-        heat_flux=True, Q_buildings=Q_buildings, T_supply=T_supply,
+        heat_flux_mode=heat_flux_mode,
     )
     sim.run()
 
@@ -330,11 +376,12 @@ def test_series_heat_flux_rejection_gives_positive_q_ground(
     mw_tot = np.full((1, N_STEPS), 0.2, dtype=np.float64)
     Q_buildings = np.full(N_STEPS, -1000.0, dtype=np.float64)
     T_supply = np.full(N_STEPS, 7.0, dtype=np.float64)
+    heat_flux_mode = HeatFluxMode(Q_buildings=Q_buildings, T_supply=T_supply)
 
     sim = Simulation(
         model=two_bhe_series_model, envprops=env_props, envinput=env_series,
         timesteps=3600.0, n_steps=N_STEPS, mw_tot=mw_tot, Tf1=None, groups=groups,
-        heat_flux=True, Q_buildings=Q_buildings, T_supply=T_supply,
+        heat_flux_mode=heat_flux_mode,
     )
     sim.run(series=True, save_results=True)
 

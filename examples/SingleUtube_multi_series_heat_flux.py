@@ -23,6 +23,7 @@ from carm import Fluid
 from carm import GroundGeometry, GroundMesh
 from carm import PhysicalModel
 from carm import Simulation
+from carm import HeatFluxMode
 
 
 def _synthetic_weather(n_steps: int, dt: float) -> tuple[np.ndarray, np.ndarray]:
@@ -112,6 +113,8 @@ def main():
 
     T_supply = np.full(n_steps, T_supply_value, dtype=np.float64)
 
+    heat_flux_mode = HeatFluxMode(Q_buildings=Q_buildings, T_supply=T_supply)
+
     mw_tot = np.full((n_groups, n_steps), 0.1657, dtype=np.float64)
     mw_tot[:, n_steps // 2 :] = 0.0
 
@@ -178,7 +181,7 @@ def main():
     simulation = Simulation(
         model=model, envinput=env_input, timesteps=dt, n_steps=n_steps,
         envprops=env_props, mw_tot=mw_tot, Tf1=None,
-        heat_flux=True, Q_buildings=Q_buildings, T_supply=T_supply,
+        heat_flux_mode=heat_flux_mode,
         groups=groups,
     )
     T_history = simulation.run(series=True)

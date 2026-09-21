@@ -6,7 +6,8 @@ temperature instead of a prescribed inlet fluid temperature. In this mode,
 the inlet fluid temperature ``Tf1`` is not an input: it is solved for at each
 timestep so that the heat extracted from (or rejected to) the ground matches
 the building load once heat pump performance is accounted for. This mode is
-enabled by setting ``heat_flux=True`` on :class:`~carm.simulation.Simulation`.
+enabled by passing a :class:`~carm.simulation.HeatFluxMode` instance as
+``heat_flux_mode`` on :class:`~carm.simulation.Simulation`.
 
 Overview
 --------
@@ -39,21 +40,34 @@ heat pump:
 Performance function
 ---------------------
 
-:math:`f` is currently **hardcoded** in the solver as the quadratic
-ground-source heat pump (GSHP) regression from Ruhnau *et al.* (2019) [1]_:
+The COP and EER curves are configured independently via
+:class:`~carm.simulation.HeatFluxMode`'s ``cop_curve`` and ``eer_curve``
+fields, each a ``Callable[[float], float]`` mapping the temperature lift
+:math:`\Delta T` to a performance coefficient. Both default to the same
+quadratic ground-source heat pump (GSHP) regression from Ruhnau
+*et al.* (2019) [1]_:
 
 .. math::
 
    f(\Delta T) = 10.29 - 0.21\,\Delta T + 0.0012\,\Delta T^2
 
-where :math:`\Delta T` is the temperature lift defined above. The same
-function is used for both COP and EER in the current implementation.
+To use a different correlation (e.g. air-source or water-source
+coefficients from the same reference, or a manufacturer-specific curve),
+pass your own callable(s):
 
-This is not exposed as a configurable parameter: to use a different
-correlation (e.g. air-source or water-source coefficients from the same
-reference, or a manufacturer-specific curve), fork the repository and edit
-``f_COP`` directly in ``carm/simulation/solver.py``, in both
-``_run_parallel`` and ``_run_series``.
+.. code-block:: python
+
+   def my_cop_curve(dT: float) -> float:
+       return 9.5 - 0.18 * dT + 0.0010 * dT**2
+
+   heat_flux_mode = HeatFluxMode(
+       Q_buildings=Q_buildings, T_supply=T_supply,
+       cop_curve=my_cop_curve,  # eer_curve left at its default
+   )
+
+``HeatFluxMode`` does not validate curve output beyond requiring it to be
+callable; a curve producing non-finite values is caught by the solver's
+own finite-value assertions at the first affected timestep.
 
 Picard iteration
 -----------------
@@ -93,11 +107,11 @@ fluid coupling.
 Usage
 -----
 
-When ``heat_flux=True``:
+When ``heat_flux_mode`` is set:
 
 - ``Tf1`` must be ``None`` (it is computed internally).
-- ``Q_buildings`` and ``T_supply`` must be provided as 1D time series of
-  length ``n_steps``, shared across the whole field.
+- ``HeatFluxMode.Q_buildings`` and ``HeatFluxMode.T_supply`` must be 1D time
+  series of length ``n_steps``, shared across the whole field.
 - ``mw_tot`` follows the usual shape convention: ``(n_bhes, n_steps)`` in
   parallel mode, ``(n_groups, n_steps)`` in series mode.
 
@@ -108,10 +122,12 @@ When ``heat_flux=True``:
 
    T_supply = np.full(n_steps, 45.0, dtype=np.float64)
 
+   heat_flux_mode = HeatFluxMode(Q_buildings=Q_buildings, T_supply=T_supply)
+
    simulation = Simulation(
        model=model, envinput=env_input, timesteps=dt, n_steps=n_steps,
        envprops=env_props, mw_tot=mw_tot, Tf1=None,
-       heat_flux=True, Q_buildings=Q_buildings, T_supply=T_supply,
+       heat_flux_mode=heat_flux_mode,
    )
    T_history = simulation.run(parallel=True)  # or series=True with groups defined
 
@@ -125,8 +141,8 @@ When ``heat_flux=True``:
 Output
 ------
 
-When ``heat_flux=True``, the following arrays are populated, and included in
-the ``.npz`` archive if ``run(..., save_results=True)`` is used:
+When ``heat_flux_mode`` is set, the following arrays are populated, and
+included in the ``.npz`` archive if ``run(..., save_results=True)`` is used:
 
 - ``COP``, ``EER``: heat pump performance coefficients per timestep (``NaN``
   where the corresponding mode is not active).

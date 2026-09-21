@@ -32,6 +32,7 @@ from carm import (
     EnvironmentalProperties,
     EnvironmentalTimeSeries,
     Simulation,
+    HeatFluxMode,
 )
 from carm.properties import SoilMoisture
 
@@ -157,64 +158,44 @@ def model_multi_irregular(ground_mesh, stratification, single_utube, fluid):
 
 
 # ============================================================
-# Simulation — heat_flux / Tf1 validation (single borehole)
+# Simulation — heat_flux_mode / Tf1 validation (single borehole)
 # ============================================================
 
-def test_heat_flux_true_requires_q_and_supply(model_single, env_props, env_series):
-    mw_tot = np.full((1, N_STEPS), 0.2, dtype=np.float64)
-    with pytest.raises(ValueError):
-        Simulation(
-            model=model_single, envprops=env_props, envinput=env_series,
-            timesteps=3600.0, n_steps=N_STEPS, mw_tot=mw_tot,
-            heat_flux=True,
-        )
-
-
-def test_heat_flux_true_rejects_tf1(model_single, env_props, env_series):
+def test_heat_flux_mode_rejects_tf1(model_single, env_props, env_series):
     mw_tot = np.full((1, N_STEPS), 0.2, dtype=np.float64)
     Q_buildings = np.full(N_STEPS, 1000.0, dtype=np.float64)
     T_supply = np.full(N_STEPS, 45.0, dtype=np.float64)
+    heat_flux_mode = HeatFluxMode(Q_buildings=Q_buildings, T_supply=T_supply)
     Tf1 = np.full((1, N_STEPS), 2.0, dtype=np.float64)
     with pytest.raises(ValueError):
         Simulation(
             model=model_single, envprops=env_props, envinput=env_series,
             timesteps=3600.0, n_steps=N_STEPS, mw_tot=mw_tot,
-            heat_flux=True, Q_buildings=Q_buildings, T_supply=T_supply, Tf1=Tf1,
+            heat_flux_mode=heat_flux_mode, Tf1=Tf1,
         )
 
 
-def test_heat_flux_true_valid_construction(model_single, env_props, env_series):
+def test_heat_flux_mode_valid_construction(model_single, env_props, env_series):
     mw_tot = np.full((1, N_STEPS), 0.2, dtype=np.float64)
     Q_buildings = np.full(N_STEPS, 1000.0, dtype=np.float64)
     T_supply = np.full(N_STEPS, 45.0, dtype=np.float64)
+    heat_flux_mode = HeatFluxMode(Q_buildings=Q_buildings, T_supply=T_supply)
     sim = Simulation(
         model=model_single, envprops=env_props, envinput=env_series,
         timesteps=3600.0, n_steps=N_STEPS, mw_tot=mw_tot,
-        heat_flux=True, Q_buildings=Q_buildings, T_supply=T_supply,
+        heat_flux_mode=heat_flux_mode,
     )
     assert sim.heat_flux is True
     assert sim.Tf1 is None
 
 
-def test_heat_flux_false_rejects_q_and_supply(model_single, env_props, env_series):
-    mw_tot = np.full((1, N_STEPS), 0.2, dtype=np.float64)
-    Tf1 = np.full((1, N_STEPS), 2.0, dtype=np.float64)
-    Q_buildings = np.full(N_STEPS, 1000.0, dtype=np.float64)
-    with pytest.raises(ValueError):
-        Simulation(
-            model=model_single, envprops=env_props, envinput=env_series,
-            timesteps=3600.0, n_steps=N_STEPS, mw_tot=mw_tot,
-            heat_flux=False, Tf1=Tf1, Q_buildings=Q_buildings,
-        )
-
-
-def test_heat_flux_false_requires_tf1(model_single, env_props, env_series):
+def test_heat_flux_mode_none_requires_tf1(model_single, env_props, env_series):
     mw_tot = np.full((1, N_STEPS), 0.2, dtype=np.float64)
     with pytest.raises(ValueError):
         Simulation(
             model=model_single, envprops=env_props, envinput=env_series,
             timesteps=3600.0, n_steps=N_STEPS, mw_tot=mw_tot,
-            heat_flux=False, Tf1=None,
+            heat_flux_mode=None, Tf1=None,
         )
 
 
@@ -479,49 +460,54 @@ def test_boundary_condition_shape(model_single, env_props, env_series, ground_me
 
 
 # ============================================================
-# Simulation — heat_flux mode mw_tot/Q_buildings/T_supply shape validation
+# Simulation — heat_flux_mode mw_tot/Q_buildings/T_supply shape validation
 #
 # Mirrors the "mw_tot / Tf1 shape validation" section above, but for the
-# heat_flux=True branch of __post_init__ (a separate set of shape checks
+# heat_flux_mode branch of __post_init__ (a separate set of shape checks
 # that never shared coverage with the Tf1-based ones).
 # ============================================================
 
-def test_heat_flux_true_single_borehole_wrong_n_steps(model_single, env_props, env_series):
+def test_heat_flux_mode_single_borehole_wrong_n_steps(model_single, env_props, env_series):
+    # Same (wrong) length on both, so HeatFluxMode's own length-match check
+    # passes and Simulation's n_steps cross-check is what raises.
     Q_buildings = np.full(N_STEPS + 1, 1000.0, dtype=np.float64)  # wrong length
-    T_supply = np.full(N_STEPS, 45.0, dtype=np.float64)
+    T_supply = np.full(N_STEPS + 1, 45.0, dtype=np.float64)
+    heat_flux_mode = HeatFluxMode(Q_buildings=Q_buildings, T_supply=T_supply)
     mw_tot = np.full((1, N_STEPS), 0.2, dtype=np.float64)
     with pytest.raises(ValueError):
         Simulation(
             model=model_single, envprops=env_props, envinput=env_series,
             timesteps=3600.0, n_steps=N_STEPS, mw_tot=mw_tot, Tf1=None,
-            heat_flux=True, Q_buildings=Q_buildings, T_supply=T_supply,
+            heat_flux_mode=heat_flux_mode,
         )
 
 
-def test_heat_flux_true_multi_borehole_groups_shape_mismatch(
+def test_heat_flux_mode_multi_borehole_groups_shape_mismatch(
     model_multi_irregular, env_props, env_series
 ):
     groups = {0: [0, 1]}  # 1 group, so mw_tot must have 1 row, not 2
     Q_buildings = np.full(N_STEPS, 1000.0, dtype=np.float64)
     T_supply = np.full(N_STEPS, 45.0, dtype=np.float64)
+    heat_flux_mode = HeatFluxMode(Q_buildings=Q_buildings, T_supply=T_supply)
     mw_tot = np.full((2, N_STEPS), 0.2, dtype=np.float64)
     with pytest.raises(ValueError):
         Simulation(
             model=model_multi_irregular, envprops=env_props, envinput=env_series,
             timesteps=3600.0, n_steps=N_STEPS, mw_tot=mw_tot, Tf1=None, groups=groups,
-            heat_flux=True, Q_buildings=Q_buildings, T_supply=T_supply,
+            heat_flux_mode=heat_flux_mode,
         )
 
 
-def test_heat_flux_true_multi_borehole_shape_mismatch(model_multi_regular, env_props, env_series):
+def test_heat_flux_mode_multi_borehole_shape_mismatch(model_multi_regular, env_props, env_series):
     Q_buildings = np.full(N_STEPS, 1000.0, dtype=np.float64)
     T_supply = np.full(N_STEPS, 45.0, dtype=np.float64)
+    heat_flux_mode = HeatFluxMode(Q_buildings=Q_buildings, T_supply=T_supply)
     mw_tot = np.full((1, N_STEPS), 0.2, dtype=np.float64)  # should be (2, N_STEPS)
     with pytest.raises(ValueError):
         Simulation(
             model=model_multi_regular, envprops=env_props, envinput=env_series,
             timesteps=3600.0, n_steps=N_STEPS, mw_tot=mw_tot, Tf1=None,
-            heat_flux=True, Q_buildings=Q_buildings, T_supply=T_supply,
+            heat_flux_mode=heat_flux_mode,
         )
 
 

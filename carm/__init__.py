@@ -11,7 +11,7 @@ from .properties import (
 )
 from .properties import GroundGeometry, GroundMesh, GroundProperties
 from .model import PhysicalModel
-from .simulation import Simulation
+from .simulation import Simulation, HeatFluxMode
 from .fluid import Fluid
 from .external_environment import EnvironmentalProperties, EnvironmentalTimeSeries
 from .field_layout import FieldInput, Field
@@ -30,6 +30,7 @@ __all__ = [
     "Helical",
     "PhysicalModel",
     "Simulation",
+    "HeatFluxMode",
     "Fluid",
     "EnvironmentalProperties",
     "EnvironmentalTimeSeries",

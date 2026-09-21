@@ -24,6 +24,7 @@ from ..state import State
 from ..thermal_interference import FiniteLineSolution
 from ..initial_conditions import kusuda_achenbach
 from ..properties import SoilMoisture
+from .heat_flux_mode import HeatFluxMode
 
 from scipy.sparse.linalg import splu
 
@@ -71,6 +72,11 @@ class Simulation:
         >>> Tf1_null = np.full((1, 200), np.nan, dtype = np.float64)
         >>> Tf1 = np.concatenate((Tf1_5, Tf1_null), axis = 1)
 
+    heat_flux_mode : HeatFluxMode or None
+        Building-side load, supply temperature, and heat pump performance
+        curves. When set, ``Tf1`` must be ``None``: the inlet fluid
+        temperature is solved for internally each timestep instead of
+        being prescribed. ``None`` by default (``Tf1``-driven mode).
     fls_mode : str
         FLS simulation mode. Accepts ``'sqrt'`` or ``'continuous'``.
         The first is less expensive; the latter is more accurate.
@@ -135,9 +141,7 @@ class Simulation:
     Tf1: NDArray[np.float64] | None = (
         None  # shape: (n_bhes, n_steps) | (n_groups, n_steps))
     )
-    heat_flux: bool = False
-    Q_buildings: NDArray[np.float64] | None = None
-    T_supply: NDArray[np.float64] | None = None
+    heat_flux_mode: HeatFluxMode | None = None
     fls_mode: str = "sqrt"  # "sqrt" | "continuous"
     groups: Dict | None = None
     T_sup_kusuda: NDArray[np.float64] = field(init=False)
@@ -150,18 +154,14 @@ class Simulation:
 
     def __post_init__(self):
         # Tf1 calculation mode and field input check
-        if self.heat_flux:
-            if (self.T_supply is None) or (self.Q_buildings is None):
-                raise ValueError(
-                    "When heat_flux is set as 'True', Q_building and T_supply must be given as input."
-                )
+        if self.heat_flux_mode is not None:
             if self.Tf1 is not None:
                 raise ValueError(
-                    "When heat_flux is set as 'True', Tf1 must be set as None."
+                    "When heat_flux_mode is set, Tf1 must be set as None."
                 )
             if self.model.fieldinput is None:
-                if (len(self.Q_buildings) != self.n_steps) or (
-                    len(self.T_supply) != self.n_steps
+                if (len(self.heat_flux_mode.Q_buildings) != self.n_steps) or (
+                    len(self.heat_flux_mode.T_supply) != self.n_steps
                     or (self.mw_tot.shape[1] != self.n_steps)
                 ):
                     raise ValueError(
@@ -184,13 +184,9 @@ class Simulation:
                         )
 
         else:
-            if (self.T_supply is not None) or (self.Q_buildings is not None):
-                raise ValueError(
-                    "When heat_flux is set as 'False', Q_building and T_supply must be set as None."
-                )
             if self.Tf1 is None:
                 raise ValueError(
-                    "When heat_flux is set as 'False', Tf1 must be given as input."
+                    "When heat_flux_mode is not set, Tf1 must be given as input."
                 )
 
             if self.model.fieldinput is None:
@@ -274,6 +270,19 @@ class Simulation:
         )
         self._init_fls()
         self._boundary_condition()
+
+        if self.heat_flux_mode is not None:
+            self._init_heat_flux_state()
+
+    @property
+    def heat_flux(self) -> bool:
+        return self.heat_flux_mode is not None
+
+    def _init_heat_flux_state(self) -> None:
+        self.COP = np.full(self.n_steps, np.nan, dtype=np.float64)
+        self.EER = np.full(self.n_steps, np.nan, dtype=np.float64)
+        self.Q_ground = np.full(self.n_steps, np.nan, dtype=np.float64)
+        self.abs_err = np.full(self.n_steps, np.nan, dtype=np.float64)
 
     def _boundary_condition(self) -> None:
         self.T_bc = self.T_middle_kusuda[
@@ -422,20 +431,8 @@ class Simulation:
         self.A_inv = copy.deepcopy(self.A)  # type: ignore
 
         if self.heat_flux:
-            # here it is possible to change the polynomial function
-            def f_COP(dT):
-                return 10.29 - 0.21 * dT + 0.0012 * dT**2.0
-
-            def f_EER(dT):
-                return 10.29 - 0.21 * dT + 0.0012 * dT**2
             self.Tf1 = np.zeros((n, self.n_steps), dtype=np.float64)
             self.Tf1[:, 0] = self.T_history[0, :, ns + nm + borehole.id_inlet]
-
-            self.COP = np.full(self.n_steps, np.nan, dtype=np.float64)
-            self.EER = copy.deepcopy(self.COP)
-            self.Q_ground = np.full(self.n_steps, np.nan, dtype=np.float64)
-
-            self.abs_err = np.full(self.n_steps, np.nan, dtype=np.float64)
 
         maxerr = 10  # W
         Niter = 200  # -
@@ -498,23 +495,27 @@ class Simulation:
             Tfout_iter = np.mean(Tfout)
 
             # COP, EER and Qground values are calculated before entering in Picard loop if heat_flux mode is True
-            if self.heat_flux and step != 0 and self.Q_buildings[step] != 0:
+            if self.heat_flux and step != 0 and self.heat_flux_mode.Q_buildings[step] != 0:
 
                 Tfout_iter = np.sum(self.mw_tot[:, step] * Tfout) / np.sum(
                     self.mw_tot[:, step]
                 )  # Temperature weighted average according to mass flow
 
-                if self.Q_buildings[step] > 0:
+                if self.heat_flux_mode.Q_buildings[step] > 0:
 
-                    self.COP[step] = f_COP(self.T_supply[step] - Tfout_iter)
-                    self.Q_ground[step] = -self.Q_buildings[step] * (
+                    self.COP[step] = self.heat_flux_mode.cop_curve(
+                        self.heat_flux_mode.T_supply[step] - Tfout_iter
+                    )
+                    self.Q_ground[step] = -self.heat_flux_mode.Q_buildings[step] * (
                         1 - 1 / self.COP[step]
                     )
 
-                elif self.Q_buildings[step] < 0:
+                elif self.heat_flux_mode.Q_buildings[step] < 0:
 
-                    self.EER[step] = f_EER(Tfout_iter - self.T_supply[step])
-                    self.Q_ground[step] = -self.Q_buildings[step] * (
+                    self.EER[step] = self.heat_flux_mode.eer_curve(
+                        Tfout_iter - self.heat_flux_mode.T_supply[step]
+                    )
+                    self.Q_ground[step] = -self.heat_flux_mode.Q_buildings[step] * (
                         1 + 1 / self.EER[step]
                     )
 
@@ -524,7 +525,7 @@ class Simulation:
             # Picard iteration to calculate Tfout untile 200 iterations are reached or Qground (from COP / EER) - q_liv (m*cp*dT) < 10 W
             while err > maxerr and it < Niter:
 
-                if self.heat_flux and step != 0 and self.Q_buildings[step] != 0:
+                if self.heat_flux and step != 0 and self.heat_flux_mode.Q_buildings[step] != 0:
                     self.Tf1[:, step] = Tfout_iter + self.Q_ground[step] / (
                         np.sum(self.mw_tot[:, step]) * self.model.fluid.cp_w
                     )
@@ -586,7 +587,7 @@ class Simulation:
 
                 currstate.update(T_new_step)
 
-                if self.heat_flux and step != 0 and self.Q_buildings[step] != 0:
+                if self.heat_flux and step != 0 and self.heat_flux_mode.Q_buildings[step] != 0:
                     Tfout = currstate.T_state[:, ns + nm + borehole.id_outlet]
                     Tfout_iter = np.sum(self.mw_tot[:, step] * Tfout) / np.sum(
                         self.mw_tot[:, step]
@@ -682,19 +683,6 @@ class Simulation:
         self.Tf1_groups = np.zeros((n_groups, self.n_steps), dtype=np.float64)
         self.Tf1_groups[:, 0] = self.T_history[0, group_outlet_fluid_idx, ns + nm + borehole.id_inlet]
 
-        if self.heat_flux:
-            # here it is possible to change the polynomial function
-            def f_COP(dT):
-                return 10.29 - 0.21 * dT + 0.0012 * dT**2.0
-
-            f_EER = copy.deepcopy(f_COP)
-
-            self.COP = np.full(self.n_steps, np.nan, dtype=np.float64)
-            self.EER = copy.deepcopy(self.COP)
-            self.Q_ground = np.full(self.n_steps, np.nan, dtype=np.float64)
-
-            self.abs_err = np.full(self.n_steps, np.nan, dtype=np.float64)
-
         maxerr = 10  # W
         Niter = 200  # -
 
@@ -746,23 +734,27 @@ class Simulation:
             Tfout_iter = np.mean(Tfout)
 
             # COP, EER and Qground values are calculated before entering in Picard loop if heat_flux mode is True
-            if self.heat_flux and step != 0 and self.Q_buildings[step] != 0:
+            if self.heat_flux and step != 0 and self.heat_flux_mode.Q_buildings[step] != 0:
 
                 Tfout_iter = np.sum(self.mw_tot[:, step] * Tfout) / np.sum(
                     self.mw_tot[:, step]
                 )  # Temperature weighted average according to mass flow
 
-                if self.Q_buildings[step] > 0:
+                if self.heat_flux_mode.Q_buildings[step] > 0:
 
-                    self.COP[step] = f_COP(self.T_supply[step] - Tfout_iter)
-                    self.Q_ground[step] = -self.Q_buildings[step] * (
+                    self.COP[step] = self.heat_flux_mode.cop_curve(
+                        self.heat_flux_mode.T_supply[step] - Tfout_iter
+                    )
+                    self.Q_ground[step] = -self.heat_flux_mode.Q_buildings[step] * (
                         1 - 1 / self.COP[step]
                     )
 
-                elif self.Q_buildings[step] < 0:
+                elif self.heat_flux_mode.Q_buildings[step] < 0:
 
-                    self.EER[step] = f_EER(Tfout_iter - self.T_supply[step])
-                    self.Q_ground[step] = -self.Q_buildings[step] * (
+                    self.EER[step] = self.heat_flux_mode.eer_curve(
+                        Tfout_iter - self.heat_flux_mode.T_supply[step]
+                    )
+                    self.Q_ground[step] = -self.heat_flux_mode.Q_buildings[step] * (
                         1 + 1 / self.EER[step]
                     )
 
@@ -779,7 +771,7 @@ class Simulation:
 
             while err > maxerr and it < Niter:
 
-                if self.heat_flux and step != 0 and self.Q_buildings[step] != 0:
+                if self.heat_flux and step != 0 and self.heat_flux_mode.Q_buildings[step] != 0:
                     self.Tf1_groups[:, step] = Tfout_iter + self.Q_ground[step] / (
                         np.sum(self.mw_tot[:, step]) * self.model.fluid.cp_w
                     )
@@ -854,7 +846,7 @@ class Simulation:
 
                 currstate.update(T_new_step)
 
-                if self.heat_flux and step != 0 and self.Q_buildings[step] != 0:
+                if self.heat_flux and step != 0 and self.heat_flux_mode.Q_buildings[step] != 0:
                     Tfout = currstate.T_state[
                         group_outlet_fluid_idx, ns + nm + borehole.id_outlet
                     ]
@@ -947,7 +939,7 @@ class Simulation:
                     "COP": self.COP.astype(np.float32),
                     "EER": self.EER.astype(np.float32),
                     "Q_ground": self.Q_ground.astype(np.float32),
-                    "Q_buildings": self.Q_buildings.astype(np.float32),
+                    "Q_buildings": self.heat_flux_mode.Q_buildings.astype(np.float32),
                     "abs_err": self.abs_err.astype(np.float32),
                 }
             )
