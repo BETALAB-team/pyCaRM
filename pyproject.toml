@@ -4,15 +4,34 @@ build-backend = "setuptools.build_meta"
 
 [project]
 description = "Python library for simulation of borehole heat exchanger systems"
+readme = "README.md"
 authors = [
     {name = "Alessio Tollin"},
     {name = "Angelo Zarrella"},
 ]
 requires-python = ">=3.11"
 
-license = {text = "MIT"}
-name = "pyCaRM"
+license = "MIT"
+name = "pyCaRM-BHE"
 version = "0.1.0"
+keywords = [
+    "borehole heat exchanger",
+    "ground source heat pump",
+    "geothermal",
+    "BHE",
+    "GSHP",
+    "thermal simulation",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering",
+]
 dependencies = [
     "numpy",       # array
     "scipy",       # scientific functions
@@ -20,6 +39,12 @@ dependencies = [
     "shapely",     # field geometry
     "networkx",    # borehole neighbor graph
 ]
+
+[project.urls]
+Homepage = "https://github.com/BETALAB-team/pyCaRM"
+Documentation = "https://betalab-team.github.io/pyCaRM/"
+Repository = "https://github.com/BETALAB-team/pyCaRM"
+"Bug Tracker" = "https://github.com/BETALAB-team/pyCaRM/issues"
 
 [project.optional-dependencies]
 dev = [
@@ -48,3 +73,6 @@ filterwarnings = [
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["carm*"]
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F"]
