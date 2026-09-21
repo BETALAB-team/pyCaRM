@@ -182,7 +182,8 @@ def test_ground_R_ground_last_value(ground):
 
 def test_ground_C_ground_formula(ground):
     # C = ρ·cp·dz·π·(r_out² - r_in²)
-    k = 1.8; cp = 947.37; rho = 1900.0
+    cp = 947.37
+    rho = 1900.0
     dz = 100.0 / 40
     area = np.pi * (ground.radius[0, 1]**2 - ground.radius[0, 0]**2)
     expected = rho * cp * dz * area
@@ -233,7 +234,8 @@ def test_ground_R_sup_value(ground):
 
 def test_ground_C_sup_formula(ground):
     # C_sup = ρ·cp·dz_sup·π·rn²
-    cp = 947.37; rho = 1900.0
+    cp = 947.37
+    rho = 1900.0
     dz_sup = 1.0 / 4
     Area = np.pi * 10.0**2
     expected = rho * cp * dz_sup * Area

@@ -143,6 +143,35 @@ def test_geometry_invalid_d0():
         BoreholeGeometry(Lbore=100.0, D0=0.0)
 
 
+def test_geometry_valid_irrigation():
+    geom = BoreholeGeometry(Lbore=100.0, D0=0.15, D_irrigation=0.02, perf_fraction=0.3)
+    assert geom.D_irrigation == 0.02
+    assert geom.perf_fraction == 0.3
+
+
+def test_geometry_irrigation_requires_both_fields():
+    """D_irrigation and perf_fraction must be both None or both set."""
+    with pytest.raises(ValueError):
+        BoreholeGeometry(Lbore=100.0, D0=0.15, D_irrigation=0.02, perf_fraction=None)
+    with pytest.raises(ValueError):
+        BoreholeGeometry(Lbore=100.0, D0=0.15, D_irrigation=None, perf_fraction=0.3)
+
+
+def test_geometry_invalid_irrigation_diameter():
+    with pytest.raises(ValueError):
+        BoreholeGeometry(Lbore=100.0, D0=0.15, D_irrigation=0.0, perf_fraction=0.3)
+    with pytest.raises(ValueError):
+        # must not exceed the borehole diameter
+        BoreholeGeometry(Lbore=100.0, D0=0.15, D_irrigation=0.2, perf_fraction=0.3)
+
+
+def test_geometry_invalid_perf_fraction():
+    with pytest.raises(ValueError):
+        BoreholeGeometry(Lbore=100.0, D0=0.15, D_irrigation=0.02, perf_fraction=-0.1)
+    with pytest.raises(ValueError):
+        BoreholeGeometry(Lbore=100.0, D0=0.15, D_irrigation=0.02, perf_fraction=1.0)
+
+
 # ============================================================
 # BoreholeMesh
 # ============================================================
@@ -186,6 +215,107 @@ def test_thermal_props_invalid_rho():
 def test_thermal_props_invalid_k0():
     with pytest.raises(ValueError):
         BoreholeThermalProperties(cp_0=1460.0, rho_0=1655.0, k0=0.0)
+
+
+def test_thermal_props_requires_stratification_or_equivalent():
+    """Neither stratification nor a full set of equivalent properties given."""
+    with pytest.raises(ValueError):
+        BoreholeThermalProperties()
+    with pytest.raises(ValueError):
+        BoreholeThermalProperties(cp_0=1460.0, rho_0=1655.0)  # k0 missing
+
+
+def test_thermal_props_rejects_both_stratification_and_equivalent():
+    with pytest.raises(ValueError):
+        BoreholeThermalProperties(
+            cp_0=1460.0, rho_0=1655.0, k0=1.8,
+            stratification=[(1.8, 1460.0, 1655.0, 100.0)],
+        )
+
+
+def test_thermal_props_invalid_stratification_layer():
+    """Every (k, cp, rho, thickness) entry must be strictly positive."""
+    with pytest.raises(ValueError):
+        BoreholeThermalProperties(stratification=[(1.8, 1460.0, 1655.0, 0.0)])
+    with pytest.raises(ValueError):
+        BoreholeThermalProperties(stratification=[(-1.8, 1460.0, 1655.0, 100.0)])
+
+
+def test_thermal_props_valid_stratification():
+    tp = BoreholeThermalProperties(stratification=[(1.8, 1460.0, 1655.0, 100.0)])
+    assert tp.cp_0 is None
+    assert tp.stratification == [(1.8, 1460.0, 1655.0, 100.0)]
+
+
+def test_thermal_props_normalizes_soil_type():
+    tp = BoreholeThermalProperties(cp_0=1460.0, rho_0=1655.0, k0=1.8, soil_type="  Sand ")
+    assert tp.soil_type == "sand"
+
+
+def test_thermal_props_invalid_soil_type():
+    with pytest.raises(ValueError):
+        BoreholeThermalProperties(cp_0=1460.0, rho_0=1655.0, k0=1.8, soil_type="granite")
+
+
+# ============================================================
+# BoreholeProperties._variable_properties — grout stratification
+# ============================================================
+
+def test_stratified_properties_mixed_cell_is_length_weighted(fluid):
+    """A layer boundary that falls inside a mesh cell must yield a
+    thickness-weighted average of the two layers for that cell (not just
+    whichever layer the cell midpoint falls in)."""
+    # Lbore=100, m_mesh=40 -> dz=2.5; cell 20 spans z=[50.0, 52.5].
+    # Layer split at 51.25 puts exactly 1.25 m of each layer in that cell.
+    thermalprops = BoreholeThermalProperties(
+        stratification=[
+            (1.5, 1400.0, 1600.0, 51.25),
+            (2.0, 1500.0, 1700.0, 48.75),
+        ]
+    )
+    bh = SingleUtube(
+        geom=BoreholeGeometry(Lbore=100.0, D0=0.15),
+        mesh=BoreholeMesh(m_mesh=40),
+        thermalprops=thermalprops,
+        fluid=fluid,
+        pipe_thick=0.003,
+        pipe_spacing=0.0823,
+        Dpi=0.026,
+        n_pipes=2,
+        Rp0=0.25,
+        RppB=0.72,
+    )
+
+    assert bh.k0.shape == (40, 1)
+    # Cells fully inside the first layer (0..19).
+    np.testing.assert_allclose(bh.k0[:20, 0], 1.5)
+    np.testing.assert_allclose(bh.cp_0[:20, 0], 1400.0)
+    np.testing.assert_allclose(bh.rho_0[:20, 0], 1600.0)
+    # Cell 20 (index 20) is split 50/50 between the two layers.
+    assert bh.k0[20, 0] == pytest.approx(1.75)
+    assert bh.cp_0[20, 0] == pytest.approx(1450.0)
+    assert bh.rho_0[20, 0] == pytest.approx(1650.0)
+    # Cells fully inside the second layer.
+    np.testing.assert_allclose(bh.k0[21:, 0], 2.0)
+
+
+def test_stratified_properties_length_mismatch_raises(fluid):
+    thermalprops = BoreholeThermalProperties(
+        stratification=[(1.5, 1400.0, 1600.0, 40.0)]  # != Lbore=100.0
+    )
+    with pytest.raises(ValueError):
+        SingleUtube(
+            geom=BoreholeGeometry(Lbore=100.0, D0=0.15),
+            mesh=BoreholeMesh(m_mesh=40),
+            thermalprops=thermalprops,
+            fluid=fluid,
+            pipe_thick=0.003,
+            pipe_spacing=0.0823,
+            Dpi=0.026,
+            n_pipes=2,
+            Rp0=0.25,
+            RppB=0.72,
+        )
 
 
 # ============================================================
@@ -246,6 +376,36 @@ def test_single_utube_r_axial_core(single_utube):
     assert single_utube.R_axial_core[0, 0] == pytest.approx(expected, rel=1e-5)
 
 
+@pytest.mark.parametrize(
+    "mw_tot, expected_regime",
+    [
+        (0.0306, "laminar"),      # Re ~= 1000
+        (0.1528, "transition"),   # Re ~= 5000 (the flow rate every other test uses)
+        (0.6112, "turbulent"),    # Re ~= 20000
+    ],
+)
+def test_single_utube_alpha_calculation_across_flow_regimes(
+    single_utube, mw_tot, expected_regime
+):
+    """The convective coefficient uses a different Nusselt correlation per
+    Reynolds-number regime; every other test in this file only exercises
+    the default fixture's flow rate (mw_tot=0.2 elsewhere), which falls in
+    the transition regime. This checks all three branches directly."""
+    Re = (4 * mw_tot) / (
+        np.pi * single_utube.Dpi * single_utube.fluid.rho_w * single_utube.fluid.ni_w
+    )
+    if expected_regime == "laminar":
+        assert Re <= 2000
+    elif expected_regime == "transition":
+        assert 2000 < Re <= 10000
+    else:
+        assert Re > 10000
+
+    alpha_w = single_utube._alpha_calculation(mw_tot=mw_tot)
+    assert np.isfinite(alpha_w)
+    assert alpha_w > 0.0
+
+
 # ============================================================
 # DoubleUtube — valori numerici
 # ============================================================
@@ -281,6 +441,38 @@ def test_double_utube_s_shell(double_utube):
 def test_double_utube_c_fluid(double_utube):
     expected = 1000.1435933169 * 4207.40834247225 * (12.0/40) * np.pi * 0.026**2 / 4
     assert double_utube.C_fluid == pytest.approx(expected, rel=1e-6)
+
+
+@pytest.mark.parametrize(
+    "mw_tot, expected_regime",
+    [
+        (0.0611, "laminar"),      # Re ~= 1000 (per branch, mw halved by "P" connection)
+        (0.3056, "transition"),   # Re ~= 5000
+        (1.2224, "turbulent"),    # Re ~= 20000
+    ],
+)
+def test_double_utube_alpha_calculation_across_flow_regimes(
+    double_utube, mw_tot, expected_regime
+):
+    """Same three-regime Nusselt correlation as SingleUtube, but
+    DoubleUtube has its own separate implementation (with the extra
+    parallel/series mass-flow split) — not shared code, so needs its own
+    coverage. The default fixture flow rate elsewhere only reaches the
+    transition regime."""
+    mw = mw_tot / 2 if double_utube.connection in ("P", "p") else mw_tot
+    Re = (4 * mw) / (
+        np.pi * double_utube.Dpi * double_utube.fluid.rho_w * double_utube.fluid.ni_w
+    )
+    if expected_regime == "laminar":
+        assert Re <= 2000
+    elif expected_regime == "transition":
+        assert 2000 < Re <= 10000
+    else:
+        assert Re > 10000
+
+    alpha_w = double_utube._alpha_calculation(mw_tot=mw_tot)
+    assert np.isfinite(alpha_w)
+    assert alpha_w > 0.0
 
 
 def test_double_utube_invalid_connection():
@@ -382,7 +574,6 @@ def test_helical_geometry(helical):
 def test_helical_s_shell(helical):
     # S_shell = π * ((D0/2)² - rshell_middle²)
     rih = 0.269 - 0.01694 / 2 - 0.0021
-    r2o = 0.01694 / 2 + 0.0021
     roh = rih + 0.01694 + 2 * 0.0021
     rshell_middle = np.sqrt((roh**2 + (0.590 / 2.0) ** 2) / 2.0)
     expected = np.pi * ((0.590 / 2) ** 2 - rshell_middle**2)

@@ -8,10 +8,13 @@ water_input/soil-moisture prerequisites, fls_mode validation), and the
 derived state it builds at construction time (adiabatic flag, FLS
 instantiation, Kusuda-Achenbach profile shapes, boundary condition shape).
 
-These are unit tests on construction only — running the full time-stepping
-loop (``Simulation.run()``) is deliberately out of scope here and belongs
-to the "results" test suite (energy-balance / regression checks).
-Mesh and step counts are kept small on purpose to keep construction fast.
+These are unit tests on construction, plus ``Simulation.run()``'s own
+dispatch validation (parallel/series flag combinations, series-group
+checks) — those guard clauses raise before any time-stepping happens, so
+they stay as cheap as a construction-only test. The full time-stepping
+loop itself is deliberately out of scope here and belongs to the
+"results" test suite (energy-balance / regression checks). Mesh and step
+counts are kept small on purpose to keep construction fast.
 """
 import numpy as np
 import pytest
@@ -473,3 +476,116 @@ def test_boundary_condition_shape(model_single, env_props, env_series, ground_me
         timesteps=3600.0, n_steps=N_STEPS, mw_tot=mw_tot, Tf1=Tf1,
     )
     assert sim.T_bc.shape == (N_STEPS, 1, ground_mesh.m_mesh)
+
+
+# ============================================================
+# Simulation — heat_flux mode mw_tot/Q_buildings/T_supply shape validation
+#
+# Mirrors the "mw_tot / Tf1 shape validation" section above, but for the
+# heat_flux=True branch of __post_init__ (a separate set of shape checks
+# that never shared coverage with the Tf1-based ones).
+# ============================================================
+
+def test_heat_flux_true_single_borehole_wrong_n_steps(model_single, env_props, env_series):
+    Q_buildings = np.full(N_STEPS + 1, 1000.0, dtype=np.float64)  # wrong length
+    T_supply = np.full(N_STEPS, 45.0, dtype=np.float64)
+    mw_tot = np.full((1, N_STEPS), 0.2, dtype=np.float64)
+    with pytest.raises(ValueError):
+        Simulation(
+            model=model_single, envprops=env_props, envinput=env_series,
+            timesteps=3600.0, n_steps=N_STEPS, mw_tot=mw_tot, Tf1=None,
+            heat_flux=True, Q_buildings=Q_buildings, T_supply=T_supply,
+        )
+
+
+def test_heat_flux_true_multi_borehole_groups_shape_mismatch(
+    model_multi_irregular, env_props, env_series
+):
+    groups = {0: [0, 1]}  # 1 group, so mw_tot must have 1 row, not 2
+    Q_buildings = np.full(N_STEPS, 1000.0, dtype=np.float64)
+    T_supply = np.full(N_STEPS, 45.0, dtype=np.float64)
+    mw_tot = np.full((2, N_STEPS), 0.2, dtype=np.float64)
+    with pytest.raises(ValueError):
+        Simulation(
+            model=model_multi_irregular, envprops=env_props, envinput=env_series,
+            timesteps=3600.0, n_steps=N_STEPS, mw_tot=mw_tot, Tf1=None, groups=groups,
+            heat_flux=True, Q_buildings=Q_buildings, T_supply=T_supply,
+        )
+
+
+def test_heat_flux_true_multi_borehole_shape_mismatch(model_multi_regular, env_props, env_series):
+    Q_buildings = np.full(N_STEPS, 1000.0, dtype=np.float64)
+    T_supply = np.full(N_STEPS, 45.0, dtype=np.float64)
+    mw_tot = np.full((1, N_STEPS), 0.2, dtype=np.float64)  # should be (2, N_STEPS)
+    with pytest.raises(ValueError):
+        Simulation(
+            model=model_multi_regular, envprops=env_props, envinput=env_series,
+            timesteps=3600.0, n_steps=N_STEPS, mw_tot=mw_tot, Tf1=None,
+            heat_flux=True, Q_buildings=Q_buildings, T_supply=T_supply,
+        )
+
+
+# ============================================================
+# Simulation.run() — parallel/series dispatch validation
+#
+# These raise before any time-stepping happens (the checks sit at the top
+# of run(), ahead of the dispatch to _run_parallel/_run_series), so they
+# stay cheap despite exercising run() rather than just __post_init__.
+# ============================================================
+
+def test_run_series_without_groups_raises(model_multi_irregular, env_props, env_series):
+    mw_tot = np.full((2, N_STEPS), 0.2, dtype=np.float64)
+    Tf1 = np.full((2, N_STEPS), 2.0, dtype=np.float64)
+    sim = Simulation(
+        model=model_multi_irregular, envprops=env_props, envinput=env_series,
+        timesteps=3600.0, n_steps=N_STEPS, mw_tot=mw_tot, Tf1=Tf1,
+    )
+    with pytest.raises(ValueError):
+        sim.run(series=True)
+
+
+def test_run_series_disconnected_group_raises(
+    ground_mesh, stratification, single_utube, fluid, env_props, env_series
+):
+    """Borehole 1 sits geometrically between 0 and 2, so their Voronoi cells
+    never touch; grouping them in series must be rejected."""
+    fi = FieldInput(
+        n_bhes=3, xmin=-5.0, ymin=-5.0, xmax=15.0, ymax=5.0, rb=0.075, layout="irregular"
+    )
+    fi.from_array(np.array([0.0, 5.0, 10.0]), np.array([0.0, 0.0, 0.0]))
+    model = PhysicalModel(
+        ground_geom=GroundGeometry(rn=None, D0=0.15, L=20.0, L_sup=1.0, L_inf=5.0),
+        ground_mesh=ground_mesh, borehole=single_utube, fluid=fluid, Tg=13.0,
+        stratification=stratification, fieldinput=fi,
+    )
+    groups = {0: [0, 2]}
+    mw_tot = np.full((1, N_STEPS), 0.2, dtype=np.float64)
+    Tf1 = np.full((1, N_STEPS), 2.0, dtype=np.float64)
+    sim = Simulation(
+        model=model, envprops=env_props, envinput=env_series,
+        timesteps=3600.0, n_steps=N_STEPS, mw_tot=mw_tot, Tf1=Tf1, groups=groups,
+    )
+    with pytest.raises(ValueError):
+        sim.run(series=True)
+
+
+def test_run_multi_borehole_no_flags_raises(model_multi_irregular, env_props, env_series):
+    mw_tot = np.full((2, N_STEPS), 0.2, dtype=np.float64)
+    Tf1 = np.full((2, N_STEPS), 2.0, dtype=np.float64)
+    sim = Simulation(
+        model=model_multi_irregular, envprops=env_props, envinput=env_series,
+        timesteps=3600.0, n_steps=N_STEPS, mw_tot=mw_tot, Tf1=Tf1,
+    )
+    with pytest.raises(ValueError):
+        sim.run()
+
+
+def test_run_single_borehole_both_flags_raises(model_single, env_props, env_series):
+    mw_tot = np.full((1, N_STEPS), 0.2, dtype=np.float64)
+    Tf1 = np.full((1, N_STEPS), 2.0, dtype=np.float64)
+    sim = Simulation(
+        model=model_single, envprops=env_props, envinput=env_series,
+        timesteps=3600.0, n_steps=N_STEPS, mw_tot=mw_tot, Tf1=Tf1,
+    )
+    with pytest.raises(ValueError):
+        sim.run(parallel=True, series=True)
