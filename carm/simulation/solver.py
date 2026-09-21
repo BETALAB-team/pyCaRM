@@ -422,10 +422,12 @@ class Simulation:
         self.A_inv = copy.deepcopy(self.A)  # type: ignore
 
         if self.heat_flux:
-            f_COP = (
-                lambda dT: 10.29 - 0.21 * dT + 0.0012 * dT**2.0
-            )  # here it is possible to change the polynomial function
-            f_EER = lambda dT: 10.29 - 0.21 * dT + 0.0012 * dT**2
+            # here it is possible to change the polynomial function
+            def f_COP(dT):
+                return 10.29 - 0.21 * dT + 0.0012 * dT**2.0
+
+            def f_EER(dT):
+                return 10.29 - 0.21 * dT + 0.0012 * dT**2
             self.Tf1 = np.zeros((n, self.n_steps), dtype=np.float64)
             self.Tf1[:, 0] = self.T_history[0, :, ns + nm + borehole.id_inlet]
 
@@ -681,9 +683,10 @@ class Simulation:
         self.Tf1_groups[:, 0] = self.T_history[0, group_outlet_fluid_idx, ns + nm + borehole.id_inlet]
 
         if self.heat_flux:
-            f_COP = (
-                lambda dT: 10.29 - 0.21 * dT + 0.0012 * dT**2.0
-            )  # here it is possible to change the polynomial function
+            # here it is possible to change the polynomial function
+            def f_COP(dT):
+                return 10.29 - 0.21 * dT + 0.0012 * dT**2.0
+
             f_EER = copy.deepcopy(f_COP)
 
             self.COP = np.full(self.n_steps, np.nan, dtype=np.float64)
@@ -800,7 +803,7 @@ class Simulation:
                             T_ground_sup_old,
                             T_ground_inf_old,
                             Ts_old,
-                        ) = self.model._get_temperatures(currstate, j)
+                        ) = self.model._get_temperatures(currstate, j, use_old=True)
 
                         if (
                             (step == 0)
