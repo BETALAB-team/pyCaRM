@@ -362,18 +362,16 @@ class Field:
 
         areas = None
         if color_by_area or show_area or show_req:
-          
+
             areas = np.empty(self.fieldinput.n_bhes, dtype=float)
             for i, item in self.field_dict.items():
                 areas[i] = item["area"]
 
-      
         if color_by_area:
             a_min = np.nanmin(areas)
             a_max = np.nanmax(areas)
             denom = (a_max - a_min) if (a_max > a_min) else 1.0
 
-       
         for i, poly in self.field_dict.items():
             if poly["cell"].is_empty:
                 continue
@@ -388,7 +386,7 @@ class Field:
                     alpha=alpha,
                     linewidth=linewidth,
                     edgecolor="k",
-                    facecolor="whitesmoke",
+                    facecolor=plt.cm.viridis(t),
                 )
             else:
                 ax.fill(
