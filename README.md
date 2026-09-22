@@ -1,12 +1,10 @@
-<p align="center">
-  <img src="docs/CaRM_logo.jpg" width="200"/>
-</p>
-
 # pyCaRM
 
 [![PyPI version](https://img.shields.io/pypi/v/pyCaRM-BHE.svg?cacheSeconds=1)](https://pypi.org/project/pyCaRM-BHE/)
 [![Python versions](https://img.shields.io/pypi/pyversions/pyCaRM-BHE.svg?cacheSeconds=1)](https://pypi.org/project/pyCaRM-BHE/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
+<img src="docs/pyCaRM_newlogo.svg" width="150" align="left">
 
 **pyCaRM** (CApacity Resistance Model) is a Python library for the simulation of 
 borehole heat exchanger (BHE) systems. It models the transient thermal response 
