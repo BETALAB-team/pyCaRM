@@ -4,10 +4,12 @@ on:
   push:
     branches:
       - main
+    paths:
+      - 'docs/**'
+  workflow_dispatch:
 
 jobs:
   docs:
-    if: contains(github.event.head_commit.message, 'update docs')
     runs-on: ubuntu-latest
 
     steps:
