@@ -2,9 +2,35 @@ FLS Calculation Methods
 =======================
 
 pyCaRM precomputes a thermal response matrix using the Finite Line Source (FLS)
-analytical model. Two methods are available to evaluate the effective distance
+analytical model, with its real part and, by default, its image part (see
+`Real and image parts`_). Two methods are available to evaluate the effective distance
 between boreholes, controlled by the ``fls_mode`` parameter of
 :class:`~carm.simulation.Simulation`.
+
+Real and image parts
+--------------------
+
+The FLS response combines a real part and, by default, an image part, set by
+the ``fls_image`` parameter of :class:`~carm.simulation.Simulation` (``True``
+by default, ``False`` for the real part only). The
+real part is the borehole as a line source of length :math:`H = L` in an
+infinite medium. The image part is a sink mirrored above the ground surface:
+it keeps the FLS temperature perturbation at zero on the surface. 
+The top of the borehole is buried at depth
+:math:`D = L_{sup}`, the thickness of the upper ground layer.
+
+With :math:`\mathrm{ierf}(x) = x\,\mathrm{erf}(x) - (1 - e^{-x^2})/\sqrt{\pi}`,
+the response at distance :math:`d` and time :math:`t` is
+
+.. math::
+
+   h(d, t) = \int_{1/\sqrt{4\alpha t}}^{\infty}
+   \frac{e^{-d^2 s^2}}{2 H s^2}
+   \Big[\underbrace{2\,\mathrm{ierf}(Hs)}_{\text{real}}
+   + \underbrace{2\,\mathrm{ierf}((2D + H)s) - \mathrm{ierf}(2Ds)
+   - \mathrm{ierf}((2D + 2H)s)}_{\text{image}}\Big]\, ds
+
+as in pygfunction (Cimmino, 2018).
 
 Overview
 --------
@@ -55,67 +81,53 @@ where :math:`d_{ijk}` is the distance from source :math:`j` to point
 :math:`k` on receiver :math:`i`. This method is more accurate but
 significantly more expensive.
 
-Angular discretization sensitivity
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-The figure below shows the absolute difference between results at
-:math:`N_\theta` and the reference solution at :math:`N_\theta = 64`, for a
-regular 9-borehole field over 3 years.
-
-.. figure:: ../N_vs_dT.png
-   :width: 100%
-   :alt: n_theta sensitivity
-
-From :math:`N_\theta = 8` onward, the error is below 0.01 °C across all
-boreholes. The default value is therefore set to :math:`N_\theta = 8` as the
-best compromise between accuracy and computational cost.
-
-Method comparison
------------------
-
-The figures below compare the two methods against the continuous reference
-solution over a 3-year simulation on a 9-borehole field.
-
-Absolute error vs continuous
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-.. figure:: ../absolute_error_vs_continuous_mean.png
-   :width: 100%
-   :alt: Absolute error vs continuous mean
-
-The clamp strategy produces errors up to 10 °C for central boreholes and is
-not recommended. The sqrt method stays within approximately 1.7 °C across all
-boreholes and both regular and irregular layouts, making it suitable as the
-default method.
-
-Spacing sensitivity
-~~~~~~~~~~~~~~~~~~~~
-
-.. figure:: ../spacings_vs_dT_for_sqrt_vs_continuous.png
-   :width: 100%
-   :alt: sqrt vs continuous spacing sensitivity
-
-The error between sqrt and continuous decreases as borehole spacing increases.
-For spacings of 10 m and above, the maximum error is below 1 °C over 3 years.
-At tight spacings (3 m), the error can reach approximately 1.6 °C for central
-boreholes.
-
 Choosing a method
 -----------------
 
 .. list-table::
    :header-rows: 1
-   :widths: 20 40 40
+   :widths: 30 70
 
    * - ``fls_mode``
-     - Accuracy
      - Cost
    * - ``"sqrt"``
-     - Max error ~1.7 °C over 3 years
      - Low — single distance per pair
    * - ``"continuous"``
-     - Reference solution
      - High — scales with :math:`N_\theta \times n_{BHE}^2 \times n_{steps}`
 
 Use ``"sqrt"`` (default) for parametric studies and large fields. Use
 ``"continuous"`` when high accuracy is required and the field is small.
+
+Load superposition
+------------------
+
+Both methods store only the response increments
+:math:`\Delta R_k = R_{k+1} - R_k` (the FLS integral over each time step),
+computed once when the simulation is built. At step :math:`n` the wall
+temperature penalty of borehole :math:`j` is the superposition of the whole
+heat history,
+
+.. math::
+
+   \Delta T_j(n) = \frac{1}{2\pi k L} \sum_{t=0}^{n-1} \sum_i q_i(t)\, \Delta R_{n-1-t,\, ij}
+
+evaluated as one matrix-vector product per step.
+
+Response cache
+--------------
+
+The increments can be stored on disk with the ``fls_cache_dir`` parameter of
+:class:`~carm.simulation.Simulation`:
+
+.. code-block:: python
+
+    simulation = Simulation(..., fls_cache_dir="fls_cache")
+
+The increments are saved in that folder as a ``.npy`` file, with a ``.json``
+file listing the inputs they were computed from (``fls_mode``, ``fls_image``,
+time step, ground properties, borehole length and depth, field layout). A
+later simulation of the same field pointing at the same folder reads them
+instead of computing them again; flows, temperatures and weather can differ.
+A file from a longer run also serves a shorter one. The time step must be
+constant. ``None`` (default) keeps the increments in memory and writes
+nothing.

@@ -129,6 +129,22 @@ in <a class="reference internal" href="discretization.html"><span class="doc">Di
 vector. The examples in <code class="docutils literal notranslate"><span class="pre">examples/</span></code> cover the most common cases; users
 can freely extend them to extract any quantity of interest.</p>
 </section>
+<section id="history-on-disk">
+<h2>History on disk</h2>
+<p>By default <code class="docutils literal notranslate"><span class="pre">T_history</span></code> is held in RAM as float64. For runs whose history
+does not fit in memory, pass <code class="docutils literal notranslate"><span class="pre">history_path</span></code> to <code class="docutils literal notranslate"><span class="pre">run()</span></code>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="n">T_history</span> <span class="o">=</span> <span class="n">simulation</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">parallel</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">history_path</span><span class="o">=</span><span class="s2">"results/T_history.npy"</span><span class="p">)</span>
+</span></code></pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">T_history</span></code> is then written step by step to a float32 <code class="docutils literal notranslate"><span class="pre">.npy</span></code> file at
+that path, and the returned array is a memory map of that file. Read it back
+later with:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="n">T_history</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s2">"results/T_history.npy"</span><span class="p">,</span> <span class="n">mmap_mode</span><span class="o">=</span><span class="s2">"r"</span><span class="p">)</span>
+</span></code></pre></div>
+</div>
+<p>Without <code class="docutils literal notranslate"><span class="pre">history_path</span></code>, <code class="docutils literal notranslate"><span class="pre">run()</span></code> raises <code class="docutils literal notranslate"><span class="pre">MemoryError</span></code> before the first
+step if <code class="docutils literal notranslate"><span class="pre">T_history</span></code> does not fit in the available RAM.</p>
+</section>
 <section id="offsets">
 <h2>Offsets</h2>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="n">nsup</span>    <span class="o">=</span> <span class="n">m_mesh_sup</span> <span class="o">+</span> <span class="mi">1</span>        <span class="c1"># start of ground domain</span>
@@ -187,6 +203,7 @@ of the repository, covering single-borehole, parallel, and series configurations
 <div class="sticky top-16 -mt-10 max-h-[calc(100vh-5rem)] h-full overflow-y-auto pt-6 space-y-2"><p class="font-medium">On this page</p>
 <ul>
 <li><a :data-current="activeSection === '#simulation-results'" class="reference internal" href="#simulation-results">Simulation results</a></li>
+<li><a :data-current="activeSection === '#history-on-disk'" class="reference internal" href="#history-on-disk">History on disk</a></li>
 <li><a :data-current="activeSection === '#offsets'" class="reference internal" href="#offsets">Offsets</a></li>
 <li><a :data-current="activeSection === '#extracting-results'" class="reference internal" href="#extracting-results">Extracting results</a></li>
 <li><a :data-current="activeSection === '#depth-axis'" class="reference internal" href="#depth-axis">Depth axis</a></li>

@@ -109,9 +109,30 @@
 <section id="fls-calculation-methods">
 <h1>FLS Calculation Methods</h1>
 <p>pyCaRM precomputes a thermal response matrix using the Finite Line Source (FLS)
-analytical model. Two methods are available to evaluate the effective distance
+analytical model, with its real part and, by default, its image part (see
+<a class="reference internal" href="#real-and-image-parts">Real and image parts</a>). Two methods are available to evaluate the effective distance
 between boreholes, controlled by the <code class="docutils literal notranslate"><span class="pre">fls_mode</span></code> parameter of
 <a class="reference internal" href="carm.simulation.html#carm.simulation.Simulation" title="carm.simulation.Simulation"><code class="xref py py-class docutils literal notranslate"><span class="pre">Simulation</span></code></a>.</p>
+<section id="real-and-image-parts">
+<h2>Real and image parts</h2>
+<p>The FLS response combines a real part and, by default, an image part, set by
+the <code class="docutils literal notranslate"><span class="pre">fls_image</span></code> parameter of <a class="reference internal" href="carm.simulation.html#carm.simulation.Simulation" title="carm.simulation.Simulation"><code class="xref py py-class docutils literal notranslate"><span class="pre">Simulation</span></code></a> (<code class="docutils literal notranslate"><span class="pre">True</span></code>
+by default, <code class="docutils literal notranslate"><span class="pre">False</span></code> for the real part only). The
+real part is the borehole as a line source of length <span class="math notranslate nohighlight">\(H = L\)</span> in an
+infinite medium. The image part is a sink mirrored above the ground surface:
+it keeps the FLS temperature perturbation at zero on the surface.
+The top of the borehole is buried at depth
+<span class="math notranslate nohighlight">\(D = L_{sup}\)</span>, the thickness of the upper ground layer.</p>
+<p>With <span class="math notranslate nohighlight">\(\mathrm{ierf}(x) = x\,\mathrm{erf}(x) - (1 - e^{-x^2})/\sqrt{\pi}\)</span>,
+the response at distance <span class="math notranslate nohighlight">\(d\)</span> and time <span class="math notranslate nohighlight">\(t\)</span> is</p>
+<div class="math notranslate nohighlight">
+\[h(d, t) = \int_{1/\sqrt{4\alpha t}}^{\infty}
+\frac{e^{-d^2 s^2}}{2 H s^2}
+\Big[\underbrace{2\,\mathrm{ierf}(Hs)}_{\text{real}}
++ \underbrace{2\,\mathrm{ierf}((2D + H)s) - \mathrm{ierf}(2Ds)
+- \mathrm{ierf}((2D + 2H)s)}_{\text{image}}\Big]\, ds\]</div>
+<p>as in pygfunction (Cimmino, 2018).</p>
+</section>
 <section id="overview">
 <h2>Overview</h2>
 <p>Each borehole is assigned a Voronoi cell of area <span class="math notranslate nohighlight">\(A_i\)</span>, from which an
@@ -145,68 +166,24 @@ points along its equivalent radius:</p>
 <p>where <span class="math notranslate nohighlight">\(d_{ijk}\)</span> is the distance from source <span class="math notranslate nohighlight">\(j\)</span> to point
 <span class="math notranslate nohighlight">\(k\)</span> on receiver <span class="math notranslate nohighlight">\(i\)</span>. This method is more accurate but
 significantly more expensive.</p>
-<section id="angular-discretization-sensitivity">
-<h3>Angular discretization sensitivity</h3>
-<p>The figure below shows the absolute difference between results at
-<span class="math notranslate nohighlight">\(N_\theta\)</span> and the reference solution at <span class="math notranslate nohighlight">\(N_\theta = 64\)</span>, for a
-regular 9-borehole field over 3 years.</p>
-<figure class="align-default">
-<a class="reference internal image-reference" href="_images/N_vs_dT.png"><img alt="n_theta sensitivity" src="_images/N_vs_dT.png" style="width: 100%;"/>
-</a>
-</figure>
-<p>From <span class="math notranslate nohighlight">\(N_\theta = 8\)</span> onward, the error is below 0.01 °C across all
-boreholes. The default value is therefore set to <span class="math notranslate nohighlight">\(N_\theta = 8\)</span> as the
-best compromise between accuracy and computational cost.</p>
-</section>
-</section>
-<section id="method-comparison">
-<h2>Method comparison</h2>
-<p>The figures below compare the two methods against the continuous reference
-solution over a 3-year simulation on a 9-borehole field.</p>
-<section id="absolute-error-vs-continuous">
-<h3>Absolute error vs continuous</h3>
-<figure class="align-default">
-<a class="reference internal image-reference" href="_images/absolute_error_vs_continuous_mean.png"><img alt="Absolute error vs continuous mean" src="_images/absolute_error_vs_continuous_mean.png" style="width: 100%;"/>
-</a>
-</figure>
-<p>The clamp strategy produces errors up to 10 °C for central boreholes and is
-not recommended. The sqrt method stays within approximately 1.7 °C across all
-boreholes and both regular and irregular layouts, making it suitable as the
-default method.</p>
-</section>
-<section id="spacing-sensitivity">
-<h3>Spacing sensitivity</h3>
-<figure class="align-default">
-<a class="reference internal image-reference" href="_images/spacings_vs_dT_for_sqrt_vs_continuous.png"><img alt="sqrt vs continuous spacing sensitivity" src="_images/spacings_vs_dT_for_sqrt_vs_continuous.png" style="width: 100%;"/>
-</a>
-</figure>
-<p>The error between sqrt and continuous decreases as borehole spacing increases.
-For spacings of 10 m and above, the maximum error is below 1 °C over 3 years.
-At tight spacings (3 m), the error can reach approximately 1.6 °C for central
-boreholes.</p>
-</section>
 </section>
 <section id="choosing-a-method">
 <h2>Choosing a method</h2>
 <table class="docutils align-default">
 <colgroup>
-<col style="width: 20.0%"/>
-<col style="width: 40.0%"/>
-<col style="width: 40.0%"/>
+<col style="width: 30.0%"/>
+<col style="width: 70.0%"/>
 </colgroup>
 <thead>
 <tr class="row-odd"><th class="head"><p><code class="docutils literal notranslate"><span class="pre">fls_mode</span></code></p></th>
-<th class="head"><p>Accuracy</p></th>
 <th class="head"><p>Cost</p></th>
 </tr>
 </thead>
 <tbody>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">"sqrt"</span></code></p></td>
-<td><p>Max error ~1.7 °C over 3 years</p></td>
 <td><p>Low — single distance per pair</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">"continuous"</span></code></p></td>
-<td><p>Reference solution</p></td>
 <td><p>High — scales with <span class="math notranslate nohighlight">\(N_\theta \times n_{BHE}^2 \times n_{steps}\)</span></p></td>
 </tr>
 </tbody>
@@ -214,22 +191,44 @@ boreholes.</p>
 <p>Use <code class="docutils literal notranslate"><span class="pre">"sqrt"</span></code> (default) for parametric studies and large fields. Use
 <code class="docutils literal notranslate"><span class="pre">"continuous"</span></code> when high accuracy is required and the field is small.</p>
 </section>
+<section id="load-superposition">
+<h2>Load superposition</h2>
+<p>Both methods store only the response increments
+<span class="math notranslate nohighlight">\(\Delta R_k = R_{k+1} - R_k\)</span> (the FLS integral over each time step),
+computed once when the simulation is built. At step <span class="math notranslate nohighlight">\(n\)</span> the wall
+temperature penalty of borehole <span class="math notranslate nohighlight">\(j\)</span> is the superposition of the whole
+heat history,</p>
+<div class="math notranslate nohighlight">
+\[\Delta T_j(n) = \frac{1}{2\pi k L} \sum_{t=0}^{n-1} \sum_i q_i(t)\, \Delta R_{n-1-t,\, ij}\]</div>
+<p>evaluated as one matrix-vector product per step.</p>
+</section>
+<section id="response-cache">
+<h2>Response cache</h2>
+<p>The increments can be stored on disk with the <code class="docutils literal notranslate"><span class="pre">fls_cache_dir</span></code> parameter of
+<a class="reference internal" href="carm.simulation.html#carm.simulation.Simulation" title="carm.simulation.Simulation"><code class="xref py py-class docutils literal notranslate"><span class="pre">Simulation</span></code></a>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="n">simulation</span> <span class="o">=</span> <span class="n">Simulation</span><span class="p">(</span><span class="o">...</span><span class="p">,</span> <span class="n">fls_cache_dir</span><span class="o">=</span><span class="s2">"fls_cache"</span><span class="p">)</span>
+</span></code></pre></div>
+</div>
+<p>The increments are saved in that folder as a <code class="docutils literal notranslate"><span class="pre">.npy</span></code> file, with a <code class="docutils literal notranslate"><span class="pre">.json</span></code>
+file listing the inputs they were computed from (<code class="docutils literal notranslate"><span class="pre">fls_mode</span></code>, <code class="docutils literal notranslate"><span class="pre">fls_image</span></code>,
+time step, ground properties, borehole length and depth, field layout). A
+later simulation of the same field pointing at the same folder reads them
+instead of computing them again; flows, temperatures and weather can differ.
+A file from a longer run also serves a shorter one. The time step must be
+constant. <code class="docutils literal notranslate"><span class="pre">None</span></code> (default) keeps the increments in memory and writes
+nothing.</p>
+</section>
 </section>
 </div></div><aside class="hidden text-sm xl:block" id="right-sidebar">
 <div class="sticky top-16 -mt-10 max-h-[calc(100vh-5rem)] h-full overflow-y-auto pt-6 space-y-2"><p class="font-medium">On this page</p>
 <ul>
+<li><a :data-current="activeSection === '#real-and-image-parts'" class="reference internal" href="#real-and-image-parts">Real and image parts</a></li>
 <li><a :data-current="activeSection === '#overview'" class="reference internal" href="#overview">Overview</a></li>
 <li><a :data-current="activeSection === '#sqrt-method-default'" class="reference internal" href="#sqrt-method-default">sqrt method (default)</a></li>
-<li><a :data-current="activeSection === '#continuous-method'" class="reference internal" href="#continuous-method">continuous method</a><ul>
-<li><a :data-current="activeSection === '#angular-discretization-sensitivity'" class="reference internal" href="#angular-discretization-sensitivity">Angular discretization sensitivity</a></li>
-</ul>
-</li>
-<li><a :data-current="activeSection === '#method-comparison'" class="reference internal" href="#method-comparison">Method comparison</a><ul>
-<li><a :data-current="activeSection === '#absolute-error-vs-continuous'" class="reference internal" href="#absolute-error-vs-continuous">Absolute error vs continuous</a></li>
-<li><a :data-current="activeSection === '#spacing-sensitivity'" class="reference internal" href="#spacing-sensitivity">Spacing sensitivity</a></li>
-</ul>
-</li>
+<li><a :data-current="activeSection === '#continuous-method'" class="reference internal" href="#continuous-method">continuous method</a></li>
 <li><a :data-current="activeSection === '#choosing-a-method'" class="reference internal" href="#choosing-a-method">Choosing a method</a></li>
+<li><a :data-current="activeSection === '#load-superposition'" class="reference internal" href="#load-superposition">Load superposition</a></li>
+<li><a :data-current="activeSection === '#response-cache'" class="reference internal" href="#response-cache">Response cache</a></li>
 </ul>
 </div>
 </aside>

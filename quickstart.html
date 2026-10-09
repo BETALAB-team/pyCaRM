@@ -257,7 +257,8 @@ to extract temperatures of interest from this array.</p>
 <p><code class="docutils literal notranslate"><span class="pre">run()</span></code> does not write anything to disk unless asked: pass
 <code class="docutils literal notranslate"><span class="pre">save_results=True</span></code> to also dump a timestamped <code class="docutils literal notranslate"><span class="pre">.npz</span></code> archive to a
 <code class="docutils literal notranslate"><span class="pre">results/</span></code> directory. See <code class="docutils literal notranslate"><span class="pre">examples/SingleUtube.py</span></code> for a runnable
-use of this option.</p>
+use of this option. When <code class="docutils literal notranslate"><span class="pre">history_path</span></code> is also passed (see
+<a class="reference internal" href="output.html"><span class="doc">Output</span></a>), the archive stores that path instead of <code class="docutils literal notranslate"><span class="pre">T_history</span></code>.</p>
 </div>
 </section>
 <section id="extracting-the-outlet-temperature">

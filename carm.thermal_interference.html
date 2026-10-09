@@ -117,15 +117,43 @@
 <p>Finite Line Source (FLS) module.</p>
 <p>Computes the far-field thermal response of the borehole field using the
 Finite Line Source analytical model. Handles both single and multi-borehole
-configurations via a precomputed response matrix and a superposition scheme.</p>
+configurations via precomputed response increments and a superposition scheme.</p>
+<p>The FLS uses the real part (the borehole as a line source in an infinite
+medium) and, by default, the image part (a mirrored sink above the ground
+surface). The image keeps the FLS perturbation at zero on the surface, which
+then stays at the undisturbed (Kusuda) temperature.</p>
 <dl class="py class">
 <dt class="sig sig-object py" id="carm.thermal_interference.fls.FiniteLineSolution">
 <span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">carm.thermal_interference.fls.</span></span><span class="sig-name descname"><span class="pre">FiniteLineSolution</span></span><a class="reference internal" href="_modules/carm/thermal_interference/fls.html#FiniteLineSolution"><span class="viewcode-link"><span class="pre">[source]</span></span></a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
 <p>Finite Line Source thermal response for a borehole field.</p>
-<p>Precomputes the FLS response matrix at construction time and uses it
-at each time step to evaluate the borehole wall temperature perturbation
-via load superposition (convolution over the heat load history).</p>
+<p>Precomputes the FLS response increments at construction time and uses
+them at each time step to evaluate the borehole wall temperature
+perturbation via load superposition (convolution over the heat load
+history). Only the increments are kept in memory; the cumulative response
+matrix is rebuilt on demand. The response is the real part of the FLS
+plus, by default, its image part (isothermal ground surface).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>physicalmodel</strong> (<a class="reference internal" href="carm.html#carm.model.PhysicalModel" title="carm.model.PhysicalModel"><em>PhysicalModel</em></a>) – Full physical model of the BHE system.</p></li>
+<li><p><strong>n_steps</strong> (<em>int</em>) – Total number of simulation time steps.</p></li>
+<li><p><strong>time_hist</strong> (<em>NDArray</em>) – Array of cumulative simulation times [s], shape (n_steps,).</p></li>
+<li><p><strong>fls_mode</strong> (<em>str</em>) – <code class="docutils literal notranslate"><span class="pre">'sqrt'</span></code> or <code class="docutils literal notranslate"><span class="pre">'continuous'</span></code>, see <a class="reference internal" href="fls_methods.html"><span class="doc">FLS Calculation Methods</span></a>.</p></li>
+<li><p><strong>fls_image</strong> (<em>bool</em>) – <code class="docutils literal notranslate"><span class="pre">True</span></code> (default) adds the image part, a sink mirrored above the
+ground surface, so the FLS perturbation is zero at the surface (an
+isothermal surface at the undisturbed, Kusuda, temperature). The BHE
+top is buried at depth <code class="docutils literal notranslate"><span class="pre">D</span> <span class="pre">=</span> <span class="pre">ground_geom.L_sup</span></code>. <code class="docutils literal notranslate"><span class="pre">False</span></code> uses the
+real part only (a borehole in an infinite medium).</p></li>
+<li><p><strong>cache_dir</strong> (<em>str</em><em>, </em><em>Path</em><em> or </em><em>None</em>) – Folder of the on-disk increments cache. <code class="docutils literal notranslate"><span class="pre">None</span></code> (default) computes
+the increments in memory and writes nothing. When set, the increments
+are looked up in the folder by a key built from the inputs they depend
+on (see Notes), served memory-mapped from a hit, or computed, written
+and then memory-mapped on a miss. The time grid must be uniform
+(<code class="docutils literal notranslate"><span class="pre">time_hist</span> <span class="pre">=</span> <span class="pre">dt,</span> <span class="pre">2</span> <span class="pre">dt,</span> <span class="pre">...</span></code>).</p></li>
+</ul>
+</dd>
+</dl>
 <dl class="py attribute">
 <dt class="sig sig-object py" id="carm.thermal_interference.fls.FiniteLineSolution.physicalmodel">
 <span class="sig-name descname"><span class="pre">physicalmodel</span></span></dt>
@@ -159,22 +187,58 @@ via load superposition (convolution over the heat load history).</p>
 <dl class="py attribute">
 <dt class="sig sig-object py" id="carm.thermal_interference.fls.FiniteLineSolution.response_matrix">
 <span class="sig-name descname"><span class="pre">response_matrix</span></span></dt>
-<dd><p>Precomputed FLS response matrix of shape (n_steps + 1, n_bhes, n_bhes).
+<dd><p>FLS response matrix of shape (n_steps + 1, n_bhes, n_bhes), rebuilt
+from the increments on each access (zeros row + cumulative sum).
 Entry <code class="docutils literal notranslate"><span class="pre">[t,</span> <span class="pre">i,</span> <span class="pre">j]</span></code> is the unit thermal response at borehole <code class="docutils literal notranslate"><span class="pre">j</span></code>
-due to borehole <code class="docutils literal notranslate"><span class="pre">i</span></code> up to time step <code class="docutils literal notranslate"><span class="pre">t</span></code>.</p>
+due to borehole <code class="docutils literal notranslate"><span class="pre">i</span></code> up to time step <code class="docutils literal notranslate"><span class="pre">t</span></code>. Not used by the solver.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Type<span class="colon">:</span></dt>
 <dd class="field-odd"><p>NDArray</p>
 </dd>
 </dl>
 </dd></dl>
+<p class="rubric">Notes</p>
+<p>With <code class="docutils literal notranslate"><span class="pre">Ierf(x)</span> <span class="pre">=</span> <span class="pre">x</span> <span class="pre">erf(x)</span> <span class="pre">-</span> <span class="pre">(1</span> <span class="pre">-</span> <span class="pre">exp(-x^2))</span> <span class="pre">/</span> <span class="pre">sqrt(pi)</span></code>, borehole length
+<code class="docutils literal notranslate"><span class="pre">H</span> <span class="pre">=</span> <span class="pre">L</span></code>, buried depth <code class="docutils literal notranslate"><span class="pre">D</span> <span class="pre">=</span> <span class="pre">L_sup</span></code> and <code class="docutils literal notranslate"><span class="pre">s</span></code> from <code class="docutils literal notranslate"><span class="pre">1</span> <span class="pre">/</span> <span class="pre">sqrt(4</span> <span class="pre">alpha</span> <span class="pre">t)</span></code>
+to infinity, the response is the integral of:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">d</span><span class="o">^</span><span class="mi">2</span> <span class="n">s</span><span class="o">^</span><span class="mi">2</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="mi">2</span> <span class="n">H</span> <span class="n">s</span><span class="o">^</span><span class="mi">2</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="n">real</span> <span class="o">+</span> <span class="n">image</span><span class="p">)</span>
+</span><span id="line-2"><span class="n">real</span>  <span class="o">=</span> <span class="mi">2</span> <span class="n">Ierf</span><span class="p">(</span><span class="n">H</span> <span class="n">s</span><span class="p">)</span>
+</span><span id="line-3"><span class="n">image</span> <span class="o">=</span> <span class="mi">2</span> <span class="n">Ierf</span><span class="p">((</span><span class="mi">2</span> <span class="n">D</span> <span class="o">+</span> <span class="n">H</span><span class="p">)</span> <span class="n">s</span><span class="p">)</span> <span class="o">-</span> <span class="n">Ierf</span><span class="p">(</span><span class="mi">2</span> <span class="n">D</span> <span class="n">s</span><span class="p">)</span> <span class="o">-</span> <span class="n">Ierf</span><span class="p">((</span><span class="mi">2</span> <span class="n">D</span> <span class="o">+</span> <span class="mi">2</span> <span class="n">H</span><span class="p">)</span> <span class="n">s</span><span class="p">)</span>
+</span></code></pre></div>
+</div>
+<p>where <code class="docutils literal notranslate"><span class="pre">image</span></code> (always &lt;= 0) is dropped when <code class="docutils literal notranslate"><span class="pre">fls_image=False</span></code>. <code class="docutils literal notranslate"><span class="pre">d</span></code>
+is <code class="docutils literal notranslate"><span class="pre">Field._distance_matrix</span></code> in <code class="docutils literal notranslate"><span class="pre">'sqrt'</span></code> mode and the receiver wall
+points in <code class="docutils literal notranslate"><span class="pre">'continuous'</span></code> mode.</p>
+<p>The increments <code class="docutils literal notranslate"><span class="pre">dR[k]</span> <span class="pre">=</span> <span class="pre">R[k</span> <span class="pre">+</span> <span class="pre">1]</span> <span class="pre">-</span> <span class="pre">R[k]</span></code>, shape (n_steps, n_bhes, n_bhes),
+are the FLS integrals over each time interval. The penalty at <code class="docutils literal notranslate"><span class="pre">step</span></code> is
+<code class="docutils literal notranslate"><span class="pre">sum_t</span> <span class="pre">q[t]</span> <span class="pre">@</span> <span class="pre">(R[step</span> <span class="pre">-</span> <span class="pre">t]</span> <span class="pre">-</span> <span class="pre">R[step</span> <span class="pre">-</span> <span class="pre">1</span> <span class="pre">-</span> <span class="pre">t])</span></code>, i.e. <code class="docutils literal notranslate"><span class="pre">q[t]</span></code> paired with
+<code class="docutils literal notranslate"><span class="pre">dR[step</span> <span class="pre">-</span> <span class="pre">1</span> <span class="pre">-</span> <span class="pre">t]</span></code>, evaluated as one matrix-vector product.</p>
+<p><strong>Increments cache.</strong> The cache file is <code class="docutils literal notranslate"><span class="pre">fls_&lt;key&gt;.npy</span></code> (float64,
+shape (rows, n_bhes, n_bhes)) in <code class="docutils literal notranslate"><span class="pre">cache_dir</span></code>, next to a <code class="docutils literal notranslate"><span class="pre">.json</span></code>
+sidecar listing the key inputs. The key is a hash of everything the
+increments depend on: <code class="docutils literal notranslate"><span class="pre">fls_mode</span></code>, <code class="docutils literal notranslate"><span class="pre">fls_image</span></code>, the time step <code class="docutils literal notranslate"><span class="pre">dt</span></code>,
+the ground means k, rho, cp, the borehole length L, the buried depth
+<code class="docutils literal notranslate"><span class="pre">D</span> <span class="pre">=</span> <span class="pre">L_sup</span></code>, the borehole coordinates, the equivalent radius <code class="docutils literal notranslate"><span class="pre">req</span></code> of
+every borehole, the borehole radius <code class="docutils literal notranslate"><span class="pre">rb</span></code>, <code class="docutils literal notranslate"><span class="pre">n_theta</span></code> and a cache-format
+version. Flows, temperatures, weather and
+the number of steps are not part of the key.</p>
+<p>Because the time grid is <code class="docutils literal notranslate"><span class="pre">k</span> <span class="pre">*</span> <span class="pre">dt</span></code>, the increments of a shorter run are
+the first rows of a longer run’s increments: a cached file with at least
+<code class="docutils literal notranslate"><span class="pre">n_steps</span></code> rows serves the run by slicing. A shorter file is recomputed
+and replaced. Files are written atomically (temporary file, then rename)
+and opened with <code class="docutils literal notranslate"><span class="pre">np.load(...,</span> <span class="pre">mmap_mode="r")</span></code>, so parallel runs on the
+same field share one copy through the OS page cache. On a miss the
+increments are filled straight into the temporary file, so they are never
+held in RAM as a whole.</p>
+<p>The numerical implementation of the integral, real and image parts,
+follows the approach used in pygfunction (Cimmino, 2018).</p>
 <dl class="py attribute">
-<dt class="sig sig-object py">
-<span class="sig-name descname"><span class="pre">The</span> <span class="pre">numerical</span> <span class="pre">implementation</span> <span class="pre">of</span> <span class="pre">the</span> <span class="pre">integral</span> <span class="pre">follows</span> <span class="pre">the</span> <span class="pre">approach</span> <span class="pre">used</span> <span class="pre">in</span></span></dt>
+<dt class="sig sig-object py" id="carm.thermal_interference.fls.FiniteLineSolution.CACHE_FORMAT_VERSION">
+<span class="sig-name descname"><span class="pre">CACHE_FORMAT_VERSION</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">2</span></span></dt>
 <dd></dd></dl>
 <dl class="py attribute">
-<dt class="sig sig-object py">
-<span class="sig-name descname"><span class="pre">pygfunction</span> <span class="pre">(Cimmino,</span> <span class="pre">2018).</span></span></dt>
+<dt class="sig sig-object py" id="carm.thermal_interference.fls.FiniteLineSolution.N_THETA">
+<span class="sig-name descname"><span class="pre">N_THETA</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">8</span></span></dt>
 <dd></dd></dl>
 <dl class="py property">
 <dt class="sig sig-object py" id="id0">
@@ -189,9 +253,33 @@ due to borehole <code class="docutils literal notranslate"><span class="pre">i</
 <span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">carm.thermal_interference.</span></span><span class="sig-name descname"><span class="pre">FiniteLineSolution</span></span><a class="reference internal" href="_modules/carm/thermal_interference/fls.html#FiniteLineSolution"><span class="viewcode-link"><span class="pre">[source]</span></span></a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
 <p>Finite Line Source thermal response for a borehole field.</p>
-<p>Precomputes the FLS response matrix at construction time and uses it
-at each time step to evaluate the borehole wall temperature perturbation
-via load superposition (convolution over the heat load history).</p>
+<p>Precomputes the FLS response increments at construction time and uses
+them at each time step to evaluate the borehole wall temperature
+perturbation via load superposition (convolution over the heat load
+history). Only the increments are kept in memory; the cumulative response
+matrix is rebuilt on demand. The response is the real part of the FLS
+plus, by default, its image part (isothermal ground surface).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>physicalmodel</strong> (<a class="reference internal" href="carm.html#carm.model.PhysicalModel" title="carm.model.PhysicalModel"><em>PhysicalModel</em></a>) – Full physical model of the BHE system.</p></li>
+<li><p><strong>n_steps</strong> (<em>int</em>) – Total number of simulation time steps.</p></li>
+<li><p><strong>time_hist</strong> (<em>NDArray</em>) – Array of cumulative simulation times [s], shape (n_steps,).</p></li>
+<li><p><strong>fls_mode</strong> (<em>str</em>) – <code class="docutils literal notranslate"><span class="pre">'sqrt'</span></code> or <code class="docutils literal notranslate"><span class="pre">'continuous'</span></code>, see <a class="reference internal" href="fls_methods.html"><span class="doc">FLS Calculation Methods</span></a>.</p></li>
+<li><p><strong>fls_image</strong> (<em>bool</em>) – <code class="docutils literal notranslate"><span class="pre">True</span></code> (default) adds the image part, a sink mirrored above the
+ground surface, so the FLS perturbation is zero at the surface (an
+isothermal surface at the undisturbed, Kusuda, temperature). The BHE
+top is buried at depth <code class="docutils literal notranslate"><span class="pre">D</span> <span class="pre">=</span> <span class="pre">ground_geom.L_sup</span></code>. <code class="docutils literal notranslate"><span class="pre">False</span></code> uses the
+real part only (a borehole in an infinite medium).</p></li>
+<li><p><strong>cache_dir</strong> (<em>str</em><em>, </em><em>Path</em><em> or </em><em>None</em>) – Folder of the on-disk increments cache. <code class="docutils literal notranslate"><span class="pre">None</span></code> (default) computes
+the increments in memory and writes nothing. When set, the increments
+are looked up in the folder by a key built from the inputs they depend
+on (see Notes), served memory-mapped from a hit, or computed, written
+and then memory-mapped on a miss. The time grid must be uniform
+(<code class="docutils literal notranslate"><span class="pre">time_hist</span> <span class="pre">=</span> <span class="pre">dt,</span> <span class="pre">2</span> <span class="pre">dt,</span> <span class="pre">...</span></code>).</p></li>
+</ul>
+</dd>
+</dl>
 <dl class="py attribute">
 <dt class="sig sig-object py" id="carm.thermal_interference.FiniteLineSolution.physicalmodel">
 <span class="sig-name descname"><span class="pre">physicalmodel</span></span></dt>
@@ -225,22 +313,58 @@ via load superposition (convolution over the heat load history).</p>
 <dl class="py attribute">
 <dt class="sig sig-object py" id="carm.thermal_interference.FiniteLineSolution.response_matrix">
 <span class="sig-name descname"><span class="pre">response_matrix</span></span></dt>
-<dd><p>Precomputed FLS response matrix of shape (n_steps + 1, n_bhes, n_bhes).
+<dd><p>FLS response matrix of shape (n_steps + 1, n_bhes, n_bhes), rebuilt
+from the increments on each access (zeros row + cumulative sum).
 Entry <code class="docutils literal notranslate"><span class="pre">[t,</span> <span class="pre">i,</span> <span class="pre">j]</span></code> is the unit thermal response at borehole <code class="docutils literal notranslate"><span class="pre">j</span></code>
-due to borehole <code class="docutils literal notranslate"><span class="pre">i</span></code> up to time step <code class="docutils literal notranslate"><span class="pre">t</span></code>.</p>
+due to borehole <code class="docutils literal notranslate"><span class="pre">i</span></code> up to time step <code class="docutils literal notranslate"><span class="pre">t</span></code>. Not used by the solver.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Type<span class="colon">:</span></dt>
 <dd class="field-odd"><p>NDArray</p>
 </dd>
 </dl>
 </dd></dl>
+<p class="rubric">Notes</p>
+<p>With <code class="docutils literal notranslate"><span class="pre">Ierf(x)</span> <span class="pre">=</span> <span class="pre">x</span> <span class="pre">erf(x)</span> <span class="pre">-</span> <span class="pre">(1</span> <span class="pre">-</span> <span class="pre">exp(-x^2))</span> <span class="pre">/</span> <span class="pre">sqrt(pi)</span></code>, borehole length
+<code class="docutils literal notranslate"><span class="pre">H</span> <span class="pre">=</span> <span class="pre">L</span></code>, buried depth <code class="docutils literal notranslate"><span class="pre">D</span> <span class="pre">=</span> <span class="pre">L_sup</span></code> and <code class="docutils literal notranslate"><span class="pre">s</span></code> from <code class="docutils literal notranslate"><span class="pre">1</span> <span class="pre">/</span> <span class="pre">sqrt(4</span> <span class="pre">alpha</span> <span class="pre">t)</span></code>
+to infinity, the response is the integral of:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">d</span><span class="o">^</span><span class="mi">2</span> <span class="n">s</span><span class="o">^</span><span class="mi">2</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="mi">2</span> <span class="n">H</span> <span class="n">s</span><span class="o">^</span><span class="mi">2</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="n">real</span> <span class="o">+</span> <span class="n">image</span><span class="p">)</span>
+</span><span id="line-2"><span class="n">real</span>  <span class="o">=</span> <span class="mi">2</span> <span class="n">Ierf</span><span class="p">(</span><span class="n">H</span> <span class="n">s</span><span class="p">)</span>
+</span><span id="line-3"><span class="n">image</span> <span class="o">=</span> <span class="mi">2</span> <span class="n">Ierf</span><span class="p">((</span><span class="mi">2</span> <span class="n">D</span> <span class="o">+</span> <span class="n">H</span><span class="p">)</span> <span class="n">s</span><span class="p">)</span> <span class="o">-</span> <span class="n">Ierf</span><span class="p">(</span><span class="mi">2</span> <span class="n">D</span> <span class="n">s</span><span class="p">)</span> <span class="o">-</span> <span class="n">Ierf</span><span class="p">((</span><span class="mi">2</span> <span class="n">D</span> <span class="o">+</span> <span class="mi">2</span> <span class="n">H</span><span class="p">)</span> <span class="n">s</span><span class="p">)</span>
+</span></code></pre></div>
+</div>
+<p>where <code class="docutils literal notranslate"><span class="pre">image</span></code> (always &lt;= 0) is dropped when <code class="docutils literal notranslate"><span class="pre">fls_image=False</span></code>. <code class="docutils literal notranslate"><span class="pre">d</span></code>
+is <code class="docutils literal notranslate"><span class="pre">Field._distance_matrix</span></code> in <code class="docutils literal notranslate"><span class="pre">'sqrt'</span></code> mode and the receiver wall
+points in <code class="docutils literal notranslate"><span class="pre">'continuous'</span></code> mode.</p>
+<p>The increments <code class="docutils literal notranslate"><span class="pre">dR[k]</span> <span class="pre">=</span> <span class="pre">R[k</span> <span class="pre">+</span> <span class="pre">1]</span> <span class="pre">-</span> <span class="pre">R[k]</span></code>, shape (n_steps, n_bhes, n_bhes),
+are the FLS integrals over each time interval. The penalty at <code class="docutils literal notranslate"><span class="pre">step</span></code> is
+<code class="docutils literal notranslate"><span class="pre">sum_t</span> <span class="pre">q[t]</span> <span class="pre">@</span> <span class="pre">(R[step</span> <span class="pre">-</span> <span class="pre">t]</span> <span class="pre">-</span> <span class="pre">R[step</span> <span class="pre">-</span> <span class="pre">1</span> <span class="pre">-</span> <span class="pre">t])</span></code>, i.e. <code class="docutils literal notranslate"><span class="pre">q[t]</span></code> paired with
+<code class="docutils literal notranslate"><span class="pre">dR[step</span> <span class="pre">-</span> <span class="pre">1</span> <span class="pre">-</span> <span class="pre">t]</span></code>, evaluated as one matrix-vector product.</p>
+<p><strong>Increments cache.</strong> The cache file is <code class="docutils literal notranslate"><span class="pre">fls_&lt;key&gt;.npy</span></code> (float64,
+shape (rows, n_bhes, n_bhes)) in <code class="docutils literal notranslate"><span class="pre">cache_dir</span></code>, next to a <code class="docutils literal notranslate"><span class="pre">.json</span></code>
+sidecar listing the key inputs. The key is a hash of everything the
+increments depend on: <code class="docutils literal notranslate"><span class="pre">fls_mode</span></code>, <code class="docutils literal notranslate"><span class="pre">fls_image</span></code>, the time step <code class="docutils literal notranslate"><span class="pre">dt</span></code>,
+the ground means k, rho, cp, the borehole length L, the buried depth
+<code class="docutils literal notranslate"><span class="pre">D</span> <span class="pre">=</span> <span class="pre">L_sup</span></code>, the borehole coordinates, the equivalent radius <code class="docutils literal notranslate"><span class="pre">req</span></code> of
+every borehole, the borehole radius <code class="docutils literal notranslate"><span class="pre">rb</span></code>, <code class="docutils literal notranslate"><span class="pre">n_theta</span></code> and a cache-format
+version. Flows, temperatures, weather and
+the number of steps are not part of the key.</p>
+<p>Because the time grid is <code class="docutils literal notranslate"><span class="pre">k</span> <span class="pre">*</span> <span class="pre">dt</span></code>, the increments of a shorter run are
+the first rows of a longer run’s increments: a cached file with at least
+<code class="docutils literal notranslate"><span class="pre">n_steps</span></code> rows serves the run by slicing. A shorter file is recomputed
+and replaced. Files are written atomically (temporary file, then rename)
+and opened with <code class="docutils literal notranslate"><span class="pre">np.load(...,</span> <span class="pre">mmap_mode="r")</span></code>, so parallel runs on the
+same field share one copy through the OS page cache. On a miss the
+increments are filled straight into the temporary file, so they are never
+held in RAM as a whole.</p>
+<p>The numerical implementation of the integral, real and image parts,
+follows the approach used in pygfunction (Cimmino, 2018).</p>
 <dl class="py attribute">
-<dt class="sig sig-object py">
-<span class="sig-name descname"><span class="pre">The</span> <span class="pre">numerical</span> <span class="pre">implementation</span> <span class="pre">of</span> <span class="pre">the</span> <span class="pre">integral</span> <span class="pre">follows</span> <span class="pre">the</span> <span class="pre">approach</span> <span class="pre">used</span> <span class="pre">in</span></span></dt>
+<dt class="sig sig-object py" id="carm.thermal_interference.FiniteLineSolution.CACHE_FORMAT_VERSION">
+<span class="sig-name descname"><span class="pre">CACHE_FORMAT_VERSION</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">2</span></span></dt>
 <dd></dd></dl>
 <dl class="py attribute">
-<dt class="sig sig-object py">
-<span class="sig-name descname"><span class="pre">pygfunction</span> <span class="pre">(Cimmino,</span> <span class="pre">2018).</span></span></dt>
+<dt class="sig sig-object py" id="carm.thermal_interference.FiniteLineSolution.N_THETA">
+<span class="sig-name descname"><span class="pre">N_THETA</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">8</span></span></dt>
 <dd></dd></dl>
 <dl class="py property">
 <dt class="sig sig-object py" id="id1">
@@ -259,6 +383,8 @@ due to borehole <code class="docutils literal notranslate"><span class="pre">i</
 <li><a :data-current="activeSection === '#carm.thermal_interference.fls.FiniteLineSolution.n_steps'" class="reference internal" href="#carm.thermal_interference.fls.FiniteLineSolution.n_steps"><code class="docutils literal notranslate"><span class="pre">FiniteLineSolution.n_steps</span></code></a></li>
 <li><a :data-current="activeSection === '#carm.thermal_interference.fls.FiniteLineSolution.time_hist'" class="reference internal" href="#carm.thermal_interference.fls.FiniteLineSolution.time_hist"><code class="docutils literal notranslate"><span class="pre">FiniteLineSolution.time_hist</span></code></a></li>
 <li><a :data-current="activeSection === '#carm.thermal_interference.fls.FiniteLineSolution.response_matrix'" class="reference internal" href="#carm.thermal_interference.fls.FiniteLineSolution.response_matrix"><code class="docutils literal notranslate"><span class="pre">FiniteLineSolution.response_matrix</span></code></a></li>
+<li><a :data-current="activeSection === '#carm.thermal_interference.fls.FiniteLineSolution.CACHE_FORMAT_VERSION'" class="reference internal" href="#carm.thermal_interference.fls.FiniteLineSolution.CACHE_FORMAT_VERSION"><code class="docutils literal notranslate"><span class="pre">FiniteLineSolution.CACHE_FORMAT_VERSION</span></code></a></li>
+<li><a :data-current="activeSection === '#carm.thermal_interference.fls.FiniteLineSolution.N_THETA'" class="reference internal" href="#carm.thermal_interference.fls.FiniteLineSolution.N_THETA"><code class="docutils literal notranslate"><span class="pre">FiniteLineSolution.N_THETA</span></code></a></li>
 <li><a :data-current="activeSection === '#id0'" class="reference internal" href="#id0"><code class="docutils literal notranslate"><span class="pre">FiniteLineSolution.response_matrix</span></code></a></li>
 </ul>
 </li>
@@ -270,6 +396,8 @@ due to borehole <code class="docutils literal notranslate"><span class="pre">i</
 <li><a :data-current="activeSection === '#carm.thermal_interference.FiniteLineSolution.n_steps'" class="reference internal" href="#carm.thermal_interference.FiniteLineSolution.n_steps"><code class="docutils literal notranslate"><span class="pre">FiniteLineSolution.n_steps</span></code></a></li>
 <li><a :data-current="activeSection === '#carm.thermal_interference.FiniteLineSolution.time_hist'" class="reference internal" href="#carm.thermal_interference.FiniteLineSolution.time_hist"><code class="docutils literal notranslate"><span class="pre">FiniteLineSolution.time_hist</span></code></a></li>
 <li><a :data-current="activeSection === '#carm.thermal_interference.FiniteLineSolution.response_matrix'" class="reference internal" href="#carm.thermal_interference.FiniteLineSolution.response_matrix"><code class="docutils literal notranslate"><span class="pre">FiniteLineSolution.response_matrix</span></code></a></li>
+<li><a :data-current="activeSection === '#carm.thermal_interference.FiniteLineSolution.CACHE_FORMAT_VERSION'" class="reference internal" href="#carm.thermal_interference.FiniteLineSolution.CACHE_FORMAT_VERSION"><code class="docutils literal notranslate"><span class="pre">FiniteLineSolution.CACHE_FORMAT_VERSION</span></code></a></li>
+<li><a :data-current="activeSection === '#carm.thermal_interference.FiniteLineSolution.N_THETA'" class="reference internal" href="#carm.thermal_interference.FiniteLineSolution.N_THETA"><code class="docutils literal notranslate"><span class="pre">FiniteLineSolution.N_THETA</span></code></a></li>
 <li><a :data-current="activeSection === '#id1'" class="reference internal" href="#id1"><code class="docutils literal notranslate"><span class="pre">FiniteLineSolution.response_matrix</span></code></a></li>
 </ul>
 </li>
