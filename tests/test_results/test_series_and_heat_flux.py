@@ -16,6 +16,9 @@ as test_energy_flow_direction.py.
 (``Simulation._save_results``); ``monkeypatch.chdir(tmp_path)`` keeps that
 side effect out of the repository working directory.
 """
+import types
+from pathlib import Path
+
 import numpy as np
 import pytest
 
@@ -396,3 +399,113 @@ def test_series_heat_flux_rejection_gives_positive_q_ground(
     with np.load(saved[0]) as data:
         assert "COP" in data
         assert "EER" in data
+
+
+# ============================================================
+# Disk-backed T_history (run(history_path=...))
+# ============================================================
+
+def _heat_flux_sim(model, env_props, env_series, groups):
+    n_rows = 1 if groups is not None else 2
+    return Simulation(
+        model=model, envprops=env_props, envinput=env_series,
+        timesteps=3600.0, n_steps=N_STEPS,
+        mw_tot=np.full((n_rows, N_STEPS), 0.2, dtype=np.float64), Tf1=None, groups=groups,
+        heat_flux_mode=HeatFluxMode(
+            Q_buildings=np.full(N_STEPS, -1000.0, dtype=np.float64),
+            T_supply=np.full(N_STEPS, 7.0, dtype=np.float64),
+        ),
+    )
+
+
+@pytest.mark.parametrize("mode", ["series", "parallel"])
+def test_history_on_disk_matches_in_ram(
+    two_bhe_series_model, env_props, env_series, tmp_path, monkeypatch, mode
+):
+    """With history_path the history is a float32 .npy memmap holding the
+    in-RAM float64 history rounded to float32: the run itself is unchanged."""
+    monkeypatch.chdir(tmp_path)
+    groups = {0: [0, 1]} if mode == "series" else None
+
+    in_ram = _heat_flux_sim(two_bhe_series_model, env_props, env_series, groups)
+    in_ram.run(**{mode: True})
+    on_disk = _heat_flux_sim(two_bhe_series_model, env_props, env_series, groups)
+    path = tmp_path / "out" / "history.npy"
+    on_disk.run(**{mode: True}, history_path=path)
+
+    assert in_ram.T_history.dtype == np.float64
+    assert isinstance(on_disk.T_history, np.memmap)
+    np.testing.assert_array_equal(np.load(path), in_ram.T_history.astype(np.float32))
+    np.testing.assert_array_equal(on_disk.q_nbhes, in_ram.q_nbhes)
+
+
+def test_history_on_disk_save_results_stores_path(
+    two_bhe_series_model, env_props, env_series, tmp_path, monkeypatch
+):
+    """The .npz archive stores where the history is, not the history itself."""
+    monkeypatch.chdir(tmp_path)
+    sim = _heat_flux_sim(two_bhe_series_model, env_props, env_series, {0: [0, 1]})
+    path = tmp_path / "history.npy"
+    sim.run(series=True, save_results=True, history_path=path)
+
+    (saved,) = (tmp_path / "results").glob("*.npz")
+    with np.load(saved) as data:
+        assert "T_history" not in data
+        assert Path(str(data["history_path"])) == path.resolve()
+        assert "T_f1" in data
+
+
+def test_history_on_disk_rerun_same_path(
+    two_bhe_series_model, env_props, env_series, tmp_path, monkeypatch
+):
+    """A second run of the same Simulation to the same path overwrites the
+    file (the previous run's map is released first, needed on Windows)."""
+    monkeypatch.chdir(tmp_path)
+    sim = _heat_flux_sim(two_bhe_series_model, env_props, env_series, {0: [0, 1]})
+    path = tmp_path / "history.npy"
+    sim.run(series=True, history_path=path)
+    first = np.array(sim.T_history)
+    sim.run(series=True, history_path=path)
+
+    np.testing.assert_array_equal(np.load(path), first)
+
+
+# ============================================================
+# Memory check at the start of run()
+# ============================================================
+
+def _mock_available(monkeypatch, n_bytes):
+    from carm.simulation import solver
+    monkeypatch.setattr(
+        solver.psutil, "virtual_memory", lambda: types.SimpleNamespace(available=n_bytes)
+    )
+
+
+def test_memory_check_raises_before_first_step(
+    two_bhe_series_model, env_props, env_series, tmp_path, monkeypatch
+):
+    """A history that does not fit in the free RAM stops the run before step 0,
+    with a message that points at history_path."""
+    monkeypatch.chdir(tmp_path)
+    sim = _heat_flux_sim(two_bhe_series_model, env_props, env_series, {0: [0, 1]})
+    _mock_available(monkeypatch, 1)
+
+    with pytest.raises(MemoryError, match="history_path") as err:
+        sim.run(series=True)
+    assert "fls_cache_dir" in str(err.value)  # increments are in RAM here
+    assert not hasattr(sim, "q_nbhes")  # the run never started
+
+
+def test_memory_check_passes_with_history_on_disk(
+    two_bhe_series_model, env_props, env_series, tmp_path, monkeypatch
+):
+    """The same low memory is enough once the history is on disk."""
+    monkeypatch.chdir(tmp_path)
+    sim = _heat_flux_sim(two_bhe_series_model, env_props, env_series, {0: [0, 1]})
+    history_bytes = np.prod(sim._history_shape()) * np.dtype(np.float64).itemsize
+    _mock_available(monkeypatch, history_bytes // 2)
+
+    with pytest.raises(MemoryError):
+        sim.run(series=True)
+    sim.run(series=True, history_path=tmp_path / "history.npy")
+    assert np.all(np.isfinite(sim.T_history))

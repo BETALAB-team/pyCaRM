@@ -27,6 +27,27 @@ Any quantity can be extracted by computing the correct offset into this
 vector. The examples in ``examples/`` cover the most common cases; users
 can freely extend them to extract any quantity of interest.
 
+History on disk
+---------------
+
+By default ``T_history`` is held in RAM as float64. For runs whose history
+does not fit in memory, pass ``history_path`` to ``run()``:
+
+.. code-block:: python
+
+    T_history = simulation.run(parallel=True, history_path="results/T_history.npy")
+
+``T_history`` is then written step by step to a float32 ``.npy`` file at
+that path, and the returned array is a memory map of that file. Read it back
+later with:
+
+.. code-block:: python
+
+    T_history = np.load("results/T_history.npy", mmap_mode="r")
+
+Without ``history_path``, ``run()`` raises ``MemoryError`` before the first
+step if ``T_history`` does not fit in the available RAM.
+
 Offsets
 -------
 

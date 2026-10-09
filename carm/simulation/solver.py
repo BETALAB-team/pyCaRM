@@ -34,6 +34,7 @@ from datetime import datetime
 import time
 import copy
 import numpy as np
+import psutil
 
 
 @dataclass
@@ -83,6 +84,22 @@ class Simulation:
     groups : dict or None
         Series groups mapping group index to ordered list of borehole indices.
         Required for series mode, ``None`` in parallel mode.
+    fls_cache_dir : str, Path or None
+        Folder of the on-disk FLS response-increments cache. ``None`` (default)
+        computes the increments in memory and writes nothing. When set, the
+        increments are looked up by a hash of the inputs they depend on
+        (``fls_mode``, ``fls_image``, time step, ground k/rho/cp, L, the
+        buried depth D = ``L_sup``, borehole coordinates, ``req``, ``rb``,
+        ``n_theta``, cache-format version; not flows, temperatures, weather,
+        ``Tm`` or ``n_steps``) and served memory-mapped.
+        A cached file from a run at least as long serves a shorter run by
+        slicing; on a miss the increments are computed and written atomically.
+        Any later simulation of the same field pointing at the same folder
+        reuses them. See :class:`~carm.thermal_interference.FiniteLineSolution`.
+    fls_image : bool
+        ``True`` (default) adds the FLS image part. The BHE top is buried at
+        ``D = ground_geom.L_sup``. ``False`` uses the real part only. See
+        :class:`~carm.thermal_interference.FiniteLineSolution`.
     env : ExternalEnvironment
         Assembled external environment, built at construction time.
     T_sup_kusuda : NDArray[np.float64]
@@ -98,6 +115,10 @@ class Simulation:
         Far-field boundary condition array, shape (n_steps, n_bhes, m_mesh) [°C].
     T_history : NDArray[np.float64]
         Output temperature history, shape (n_steps + 1, n_bhes, n_dof) [°C].
+        float64 in RAM, or a float32 ``np.memmap`` of a ``.npy`` file when
+        ``run`` is given ``history_path``.
+    history_path : Path or None
+        File backing ``T_history`` in the last ``run``, ``None`` when in RAM.
     fls : FiniteLineSolution or None
         FLS thermal interference model. ``None`` in single-borehole mode.
     gr_p_varprops : SoilMoisture or None
@@ -144,6 +165,8 @@ class Simulation:
     heat_flux_mode: HeatFluxMode | None = None
     fls_mode: str = "sqrt"  # "sqrt" | "continuous"
     groups: Dict | None = None
+    fls_cache_dir: str | Path | None = None
+    fls_image: bool = True
     T_sup_kusuda: NDArray[np.float64] = field(init=False)
     T_middle_kusuda: NDArray[np.float64] = field(init=False)
     T_inf_kusuda: NDArray[np.float64] = field(init=False)
@@ -151,6 +174,7 @@ class Simulation:
     T_bc: NDArray[np.float64] = field(init=False)  # boundary condition array
     T_history: NDArray[np.float64] = field(init=False)  # output array
     fls: FiniteLineSolution | None = field(default=None, init=False)
+    history_path: Path | None = field(default=None, init=False)
 
     def __post_init__(self):
         # Tf1 calculation mode and field input check
@@ -314,6 +338,8 @@ class Simulation:
                 n_steps=self.n_steps,
                 time_hist=time_hist,
                 fls_mode=self.fls_mode,
+                fls_image=self.fls_image,
+                cache_dir=self.fls_cache_dir,
             )
 
     def run(
@@ -321,6 +347,7 @@ class Simulation:
         parallel: bool | None = None,
         series: bool | None = None,
         save_results: bool = False,
+        history_path: str | Path | None = None,
     ) -> NDArray[np.float64]:
         """
         Run the simulation in parallel or series mode.
@@ -341,16 +368,38 @@ class Simulation:
             working directory. ``False`` by default: the caller decides
             whether and where to persist ``T_history`` and the other arrays.
             See ``examples/`` for how to save results manually.
+        history_path : str, Path or None
+            ``None`` (default) keeps ``T_history`` in RAM as float64. When
+            set, ``T_history`` is created as a float32 ``.npy`` file at this
+            path (``np.lib.format.open_memmap``, parent folders created,
+            an existing file overwritten unless another process or object
+            still maps it) and filled step by step, so runs
+            larger than the RAM can complete. The solver never reads the
+            history back (the current state is kept separately), so the
+            calculation is the same as in RAM; only the stored values are
+            rounded to float32. Read it back with
+            ``np.load(history_path, mmap_mode="r")``. With ``save_results``
+            the ``.npz`` archive holds ``history_path`` instead of
+            ``T_history``.
 
         Returns
         -------
         NDArray[np.float64]
-            Temperature history array of shape (n_steps + 1, n_bhes, n_dof).
+            Temperature history array of shape (n_steps + 1, n_bhes, n_dof),
+            a float32 ``np.memmap`` when ``history_path`` is set.
 
         Raises
         ------
         ValueError
             If both or neither flags are set, or if series groups are not defined.
+        MemoryError
+            Before the first step, if ``T_history`` (float64, held in RAM when
+            ``history_path`` is ``None``) is larger than the available memory
+            (``psutil.virtual_memory().available``). The FLS increments are
+            already allocated when ``run`` starts, so they are already out of
+            the available memory. The message names the sizes and suggests
+            ``history_path=``, and ``fls_cache_dir=`` when the increments are
+            held in RAM.
 
         Examples
         --------
@@ -359,10 +408,14 @@ class Simulation:
         (n_steps + 1, n_bhes, n_dof)
         """
 
+        self._check_memory(history_path)
+
         if len(self.model.ground) > 1:
 
             if parallel is True and series is None:
-                return self._run_parallel(save_results=save_results)
+                return self._run_parallel(
+                    save_results=save_results, history_path=history_path
+                )
 
             elif parallel is None and series is True:
                 nodes = sorted(list(self.model.field._borehole_graph))
@@ -378,7 +431,9 @@ class Simulation:
                     if not all(b in neighbors[a] for a, b in zip(group, group[1:])):
                         raise ValueError("Some borehole can't be connected in series")
 
-                return self._run_series(save_results=save_results)
+                return self._run_series(
+                    save_results=save_results, history_path=history_path
+                )
 
             else:
                 raise ValueError(
@@ -390,7 +445,9 @@ class Simulation:
                     "Series and Parallel must be set as None when running single borehole configuration"
                 )
             else:
-                return self._run_parallel(save_results=save_results)
+                return self._run_parallel(
+                    save_results=save_results, history_path=history_path
+                )
 
     @staticmethod
     def _matrix_needs_rebuild(
@@ -591,7 +648,66 @@ class Simulation:
 
         self.T_history[step + 1] = currstate.T_state.copy()
 
-    def _run_parallel(self, save_results: bool = False) -> NDArray[np.float64]:
+    def _history_shape(self) -> tuple[int, int, int]:
+        """Shape of ``T_history``: (n_steps + 1, n_bhes, n_dof)."""
+        ground = self.model.ground[0]
+        borehole = self.model.borehole
+        n_dof = (
+            (ground.m_mesh_sup + 1)  # upper ground layers
+            + ground.m_mesh * ground.n_mesh  # middle ground layers
+            + borehole.m_mesh * borehole.n_equations  # middle borehole layers
+            + ground.m_mesh_inf  # lower ground layers
+        )
+        return (self.n_steps + 1, len(self.model.ground), n_dof)
+
+    def _check_memory(self, history_path: str | Path | None) -> None:
+        """Raise ``MemoryError`` if ``T_history`` will not fit in the available RAM."""
+        if history_path is not None:
+            return
+        gib = 1024**3
+        history_bytes = int(np.prod(self._history_shape())) * np.dtype(np.float64).itemsize
+        # the FLS increments are already allocated, so available excludes them
+        available = psutil.virtual_memory().available
+        if history_bytes <= available:
+            return
+
+        message = (
+            f"T_history needs {history_bytes / gib:.2f} GiB in RAM, but only "
+            f"{available / gib:.2f} GiB are available. Pass history_path= to run() "
+            f"to write it to a float32 .npy on disk instead."
+        )
+        if self.fls is not None and not isinstance(self.fls._response_increments, np.memmap):
+            fls_bytes = self.fls._response_increments.nbytes
+            message += (
+                f" The FLS increments already hold {fls_bytes / gib:.2f} GiB in RAM: "
+                f"fls_cache_dir= on Simulation would memory-map them and free that memory."
+            )
+        raise MemoryError(message)
+
+    def _new_history(
+        self, shape: tuple[int, ...], history_path: str | Path | None
+    ) -> NDArray:
+        """
+        Allocate ``T_history``: float64 in RAM, or a float32 ``.npy`` memmap
+        at ``history_path`` (parent folders created). Also sets
+        ``self.history_path`` and releases the previous run's history first,
+        so that a rerun can reopen the same file.
+        """
+        self.T_history = None
+        if history_path is None:
+            self.history_path = None
+            return np.empty(shape, dtype=np.float64)
+        self.history_path = Path(history_path).resolve()
+        self.history_path.parent.mkdir(parents=True, exist_ok=True)
+        return np.lib.format.open_memmap(
+            self.history_path, mode="w+", dtype=np.float32, shape=shape
+        )
+
+    def _run_parallel(
+        self,
+        save_results: bool = False,
+        history_path: str | Path | None = None,
+    ) -> NDArray[np.float64]:
         tic = time.time()  # start simulation
 
         model = self.model
@@ -607,9 +723,8 @@ class Simulation:
             (n, (ns + nm + nb + ninf)), dtype=np.float64
         )  # Starting condition initialization
 
-        self.T_history = np.empty(
-            (self.n_steps + 1, n, (ns + nm + nb + ninf)),
-            dtype=np.float64,
+        self.T_history = self._new_history(
+            self._history_shape(), history_path
         )  # T_history initialization array, n_steps x n_bhes x total mesh
 
         self.q_nbhes = np.zeros(
@@ -631,7 +746,7 @@ class Simulation:
 
         if self.heat_flux:
             self.Tf1 = np.zeros((n, self.n_steps), dtype=np.float64)
-            self.Tf1[:, 0] = self.T_history[0, :, ns + nm + borehole.id_inlet]
+            self.Tf1[:, 0] = T0_matrix[:, ns + nm + borehole.id_inlet]
 
         for step in range(self.n_steps):
             # external environment aliasing
@@ -728,6 +843,9 @@ class Simulation:
 
         print(f"Simulation loop running time: {(toc - tic)} seconds")
 
+        if self.history_path is not None:
+            self.T_history.flush()
+
         if save_results:
             self._save_results()
 
@@ -736,6 +854,7 @@ class Simulation:
     def _run_series(
         self,
         save_results: bool = False,
+        history_path: str | Path | None = None,
     ) -> NDArray[
         np.float64
     ]:
@@ -755,9 +874,8 @@ class Simulation:
             (n, (ns + nm + nb + ninf)), dtype=np.float64
         )  # Starting condition initialization
 
-        self.T_history = np.empty(
-            (self.n_steps + 1, n, (ns + nm + nb + ninf)),
-            dtype=np.float64,
+        self.T_history = self._new_history(
+            self._history_shape(), history_path
         )  # T_history initialization array, n_steps x n_bhes x total mesh
 
         self.q_nbhes = np.zeros((self.n_steps, n), dtype=np.float64)  # fluid heat flux array, n_steps x n_bhes
@@ -782,7 +900,7 @@ class Simulation:
         mw_boreholes = np.repeat(self.mw_tot, [len(g) for g in self.groups.values()], axis = 0) # to account for the massflow of each borehole
 
         self.Tf1_groups = np.zeros((n_groups, self.n_steps), dtype=np.float64)
-        self.Tf1_groups[:, 0] = self.T_history[0, group_outlet_fluid_idx, ns + nm + borehole.id_inlet]
+        self.Tf1_groups[:, 0] = T0_matrix[group_outlet_fluid_idx, ns + nm + borehole.id_inlet]
 
         for step in range(self.n_steps):
             # external environment aliasing
@@ -887,6 +1005,9 @@ class Simulation:
 
         print(f"Simulation loop running time: {(toc - tic)} seconds")
 
+        if self.history_path is not None:
+            self.T_history.flush()
+
         if save_results:
             self._save_results()
 
@@ -919,7 +1040,6 @@ class Simulation:
     def _save_results(self) -> None:
 
         arrays = {
-            "T_history": self.T_history.astype(np.float32),
             "T_f1": (self.Tf1.astype(np.float32) if self.Tf1 is not None else self.Tf1_groups.astype(np.float32)),
             "T_bc": self.T_bc.astype(np.float32),
             "rn_list": np.array(
@@ -928,6 +1048,12 @@ class Simulation:
             "n_steps": np.array(self.n_steps),
             "timesteps": np.array(self.timesteps),
         }
+
+        if self.history_path is None:
+            arrays["T_history"] = self.T_history.astype(np.float32)
+        else:
+            # already on disk as float32: store where, not the data
+            arrays["history_path"] = np.array(str(self.history_path))
 
         if self.envinput.water_input is not None:
             arrays.update(

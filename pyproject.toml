@@ -13,7 +13,7 @@ requires-python = ">=3.11"
 
 license = "MIT"
 name = "pyCaRM-BHE"
-version = "0.1.0"
+version = "0.2.0"
 keywords = [
     "borehole heat exchanger",
     "ground source heat pump",
@@ -38,6 +38,7 @@ dependencies = [
     "matplotlib",  # data plot
     "shapely",     # field geometry
     "networkx",    # borehole neighbor graph
+    "psutil",      # available memory for the pre-run memory check
 ]
 
 [project.urls]

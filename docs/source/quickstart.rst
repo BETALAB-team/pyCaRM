@@ -164,7 +164,8 @@ to extract temperatures of interest from this array.
    ``run()`` does not write anything to disk unless asked: pass
    ``save_results=True`` to also dump a timestamped ``.npz`` archive to a
    ``results/`` directory. See ``examples/SingleUtube.py`` for a runnable
-   use of this option.
+   use of this option. When ``history_path`` is also passed (see
+   :doc:`output`), the archive stores that path instead of ``T_history``.
 
 Extracting the outlet temperature
 ----------------------------------

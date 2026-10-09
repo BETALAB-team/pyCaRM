@@ -231,6 +231,34 @@ def test_parallel_run_with_thermal_interference_extracts_heat(
     assert np.all(sim.q_nbhes[1:, 1] < 0.0)
 
 
+def test_parallel_run_with_fls_cache_matches_uncached(
+    two_bhe_irregular_model, env_props, env_series, tmp_path, monkeypatch
+):
+    """A run served from the FLS increments cache (built by a longer
+    simulation of the same field) gives the same history as an uncached run."""
+    monkeypatch.chdir(tmp_path)
+
+    def run(n_steps, cache_dir):
+        mw_tot = np.full((2, n_steps), 0.2, dtype=np.float64)
+        Tf1 = np.full((2, n_steps), TG - 5.0, dtype=np.float64)
+        T_ext = np.full(n_steps, 10.0, dtype=np.float64)
+        solar = np.full(n_steps, 200.0, dtype=np.float64)
+        return Simulation(
+            model=two_bhe_irregular_model, envprops=env_props,
+            envinput=EnvironmentalTimeSeries.from_array(TG, T_ext, solar),
+            timesteps=3600.0, n_steps=n_steps, mw_tot=mw_tot, Tf1=Tf1,
+            fls_cache_dir=cache_dir,
+        )
+
+    run(2 * N_STEPS, tmp_path / "fls_cache")  # builds the cache only
+    cached = run(N_STEPS, tmp_path / "fls_cache")
+    uncached = run(N_STEPS, None)
+    cached.run(parallel=True)
+    uncached.run(parallel=True)
+
+    np.testing.assert_array_equal(cached.T_history, uncached.T_history)
+
+
 # ============================================================
 # Soil moisture / water_input through _run_series
 # ============================================================

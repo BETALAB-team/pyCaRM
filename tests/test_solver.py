@@ -433,6 +433,42 @@ def test_fls_built_for_irregular_multi_borehole(model_multi_irregular, env_props
     assert sim.fls.response_matrix.shape == (N_STEPS + 1, 2, 2)
 
 
+def test_fls_cache_dir_reaches_fls(model_multi_irregular, env_props, env_series, tmp_path):
+    mw_tot = np.full((2, N_STEPS), 0.2, dtype=np.float64)
+    Tf1 = np.full((2, N_STEPS), 2.0, dtype=np.float64)
+    sim = Simulation(
+        model=model_multi_irregular, envprops=env_props, envinput=env_series,
+        timesteps=3600.0, n_steps=N_STEPS, mw_tot=mw_tot, Tf1=Tf1,
+        fls_cache_dir=tmp_path / "fls_cache",
+    )
+    (npy,) = (tmp_path / "fls_cache").glob("*.npy")
+    assert np.load(npy).shape == (N_STEPS, 2, 2)
+    assert isinstance(sim.fls._response_increments, np.memmap)
+
+
+@pytest.mark.parametrize("fls_image", [True, False])
+def test_fls_image_reaches_fls(model_multi_irregular, env_props, env_series, fls_image):
+    mw_tot = np.full((2, N_STEPS), 0.2, dtype=np.float64)
+    Tf1 = np.full((2, N_STEPS), 2.0, dtype=np.float64)
+    sim = Simulation(
+        model=model_multi_irregular, envprops=env_props, envinput=env_series,
+        timesteps=3600.0, n_steps=N_STEPS, mw_tot=mw_tot, Tf1=Tf1,
+        fls_image=fls_image,
+    )
+    assert sim.fls.fls_image is fls_image
+
+
+def test_fls_image_on_by_default(model_multi_irregular, env_props, env_series):
+    mw_tot = np.full((2, N_STEPS), 0.2, dtype=np.float64)
+    Tf1 = np.full((2, N_STEPS), 2.0, dtype=np.float64)
+    sim = Simulation(
+        model=model_multi_irregular, envprops=env_props, envinput=env_series,
+        timesteps=3600.0, n_steps=N_STEPS, mw_tot=mw_tot, Tf1=Tf1,
+    )
+    assert sim.fls_image is True
+    assert sim.fls.fls_image is True
+
+
 # ============================================================
 # Simulation — Kusuda-Achenbach profiles and boundary condition
 # ============================================================
