@@ -35,8 +35,7 @@ class FiniteLineSolution:
     them at each time step to evaluate the borehole wall temperature
     perturbation via load superposition (convolution over the heat load
     history). Only the increments are kept in memory; the cumulative response
-    matrix is rebuilt on demand. The response is the real part of the FLS
-    plus, by default, its image part (isothermal ground surface).
+    matrix is rebuilt on demand.
 
     Parameters
     ----------
@@ -50,8 +49,7 @@ class FiniteLineSolution:
         ``'sqrt'`` or ``'continuous'``, see :doc:`fls_methods`.
     fls_image : bool
         ``True`` (default) adds the image part, a sink mirrored above the
-        ground surface, so the FLS perturbation is zero at the surface (an
-        isothermal surface at the undisturbed, Kusuda, temperature). The BHE
+        ground surface, so the FLS perturbation is zero at the surface. The BHE
         top is buried at depth ``D = ground_geom.L_sup``. ``False`` uses the
         real part only (a borehole in an infinite medium).
     cache_dir : str, Path or None
