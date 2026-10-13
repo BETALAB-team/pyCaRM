@@ -6,12 +6,14 @@
 # -- Project information -----------------------------------------------------
 import os
 import sys
+import tomllib
 sys.path.insert(0, os.path.abspath('../..'))
 
 project = 'pyCaRM'
 copyright = '2026, Alessio Tollin, Angelo Zarrella'
 author = 'Alessio Tollin, Angelo Zarrella'
-release = '0.1'
+with open(os.path.join(os.path.dirname(__file__), '../../pyproject.toml'), 'rb') as f:
+    release = tomllib.load(f)['project']['version']
 
 # -- General configuration ---------------------------------------------------
 
