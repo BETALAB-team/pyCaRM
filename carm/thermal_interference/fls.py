@@ -31,11 +31,10 @@ class FiniteLineSolution:
     """
     Finite Line Source thermal response for a borehole field.
 
-    Precomputes the FLS response increments at construction time and uses
-    them at each time step to evaluate the borehole wall temperature
-    perturbation via load superposition (convolution over the heat load
-    history). Only the increments are kept in memory; the cumulative response
-    matrix is rebuilt on demand.
+    Computes the FLS response increments once, at construction, and at each
+    time step superposes them over the heat load history to get the
+    borehole wall temperature perturbation. The method is described in
+    :doc:`fls_methods`.
 
     Parameters
     ----------
@@ -44,21 +43,16 @@ class FiniteLineSolution:
     n_steps : int
         Total number of simulation time steps.
     time_hist : NDArray
-        Array of cumulative simulation times [s], shape (n_steps,).
+        Cumulative simulation times [s], shape (n_steps,). Must be uniform
+        (dt, 2 dt, ...).
     fls_mode : str
         ``'sqrt'`` or ``'continuous'``, see :doc:`fls_methods`.
     fls_image : bool
-        ``True`` (default) adds the image part, a sink mirrored above the
-        ground surface, so the FLS perturbation is zero at the surface. The BHE
-        top is buried at depth ``D = ground_geom.L_sup``. ``False`` uses the
-        real part only (a borehole in an infinite medium).
+        ``True`` (default) adds the image part, so the FLS perturbation is
+        zero at the ground surface. ``False`` uses the real part only.
     cache_dir : str, Path or None
-        Folder of the on-disk increments cache. ``None`` (default) computes
-        the increments in memory and writes nothing. When set, the increments
-        are looked up in the folder by a key built from the inputs they depend
-        on (see Notes), served memory-mapped from a hit, or computed, written
-        and then memory-mapped on a miss. The time grid must be uniform
-        (``time_hist = dt, 2 dt, ...``).
+        Folder where the increments are saved and reused. ``None`` (default)
+        keeps them in memory and saves nothing.
 
     Attributes
     ----------
@@ -67,55 +61,12 @@ class FiniteLineSolution:
     n_steps : int
         Total number of simulation time steps.
     time_hist : NDArray
-        Array of cumulative simulation times [s], shape (n_steps,).
+        Cumulative simulation times [s], shape (n_steps,).
     response_matrix : NDArray
-        FLS response matrix of shape (n_steps + 1, n_bhes, n_bhes), rebuilt
-        from the increments on each access (zeros row + cumulative sum).
-        Entry ``[t, i, j]`` is the unit thermal response at borehole ``j``
-        due to borehole ``i`` up to time step ``t``. Not used by the solver.
-
-    Notes
-    -----
-    With ``Ierf(x) = x erf(x) - (1 - exp(-x^2)) / sqrt(pi)``, borehole length
-    ``H = L``, buried depth ``D = L_sup`` and ``s`` from ``1 / sqrt(4 alpha t)``
-    to infinity, the response is the integral of::
-
-        exp(-d^2 s^2) / (2 H s^2) * (real + image)
-        real  = 2 Ierf(H s)
-        image = 2 Ierf((2 D + H) s) - Ierf(2 D s) - Ierf((2 D + 2 H) s)
-
-    where ``image`` (always <= 0) is dropped when ``fls_image=False``. ``d``
-    is ``Field._distance_matrix`` in ``'sqrt'`` mode and the receiver wall
-    points in ``'continuous'`` mode.
-
-    The increments ``dR[k] = R[k + 1] - R[k]``, shape (n_steps, n_bhes, n_bhes),
-    are the FLS integrals over each time interval. The penalty at ``step`` is
-    ``sum_t q[t] @ (R[step - t] - R[step - 1 - t])``, i.e. ``q[t]`` paired with
-    ``dR[step - 1 - t]``, evaluated as one matrix-vector product.
-
-    **Increments cache.** The cache file is ``fls_<key>.npy`` (float64,
-    shape (rows, n_bhes, n_bhes)) in ``cache_dir``, next to a ``.json``
-    sidecar listing the key inputs. The key is a hash of everything the
-    increments depend on: ``fls_mode``, ``fls_image``, the time step ``dt``,
-    the ground means k, rho, cp, the borehole length L, the buried depth
-    ``D = L_sup``, the borehole coordinates, the equivalent radius ``req`` of
-    every borehole, the borehole radius ``rb``, ``n_theta`` and a cache-format
-    version. Flows, temperatures, weather and
-    the number of steps are not part of the key.
-
-    Because the time grid is ``k * dt``, the increments of a shorter run are
-    the first rows of a longer run's increments: a cached file with at least
-    ``n_steps`` rows serves the run by slicing. A shorter file is recomputed
-    and replaced. Files are written atomically (temporary file, then rename)
-    and opened with ``np.load(..., mmap_mode="r")``, so parallel runs on the
-    same field share one copy through the OS page cache. On a miss the
-    increments are filled straight into the temporary file, so they are never
-    held in RAM as a whole.
-
-    The numerical implementation of the integral, real and image parts,
-    follows the approach used in pygfunction (Cimmino, 2018).
+        Cumulative FLS response, shape (n_steps + 1, n_bhes, n_bhes), rebuilt
+        from the increments on each access. Not used by the solver.
     """
-    CACHE_FORMAT_VERSION = 2
+    CACHE_FORMAT_VERSION = 3
     N_THETA = 8  # receiver wall points of the continuous mode
 
     def __init__(
@@ -266,7 +217,7 @@ class FiniteLineSolution:
 
     def _integrand(self, d: NDArray) -> Callable[[float], NDArray]:
         """FLS integrand in ``s`` for the distances ``d``, real part plus the
-        image part when ``fls_image`` (see Notes). ``1 / L`` is applied by the
+        image part when ``fls_image`` (see :doc:`fls_methods`). ``1 / L`` is applied by the
         caller."""
         L = self.physicalmodel.ground_geom.L
         D = self.physicalmodel.ground_geom.L_sup

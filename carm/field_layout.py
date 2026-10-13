@@ -175,8 +175,9 @@ class Field:
             {i: {"cell": Polygon, "area": float, "req": float, "coords": (x, y)}}
 
     distance_matrix : NDArray[np.float64]
-        Symmetric matrix of shape (n_bhes, n_bhes) with inter-borehole distances
-        corrected by ``r_eq`` [m]. Diagonal entries are zero.
+        Matrix of shape (n_bhes, n_bhes) of FLS distances [m]: entry ``[i, j]``
+        is ``sqrt(d_ij**2 + req_j**2)``, from source ``i`` to the cell boundary
+        of receiver ``j``. Diagonal entries are ``req_j``.
     """
     def __init__(self, *, fieldinput: FieldInput) -> None:
         self.fieldinput = fieldinput
@@ -272,7 +273,7 @@ class Field:
         y_j = y[None, :]
         y_i = y[:, None]
 
-        distance_matrix = np.sqrt(np.sqrt((x_j - x_i)**2 + (y_j - y_i)**2)**2 + req[:, None]**2)
+        distance_matrix = np.sqrt(np.sqrt((x_j - x_i)**2 + (y_j - y_i)**2)**2 + req[None, :]**2)
 
         return distance_matrix
 

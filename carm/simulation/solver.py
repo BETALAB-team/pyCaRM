@@ -84,17 +84,11 @@ class Simulation:
         Series groups mapping group index to ordered list of borehole indices.
         Required for series mode, ``None`` in parallel mode.
     fls_cache_dir : str, Path or None
-        Folder of the on-disk FLS response-increments cache. ``None`` (default)
-        computes the increments in memory and writes nothing. When set, the
-        increments are looked up by a hash of the inputs they depend on
-        (``fls_mode``, ``fls_image``, time step, ground k/rho/cp, L, the
-        buried depth D = ``L_sup``, borehole coordinates, ``req``, ``rb``,
-        ``n_theta``, cache-format version; not flows, temperatures, weather,
-        ``Tm`` or ``n_steps``) and served memory-mapped.
-        A cached file from a run at least as long serves a shorter run by
-        slicing; on a miss the increments are computed and written atomically.
-        Any later simulation of the same field pointing at the same folder
-        reuses them. See :class:`~carm.thermal_interference.FiniteLineSolution`.
+        Folder where the FLS thermal responses are saved and reused.
+        ``None`` (default) keeps them in memory and saves nothing. When set,
+        any later simulation of the same borefield (same geometry, ground
+        properties and time step) reuses the saved file instead of
+        recomputing it. See :class:`~carm.thermal_interference.FiniteLineSolution`.
     fls_image : bool
         ``True`` (default) adds the FLS image part. The BHE top is buried at
         ``D = ground_geom.L_sup``. ``False`` uses the real part only. See
@@ -368,18 +362,11 @@ class Simulation:
             whether and where to persist ``T_history`` and the other arrays.
             See ``examples/`` for how to save results manually.
         history_path : str, Path or None
-            ``None`` (default) keeps ``T_history`` in RAM as float64. When
-            set, ``T_history`` is created as a float32 ``.npy`` file at this
-            path (``np.lib.format.open_memmap``, parent folders created,
-            an existing file overwritten unless another process or object
-            still maps it) and filled step by step, so runs
-            larger than the RAM can complete. The solver never reads the
-            history back (the current state is kept separately), so the
-            calculation is the same as in RAM; only the stored values are
-            rounded to float32. Read it back with
-            ``np.load(history_path, mmap_mode="r")``. With ``save_results``
-            the ``.npz`` archive holds ``history_path`` instead of
-            ``T_history``.
+            ``None`` (default) keeps ``T_history`` in RAM. When set,
+            ``T_history`` is written step by step to a ``.npy`` file at this
+            path, so runs larger than the available RAM can complete. Values
+            are stored as float32; the calculation itself is unchanged.
+            Read it back with ``np.load(history_path, mmap_mode="r")``.
 
         Returns
         -------
@@ -521,10 +508,10 @@ class Simulation:
         convergence check, and the ``T_history`` write. Adapters supply
         ``tf1_bookkeeping`` (idx_null/idx_on handling), ``solve_and_chain``
         (the per-unit solve: parallel's flat loop vs. series' chained
-        groups, built on ``_solve_borehole``), and ``q_nbhes_seed`` (FLS-
-        forcing seeding, invoked here at three fixed points via a
-        ``phase`` of "pre_loop"/"in_loop"/"post_loop" — each adapter acts
-        only on the phase(s) it needs, per spec decisions 3-4).
+        groups, built on ``_solve_borehole``), and ``q_nbhes_seed`` (sets
+        the borehole heat flux ``q_nbhes[step]`` used by the FLS; called
+        with ``phase`` "pre_loop", "in_loop" and "post_loop", and each
+        adapter acts only on the phase(s) its mode needs).
         """
         model = self.model
         ground = model.ground[0]

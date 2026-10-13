@@ -23,31 +23,24 @@ def _default_performance_curve(dT: float) -> float:
 @dataclass(frozen=True, slots=True, eq=False)
 class HeatFluxMode:
     """
-    Building-side load and heat pump performance configuration.
-
-    ``eq=False`` keeps the default identity-based ``__eq__``/``__hash__``:
-    the array fields make the auto-generated dataclass ``__eq__`` raise
-    (elementwise array comparison has no unambiguous truth value) and
-    ``__hash__`` raise (arrays are unhashable).
+    Building load and heat pump settings for heat flux mode.
 
     Attributes
     ----------
     Q_buildings : NDArray[np.float64]
-        Building thermal load time series, shape (n_steps,) [W].
-        Positive values are a heating load (COP branch), negative values
-        a cooling load (EER branch), zero skips the heat pump update for
-        that step.
+        Building thermal load per time step, shape (n_steps,) [W].
+        Positive for heating, negative for cooling, zero when the heat
+        pump is off.
     T_supply : NDArray[np.float64]
-        Supply temperature time series to the building, shape (n_steps,) [°C].
+        Supply temperature to the building per time step, shape (n_steps,) [°C].
     cop_curve : Callable[[float], float]
         Heat pump COP as a function of the temperature lift
-        ``T_supply - T_f,out`` [-]. Defaults to the shared default
-        performance curve.
+        ``T_supply - T_f,out`` [-]. Defaults to Ruhnau et al. (2019).
     eer_curve : Callable[[float], float]
         Heat pump EER as a function of the temperature lift
-        ``T_f,out - T_supply`` [-]. Defaults to the shared default
-        performance curve.
+        ``T_f,out - T_supply`` [-]. Defaults to Ruhnau et al. (2019).
     """
+    # eq=False: the array fields would make the generated __eq__/__hash__ raise.
 
     Q_buildings: NDArray[np.float64]
     T_supply: NDArray[np.float64]

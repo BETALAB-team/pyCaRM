@@ -13,7 +13,7 @@ requires-python = ">=3.11"
 
 license = "MIT"
 name = "pyCaRM-BHE"
-version = "0.2.1"
+version = "0.2.2"
 keywords = [
     "borehole heat exchanger",
     "ground source heat pump",
@@ -30,6 +30,7 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Topic :: Scientific/Engineering",
 ]
 dependencies = [

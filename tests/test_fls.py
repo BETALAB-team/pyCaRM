@@ -16,6 +16,7 @@ import json
 
 import numpy as np
 import pytest
+from scipy.integrate import quad_vec
 
 from carm import (
     GroundGeometry,
@@ -143,6 +144,34 @@ def test_continuous_mode_shape(two_borehole_model):
     )
     assert fls_cont.response_matrix.shape == (n_steps + 1, 2, 2)
     assert np.all(fls_cont.response_matrix[1:, 0, 0] > 0)
+
+
+@pytest.mark.parametrize("src, rcv", [(0, 1), (1, 0)])
+def test_sqrt_mode_uses_receiver_req(fluid, src, rcv):
+    """Cells of different size: the sqrt penalty at the receiver is h at
+    sqrt(d^2 + req_rcv^2), the receiver's own req, not the source's."""
+    model = _two_borehole_model(fluid, xmax=20.0)
+    req = [model.field.field_dict[j]["req"] for j in range(2)]
+    assert req[1] > 1.5 * req[0]
+
+    t = 30 * 86400.0  # long enough for the heat to reach the neighbour
+    fls = FiniteLineSolution(
+        physicalmodel=model, n_steps=1, time_hist=np.array([t]), fls_mode="sqrt"
+    )
+    q = np.zeros((1, 2))
+    q[0, src] = 1.0
+    k = model.ground[0].k_mean
+    dT = fls._compute_delta_t(q, step=1)[rcv, 0] * 2.0 * np.pi * k * H
+
+    alpha = k / (model.ground[0].rho_mean * model.ground[0].cp_mean)
+    a = 1.0 / np.sqrt(4.0 * alpha * t)
+
+    def h(dist):
+        return quad_vec(fls._integrand(np.array(dist)), a, np.inf)[0] / H
+
+    d = 5.0
+    assert dT == pytest.approx(h(np.hypot(d, req[rcv])), rel=1e-9)
+    assert dT != pytest.approx(h(np.hypot(d, req[src])), rel=1e-3)
 
 
 # ============================================================
@@ -279,7 +308,7 @@ def test_cache_miss_writes_npy_and_sidecar(two_borehole_model, tmp_path):
     assert meta["dt"] == 3600.0
     assert meta["fls_image"] is True
     assert meta["D"] == 1.0
-    assert meta["format_version"] == 2
+    assert meta["format_version"] == 3
     assert isinstance(fls._response_increments, np.memmap)
 
 

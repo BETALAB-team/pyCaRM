@@ -17,4 +17,5 @@ flow effects.
    grout_variable_properties
    heatflux_mode
    output
+   references
    modules

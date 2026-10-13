@@ -195,7 +195,7 @@ def test_distance_matrix_diagonal_zero(field):
 def test_distance_matrix_adjacent_horizontal(field):
     """
     Boreholes 0=(2.5,2.5) e 1=(7.5,2.5): distanza euclidea = 5.0 m.
-    D[0,1] = sqrt(5² + req_0²), D[1,0] = sqrt(5² + req_1²).
+    D[0,1] = sqrt(5² + req_1²), D[1,0] = sqrt(5² + req_0²).
     Per simmetria della griglia req_0 == req_1, quindi D[0,1] == D[1,0].
     """
     req = np.sqrt(25.0 / np.pi)
@@ -207,7 +207,7 @@ def test_distance_matrix_adjacent_horizontal(field):
 def test_distance_matrix_diagonal_pair(field):
     """
     Boreholes 0=(2.5,2.5) e 3=(7.5,7.5): distanza euclidea = 5*sqrt(2).
-    D[0,3] = sqrt((5√2)² + req_0²).
+    D[0,3] = sqrt((5√2)² + req_3²).
     """
     req = np.sqrt(25.0 / np.pi)
     d_eucl = 5.0 * np.sqrt(2.0)
