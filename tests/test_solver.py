@@ -36,7 +36,8 @@ from carm import (
 )
 from carm.properties import SoilMoisture
 from carm.state import State
-from carm.matrix import build_global_rhs
+from carm.matrix import build_global_matrix, build_global_rhs
+from carm.simulation.factorization_cache import FactorizationCache
 
 N_STEPS = 5
 
@@ -618,7 +619,7 @@ def test_run_single_borehole_both_flags_raises(model_single, env_props, env_seri
 # ============================================================
 # Simulation._solve_borehole — direct unit test
 #
-# Exercises the shared per-borehole Picard step (matrix rebuild-if-needed,
+# Exercises the shared per-borehole Picard step (matrix from the cache,
 # RHS assembly via the bundled old-state tuple, solve, and the
 # finite/residual invariants) in isolation on synthetic construction-time
 # state, independent of running a full multi-step simulation via
@@ -653,8 +654,7 @@ def _single_borehole_sim(model_single, env_props, env_series, mw_val=0.2):
         model=model_single, envprops=env_props, envinput=env_series,
         timesteps=3600.0, n_steps=N_STEPS, mw_tot=mw_tot, Tf1=Tf1,
     )
-    sim.A = [None]
-    sim.A_inv = [None]
+    sim._factorizations = FactorizationCache(sim.model, sim.env, sim.timesteps)
     return sim
 
 
@@ -662,6 +662,15 @@ def test_solve_borehole_returns_finite_state_satisfying_residual(
     model_single, env_props, env_series
 ):
     sim = _single_borehole_sim(model_single, env_props, env_series)
+    builds = []
+
+    def counting_builder(*args):
+        builds.append(args)
+        return build_global_matrix(*args)
+
+    sim._factorizations = FactorizationCache(
+        sim.model, sim.env, sim.timesteps, builder=counting_builder
+    )
     state = _construction_time_state(sim)
     old_state = sim.model._get_temperatures(state, 0, use_old=True)
 
@@ -669,7 +678,6 @@ def test_solve_borehole_returns_finite_state_satisfying_residual(
         0,
         sim.model.ground[0],
         sim.mw_tot[0, 0],
-        True,  # rebuild: no cached matrix yet
         sim.Tf1[0, 0],
         sim.T_bc[0, 0],
         old_state,
@@ -680,8 +688,6 @@ def test_solve_borehole_returns_finite_state_satisfying_residual(
     )
 
     assert np.all(np.isfinite(T_new))
-    assert sim.A[0] is not None
-    assert sim.A_inv[0] is not None
 
     T_borehole_old, T_ground_old, T_ground_sup_old, T_ground_inf_old, Ts_old = old_state
     b_expected = build_global_rhs(
@@ -690,59 +696,11 @@ def test_solve_borehole_returns_finite_state_satisfying_residual(
         sim.envinput.T_ext[0], sim.env.T_sky[0], sim.T_bc[0, 0],
         sim.env.envinput.SolarRad[0], sim.mw_tot[0, 0], sim.Tf1[0, 0], sim.adiabatic,
     )
-    residual = sim.A[0] @ T_new - b_expected
+    assert len(builds) == 1
+    # The solve must have filled the entry for this key: reading it back
+    # is a hit, not a second build.
+    A, _ = sim._factorizations.get(0, sim.mw_tot[0, 0], sim.adiabatic)
+    assert len(builds) == 1
+    residual = A @ T_new - b_expected
     assert np.max(np.abs(residual)) < 1e-6
 
-
-def test_solve_borehole_rebuild_flag_controls_matrix_cache(
-    model_single, env_props, env_series
-):
-    """``_solve_borehole`` rebuilds the cached matrix iff told to via
-    ``rebuild`` — the decision of *when* to rebuild is the caller's
-    (``_matrix_needs_rebuild``), covered separately below."""
-    sim = _single_borehole_sim(model_single, env_props, env_series)
-    state = _construction_time_state(sim)
-    old_state = sim.model._get_temperatures(state, 0, use_old=True)
-
-    def solve(mw, rebuild):
-        return sim._solve_borehole(
-            0,
-            sim.model.ground[0],
-            mw,
-            rebuild,
-            sim.Tf1[0, 0],
-            sim.T_bc[0, 0],
-            old_state,
-            sim.envinput.T_ext[0],
-            sim.env.T_sky[0],
-            sim.env.envinput.SolarRad[0],
-            sim.adiabatic,
-        )
-
-    mw = sim.mw_tot[0, 0]
-    solve(mw, rebuild=True)
-    A_first = sim.A[0]
-
-    # rebuild=False reuses the cached matrix, even with a different mw
-    # value passed through to the RHS (the caller is responsible for only
-    # passing rebuild=False when mw truly hasn't changed).
-    solve(mw, rebuild=False)
-    assert sim.A[0] is A_first
-
-    solve(mw * 2.0, rebuild=True)
-    assert sim.A[0] is not A_first
-
-
-def test_matrix_needs_rebuild_conditions():
-    assert Simulation._matrix_needs_rebuild(
-        step=0, mw=0.2, mw_prev=0.2, properties_changed=False
-    )
-    assert Simulation._matrix_needs_rebuild(
-        step=1, mw=0.3, mw_prev=0.2, properties_changed=False
-    )
-    assert Simulation._matrix_needs_rebuild(
-        step=1, mw=0.2, mw_prev=0.2, properties_changed=True
-    )
-    assert not Simulation._matrix_needs_rebuild(
-        step=1, mw=0.2, mw_prev=0.2, properties_changed=False
-    )

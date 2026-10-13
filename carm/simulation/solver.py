@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 from numpy.typing import NDArray
 from typing import Callable, Dict
 
-from ..matrix import build_global_matrix, build_global_rhs
+from ..matrix import build_global_rhs
 from ..external_environment import (
     ExternalEnvironment,
     EnvironmentalProperties,
@@ -25,8 +25,7 @@ from ..thermal_interference import FiniteLineSolution
 from ..initial_conditions import kusuda_achenbach
 from ..properties import SoilMoisture
 from .heat_flux_mode import HeatFluxMode
-
-from scipy.sparse.linalg import splu
+from .factorization_cache import FactorizationCache
 
 from pathlib import Path
 from datetime import datetime
@@ -449,33 +448,11 @@ class Simulation:
                     save_results=save_results, history_path=history_path
                 )
 
-    @staticmethod
-    def _matrix_needs_rebuild(
-        step: int, mw: float, mw_prev: float, properties_changed: bool
-    ) -> bool:
-        """Whether a borehole's cached system matrix must be rebuilt: the
-        first step, a mass-flow change since the previous step, or a
-        thermophysical-property update.
-
-        Callers decide *how often* to evaluate this (``_run_parallel`` once
-        per step, ``_run_series`` once per Picard iteration, matching each
-        adapter's pre-existing cadence) so the formula lives in one place
-        without forcing one adapter to adopt the other's rebuild frequency.
-        """
-        return step == 0 or mw != mw_prev or properties_changed
-
-    def _rebuild_matrix_cache(self, j: int, gr_p, mw: float, adiabatic: bool) -> None:
-        self.A[j] = build_global_matrix(
-            self.model, gr_p, self.env, self.timesteps, mw, adiabatic
-        )
-        self.A_inv[j] = splu(self.A[j])
-
     def _solve_borehole(
         self,
         j: int,
         gr_p,
         mw: float,
-        rebuild: bool,
         Tf1_j: float,
         T_bc_j: NDArray[np.float64],
         old_state: tuple,
@@ -486,14 +463,12 @@ class Simulation:
     ) -> NDArray[np.float64]:
         """Solve one borehole for one Picard iteration.
 
-        Rebuilds and caches ``self.A[j]``/``self.A_inv[j]`` when ``rebuild``
-        is True (see ``_matrix_needs_rebuild``); assembles the RHS from the
-        previous-timestep state (``old_state``, the tuple returned by
-        ``PhysicalModel._get_temperatures``); and solves for the new
-        borehole state.
+        Gets the factorized system matrix from ``self._factorizations``;
+        assembles the RHS from the previous-timestep state (``old_state``,
+        the tuple returned by ``PhysicalModel._get_temperatures``); and
+        solves for the new borehole state.
         """
-        if rebuild:
-            self._rebuild_matrix_cache(j, gr_p, mw, adiabatic)
+        A, lu = self._factorizations.get(j, mw, adiabatic)
 
         T_borehole_old, T_ground_old, T_ground_sup_old, T_ground_inf_old, Ts_old = (
             old_state
@@ -518,14 +493,13 @@ class Simulation:
             adiabatic,
         )
 
-        assert np.all(np.isfinite(self.A[j].data)), "A contains NaN or Inf"  # type: ignore
         assert np.all(np.isfinite(b)), "b contains NaN or Inf"
 
-        T_new_j = self.A_inv[j].solve(b)  # type: ignore
+        T_new_j = lu.solve(b)
 
         assert np.all(np.isfinite(T_new_j)), "T_new is not finite"
 
-        r = self.A[j] @ T_new_j - b
+        r = A @ T_new_j - b
         assert np.max(np.abs(r)) < 1e-6
 
         return T_new_j
@@ -741,8 +715,7 @@ class Simulation:
         currstate = State(T0_matrix)
         self.T_history[0] = T0_matrix.copy()
 
-        self.A = [0] * n  # type: ignore
-        self.A_inv = copy.deepcopy(self.A)  # type: ignore
+        self._factorizations = FactorizationCache(model, self.env, self.timesteps)
 
         if self.heat_flux:
             self.Tf1 = np.zeros((n, self.n_steps), dtype=np.float64)
@@ -756,7 +729,6 @@ class Simulation:
 
             currstate.save_old()
 
-            properties_changed = False
             if self.envinput.water_input is not None and step != 0:
                 tol = 1e-3
                 k_bh, cp_bh, rho_bh = self._props_calculation(
@@ -768,17 +740,7 @@ class Simulation:
                     or abs(np.mean(borehole.cp_0) - cp_bh) > tol
                     or abs(np.mean(borehole.rho_0) - rho_bh) > tol
                 ):
-                    properties_changed = True
                     borehole._update_properties(k_bh, cp_bh, rho_bh)
-
-            # coefficient matrix is built for each borehole
-            for j, gr_p in enumerate(model.ground):
-                if self._matrix_needs_rebuild(
-                    step, self.mw_tot[j, step], self.mw_tot[j, step - 1], properties_changed
-                ):
-                    self._rebuild_matrix_cache(
-                        j, gr_p, self.mw_tot[j, step], self.adiabatic
-                    )
 
             def tf1_bookkeeping() -> None:
                 # Tf1 is updated according to simulated values for boreholes in off-status
@@ -798,7 +760,6 @@ class Simulation:
                         j,
                         gr_p,
                         self.mw_tot[j, step],
-                        False,  # matrix already (re)built above, once per step
                         self.Tf1[j, step],
                         self.T_bc[step, j],
                         old_state,
@@ -892,8 +853,7 @@ class Simulation:
         currstate = State(T0_matrix)
         self.T_history[0] = T0_matrix.copy()
 
-        self.A = [0] * n  # type: ignore
-        self.A_inv = copy.deepcopy(self.A)  # type: ignore
+        self._factorizations = FactorizationCache(model, self.env, self.timesteps)
 
         group_inlet_fluid_idx = np.array([g[0] for g in self.groups.values()]) # to define the head boreholes of each series connection
         group_outlet_fluid_idx = np.array([g[-1] for g in self.groups.values()]) # to define the bottom boreholes of each series connection
@@ -911,7 +871,6 @@ class Simulation:
             currstate.save_old()
 
             # borehole properties are updated according to the following condition
-            properties_changed = False
             if self.envinput.water_input is not None and step != 0:
                 tol = 1e-3
                 k_bh, cp_bh, rho_bh = self._props_calculation(
@@ -923,7 +882,6 @@ class Simulation:
                     or abs(np.mean(borehole.cp_0) - cp_bh) > tol
                     or abs(np.mean(borehole.rho_0) - rho_bh) > tol
                 ):
-                    properties_changed = True
                     borehole._update_properties(k_bh, cp_bh, rho_bh)
 
             def tf1_bookkeeping() -> None:
@@ -952,15 +910,10 @@ class Simulation:
 
                         old_state = self.model._get_temperatures(currstate, j, use_old=True)
 
-                        rebuild = self._matrix_needs_rebuild(
-                            step, mw_loc, self.mw_tot[i, step - 1], properties_changed
-                        )
-
                         T_new_i_j = self._solve_borehole(
                             j,
                             gr_p,
                             mw_loc,
-                            rebuild,
                             Tf1_loc,
                             self.T_bc[step, j],
                             old_state,
