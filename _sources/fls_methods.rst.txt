@@ -30,7 +30,20 @@ the response at distance :math:`d` and time :math:`t` is
    + \underbrace{2\,\mathrm{ierf}((2D + H)s) - \mathrm{ierf}(2Ds)
    - \mathrm{ierf}((2D + 2H)s)}_{\text{image}}\Big]\, ds
 
-as in pygfunction (Cimmino, 2018).
+following Claesson and Javed (2011). This equation is validated against
+pygfunction (Cimmino, 2018) in the test suite.
+
+Limitations
+-----------
+
+The FLS treats each borehole as a line source. Two cases are therefore an
+approximation:
+
+- **Very short times.** At the first time steps the heat has not yet
+  travelled far from the borehole, and the line-source assumption does not
+  describe this phase accurately.
+- **Helical heat exchangers.** The heat source is a helix, not a line, so
+  the FLS interference between helical boreholes is an approximation.
 
 Overview
 --------
@@ -80,6 +93,77 @@ The FLS response is evaluated at each point and averaged:
 where :math:`d_{ijk}` is the distance from source :math:`j` to point
 :math:`k` on receiver :math:`i`. This method is more accurate but
 significantly more expensive.
+
+Comparing the two methods
+-------------------------
+
+Both methods look at the same thing: the boundary of the receiver's cell, a
+circle of radius :math:`r_{eq,i}`. The mean squared distance from source
+:math:`j` to the points of that circle is :math:`d^2 + r_{eq,i}^2`, which is
+exactly the squared distance to the point at 90° from the source direction.
+So ``"sqrt"`` evaluates the FLS once, at that point, while ``"continuous"``
+averages it over :math:`N_\theta` points of the circle. The two differ only
+because :math:`h` is not linear in the distance.
+
+.. figure:: fls_mode_geometry.svg
+   :width: 100%
+
+   Left: a five-borehole field (four corners and a centre, 6 m square, field
+   box extending 3 m beyond the outer boreholes) with its Voronoi cells and
+   equivalent radii. Right: the distances each method uses from a corner
+   source to the centre receiver.
+
+The figures below compare the two methods on that field: single U-tube,
+100 m boreholes, parallel connection, constant inlet temperature of 2 °C and
+mass flow of 0.1657 kg/s, ground conductivity 1.8 W/(m K), synthetic
+weather, two years of hourly steps. ``"continuous"`` is taken as the
+reference.
+
+.. figure:: fls_mode_time.svg
+   :width: 80%
+
+   Computation time, measured on a single run on one machine. The extra cost
+   of ``"continuous"`` is all in the FLS precomputation, done once when the
+   simulation is built; the time-step loop is the same for both methods.
+
+.. figure:: fls_mode_accuracy.svg
+   :width: 90%
+
+   Outlet fluid temperature difference between the two methods for the
+   centre and a corner borehole. ``"sqrt"`` underestimates the interference,
+   so its outlet temperature is higher. The difference peaks within the
+   first months and then decreases.
+
+.. figure:: fls_mode_spacing.svg
+   :width: 80%
+
+   Largest outlet temperature difference over the two years, for square
+   sides from 4 to 10 m. The field box always extends half a side beyond the
+   outer boreholes.
+
+Number of ring points in the continuous method
+----------------------------------------------
+
+``"continuous"`` uses :math:`N_\theta = 8` points on the receiver ring
+(``FiniteLineSolution.N_THETA``). The figures below repeat the simulation of
+the previous section (6 m square, one year of hourly steps) with
+:math:`N_\theta` from 4 to 64, taking :math:`N_\theta = 64` as the
+reference.
+
+.. figure:: fls_ntheta_time.svg
+   :width: 80%
+
+   Computation time, measured on a single run on one machine. Only the setup,
+   which includes the FLS precomputation, grows with :math:`N_\theta`; the
+   time-step loop is the same for every case.
+
+.. figure:: fls_ntheta_difference.svg
+   :width: 100%
+
+   Outlet fluid temperature difference from :math:`N_\theta = 64` for the
+   centre and a corner borehole. With :math:`N_\theta = 8` the largest
+   difference is 0.006 °C, with :math:`N_\theta = 16` it is below
+   0.001 °C. ``"sqrt"`` is shown for comparison.
 
 Choosing a method
 -----------------

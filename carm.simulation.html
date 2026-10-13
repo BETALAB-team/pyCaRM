@@ -80,6 +80,7 @@
 <li class="toctree-l1"><a class="reference internal" href="grout_variable_properties.html">Variable Grout Properties</a></li>
 <li class="toctree-l1"><a class="reference internal" href="heatflux_mode.html">Heat Flux Mode</a></li>
 <li class="toctree-l1"><a class="reference internal" href="output.html">Output</a></li>
+<li class="toctree-l1"><a class="reference internal" href="references.html">References</a></li>
 <li class="toctree-l1 current" x-data="{ expanded: $el.classList.contains('current') ? true : false }"><a :class="{ 'expanded' : expanded }" @click="expanded = !expanded" class="reference internal expandable" href="modules.html">carm<button @click.prevent.stop="expanded = !expanded" type="button" x-cloak=""><span class="sr-only"></span><svg fill="currentColor" height="18px" stroke="none" viewbox="0 0 24 24" width="18px" xmlns="http://www.w3.org/2000/svg"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"></path></svg></button></a><ul class="current" x-show="expanded">
 <li class="toctree-l2 current"><a class="reference internal" href="carm.html">carm package</a></li>
 </ul>
@@ -246,17 +247,11 @@ Required for series mode, <code class="docutils literal notranslate"><span class
 <dl class="py attribute">
 <dt class="sig sig-object py" id="carm.simulation.solver.Simulation.fls_cache_dir">
 <span class="sig-name descname"><span class="pre">fls_cache_dir</span></span></dt>
-<dd><p>Folder of the on-disk FLS response-increments cache. <code class="docutils literal notranslate"><span class="pre">None</span></code> (default)
-computes the increments in memory and writes nothing. When set, the
-increments are looked up by a hash of the inputs they depend on
-(<code class="docutils literal notranslate"><span class="pre">fls_mode</span></code>, <code class="docutils literal notranslate"><span class="pre">fls_image</span></code>, time step, ground k/rho/cp, L, the
-buried depth D = <code class="docutils literal notranslate"><span class="pre">L_sup</span></code>, borehole coordinates, <code class="docutils literal notranslate"><span class="pre">req</span></code>, <code class="docutils literal notranslate"><span class="pre">rb</span></code>,
-<code class="docutils literal notranslate"><span class="pre">n_theta</span></code>, cache-format version; not flows, temperatures, weather,
-<code class="docutils literal notranslate"><span class="pre">Tm</span></code> or <code class="docutils literal notranslate"><span class="pre">n_steps</span></code>) and served memory-mapped.
-A cached file from a run at least as long serves a shorter run by
-slicing; on a miss the increments are computed and written atomically.
-Any later simulation of the same field pointing at the same folder
-reuses them. See <a class="reference internal" href="carm.thermal_interference.html#carm.thermal_interference.FiniteLineSolution" title="carm.thermal_interference.FiniteLineSolution"><code class="xref py py-class docutils literal notranslate"><span class="pre">FiniteLineSolution</span></code></a>.</p>
+<dd><p>Folder where the FLS thermal responses are saved and reused.
+<code class="docutils literal notranslate"><span class="pre">None</span></code> (default) keeps them in memory and saves nothing. When set,
+any later simulation of the same borefield (same geometry, ground
+properties and time step) reuses the saved file instead of
+recomputing it. See <a class="reference internal" href="carm.thermal_interference.html#carm.thermal_interference.FiniteLineSolution" title="carm.thermal_interference.FiniteLineSolution"><code class="xref py py-class docutils literal notranslate"><span class="pre">FiniteLineSolution</span></code></a>.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Type<span class="colon">:</span></dt>
 <dd class="field-odd"><p>str, Path or None</p>
@@ -571,18 +566,11 @@ to a <code class="docutils literal notranslate"><span class="pre">results/</span
 working directory. <code class="docutils literal notranslate"><span class="pre">False</span></code> by default: the caller decides
 whether and where to persist <code class="docutils literal notranslate"><span class="pre">T_history</span></code> and the other arrays.
 See <code class="docutils literal notranslate"><span class="pre">examples/</span></code> for how to save results manually.</p></li>
-<li><p><strong>history_path</strong> (<em>str</em><em>, </em><em>Path</em><em> or </em><em>None</em>) – <code class="docutils literal notranslate"><span class="pre">None</span></code> (default) keeps <code class="docutils literal notranslate"><span class="pre">T_history</span></code> in RAM as float64. When
-set, <code class="docutils literal notranslate"><span class="pre">T_history</span></code> is created as a float32 <code class="docutils literal notranslate"><span class="pre">.npy</span></code> file at this
-path (<code class="docutils literal notranslate"><span class="pre">np.lib.format.open_memmap</span></code>, parent folders created,
-an existing file overwritten unless another process or object
-still maps it) and filled step by step, so runs
-larger than the RAM can complete. The solver never reads the
-history back (the current state is kept separately), so the
-calculation is the same as in RAM; only the stored values are
-rounded to float32. Read it back with
-<code class="docutils literal notranslate"><span class="pre">np.load(history_path,</span> <span class="pre">mmap_mode="r")</span></code>. With <code class="docutils literal notranslate"><span class="pre">save_results</span></code>
-the <code class="docutils literal notranslate"><span class="pre">.npz</span></code> archive holds <code class="docutils literal notranslate"><span class="pre">history_path</span></code> instead of
-<code class="docutils literal notranslate"><span class="pre">T_history</span></code>.</p></li>
+<li><p><strong>history_path</strong> (<em>str</em><em>, </em><em>Path</em><em> or </em><em>None</em>) – <code class="docutils literal notranslate"><span class="pre">None</span></code> (default) keeps <code class="docutils literal notranslate"><span class="pre">T_history</span></code> in RAM. When set,
+<code class="docutils literal notranslate"><span class="pre">T_history</span></code> is written step by step to a <code class="docutils literal notranslate"><span class="pre">.npy</span></code> file at this
+path, so runs larger than the available RAM can complete. Values
+are stored as float32; the calculation itself is unchanged.
+Read it back with <code class="docutils literal notranslate"><span class="pre">np.load(history_path,</span> <span class="pre">mmap_mode="r")</span></code>.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
@@ -624,18 +612,13 @@ load instead of a prescribed inlet fluid temperature.</p>
 <dt class="sig sig-object py" id="carm.simulation.heat_flux_mode.HeatFluxMode">
 <span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">carm.simulation.heat_flux_mode.</span></span><span class="sig-name descname"><span class="pre">HeatFluxMode</span></span><a class="reference internal" href="_modules/carm/simulation/heat_flux_mode.html#HeatFluxMode"><span class="viewcode-link"><span class="pre">[source]</span></span></a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
-<p>Building-side load and heat pump performance configuration.</p>
-<p><code class="docutils literal notranslate"><span class="pre">eq=False</span></code> keeps the default identity-based <code class="docutils literal notranslate"><span class="pre">__eq__</span></code>/<code class="docutils literal notranslate"><span class="pre">__hash__</span></code>:
-the array fields make the auto-generated dataclass <code class="docutils literal notranslate"><span class="pre">__eq__</span></code> raise
-(elementwise array comparison has no unambiguous truth value) and
-<code class="docutils literal notranslate"><span class="pre">__hash__</span></code> raise (arrays are unhashable).</p>
+<p>Building load and heat pump settings for heat flux mode.</p>
 <dl class="py attribute">
 <dt class="sig sig-object py" id="carm.simulation.heat_flux_mode.HeatFluxMode.Q_buildings">
 <span class="sig-name descname"><span class="pre">Q_buildings</span></span></dt>
-<dd><p>Building thermal load time series, shape (n_steps,) [W].
-Positive values are a heating load (COP branch), negative values
-a cooling load (EER branch), zero skips the heat pump update for
-that step.</p>
+<dd><p>Building thermal load per time step, shape (n_steps,) [W].
+Positive for heating, negative for cooling, zero when the heat
+pump is off.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Type<span class="colon">:</span></dt>
 <dd class="field-odd"><p>NDArray[np.float64]</p>
@@ -645,7 +628,7 @@ that step.</p>
 <dl class="py attribute">
 <dt class="sig sig-object py" id="carm.simulation.heat_flux_mode.HeatFluxMode.T_supply">
 <span class="sig-name descname"><span class="pre">T_supply</span></span></dt>
-<dd><p>Supply temperature time series to the building, shape (n_steps,) [°C].</p>
+<dd><p>Supply temperature to the building per time step, shape (n_steps,) [°C].</p>
 <dl class="field-list simple">
 <dt class="field-odd">Type<span class="colon">:</span></dt>
 <dd class="field-odd"><p>NDArray[np.float64]</p>
@@ -656,8 +639,7 @@ that step.</p>
 <dt class="sig sig-object py" id="carm.simulation.heat_flux_mode.HeatFluxMode.cop_curve">
 <span class="sig-name descname"><span class="pre">cop_curve</span></span></dt>
 <dd><p>Heat pump COP as a function of the temperature lift
-<code class="docutils literal notranslate"><span class="pre">T_supply</span> <span class="pre">-</span> <span class="pre">T_f,out</span></code> [-]. Defaults to the shared default
-performance curve.</p>
+<code class="docutils literal notranslate"><span class="pre">T_supply</span> <span class="pre">-</span> <span class="pre">T_f,out</span></code> [-]. Defaults to Ruhnau et al. (2019).</p>
 <dl class="field-list simple">
 <dt class="field-odd">Type<span class="colon">:</span></dt>
 <dd class="field-odd"><p>Callable[[float], float]</p>
@@ -668,8 +650,7 @@ performance curve.</p>
 <dt class="sig sig-object py" id="carm.simulation.heat_flux_mode.HeatFluxMode.eer_curve">
 <span class="sig-name descname"><span class="pre">eer_curve</span></span></dt>
 <dd><p>Heat pump EER as a function of the temperature lift
-<code class="docutils literal notranslate"><span class="pre">T_f,out</span> <span class="pre">-</span> <span class="pre">T_supply</span></code> [-]. Defaults to the shared default
-performance curve.</p>
+<code class="docutils literal notranslate"><span class="pre">T_f,out</span> <span class="pre">-</span> <span class="pre">T_supply</span></code> [-]. Defaults to Ruhnau et al. (2019).</p>
 <dl class="field-list simple">
 <dt class="field-odd">Type<span class="colon">:</span></dt>
 <dd class="field-odd"><p>Callable[[float], float]</p>
@@ -822,17 +803,11 @@ Required for series mode, <code class="docutils literal notranslate"><span class
 <dl class="py attribute">
 <dt class="sig sig-object py" id="carm.simulation.Simulation.fls_cache_dir">
 <span class="sig-name descname"><span class="pre">fls_cache_dir</span></span></dt>
-<dd><p>Folder of the on-disk FLS response-increments cache. <code class="docutils literal notranslate"><span class="pre">None</span></code> (default)
-computes the increments in memory and writes nothing. When set, the
-increments are looked up by a hash of the inputs they depend on
-(<code class="docutils literal notranslate"><span class="pre">fls_mode</span></code>, <code class="docutils literal notranslate"><span class="pre">fls_image</span></code>, time step, ground k/rho/cp, L, the
-buried depth D = <code class="docutils literal notranslate"><span class="pre">L_sup</span></code>, borehole coordinates, <code class="docutils literal notranslate"><span class="pre">req</span></code>, <code class="docutils literal notranslate"><span class="pre">rb</span></code>,
-<code class="docutils literal notranslate"><span class="pre">n_theta</span></code>, cache-format version; not flows, temperatures, weather,
-<code class="docutils literal notranslate"><span class="pre">Tm</span></code> or <code class="docutils literal notranslate"><span class="pre">n_steps</span></code>) and served memory-mapped.
-A cached file from a run at least as long serves a shorter run by
-slicing; on a miss the increments are computed and written atomically.
-Any later simulation of the same field pointing at the same folder
-reuses them. See <a class="reference internal" href="carm.thermal_interference.html#carm.thermal_interference.FiniteLineSolution" title="carm.thermal_interference.FiniteLineSolution"><code class="xref py py-class docutils literal notranslate"><span class="pre">FiniteLineSolution</span></code></a>.</p>
+<dd><p>Folder where the FLS thermal responses are saved and reused.
+<code class="docutils literal notranslate"><span class="pre">None</span></code> (default) keeps them in memory and saves nothing. When set,
+any later simulation of the same borefield (same geometry, ground
+properties and time step) reuses the saved file instead of
+recomputing it. See <a class="reference internal" href="carm.thermal_interference.html#carm.thermal_interference.FiniteLineSolution" title="carm.thermal_interference.FiniteLineSolution"><code class="xref py py-class docutils literal notranslate"><span class="pre">FiniteLineSolution</span></code></a>.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Type<span class="colon">:</span></dt>
 <dd class="field-odd"><p>str, Path or None</p>
@@ -1147,18 +1122,11 @@ to a <code class="docutils literal notranslate"><span class="pre">results/</span
 working directory. <code class="docutils literal notranslate"><span class="pre">False</span></code> by default: the caller decides
 whether and where to persist <code class="docutils literal notranslate"><span class="pre">T_history</span></code> and the other arrays.
 See <code class="docutils literal notranslate"><span class="pre">examples/</span></code> for how to save results manually.</p></li>
-<li><p><strong>history_path</strong> (<em>str</em><em>, </em><em>Path</em><em> or </em><em>None</em>) – <code class="docutils literal notranslate"><span class="pre">None</span></code> (default) keeps <code class="docutils literal notranslate"><span class="pre">T_history</span></code> in RAM as float64. When
-set, <code class="docutils literal notranslate"><span class="pre">T_history</span></code> is created as a float32 <code class="docutils literal notranslate"><span class="pre">.npy</span></code> file at this
-path (<code class="docutils literal notranslate"><span class="pre">np.lib.format.open_memmap</span></code>, parent folders created,
-an existing file overwritten unless another process or object
-still maps it) and filled step by step, so runs
-larger than the RAM can complete. The solver never reads the
-history back (the current state is kept separately), so the
-calculation is the same as in RAM; only the stored values are
-rounded to float32. Read it back with
-<code class="docutils literal notranslate"><span class="pre">np.load(history_path,</span> <span class="pre">mmap_mode="r")</span></code>. With <code class="docutils literal notranslate"><span class="pre">save_results</span></code>
-the <code class="docutils literal notranslate"><span class="pre">.npz</span></code> archive holds <code class="docutils literal notranslate"><span class="pre">history_path</span></code> instead of
-<code class="docutils literal notranslate"><span class="pre">T_history</span></code>.</p></li>
+<li><p><strong>history_path</strong> (<em>str</em><em>, </em><em>Path</em><em> or </em><em>None</em>) – <code class="docutils literal notranslate"><span class="pre">None</span></code> (default) keeps <code class="docutils literal notranslate"><span class="pre">T_history</span></code> in RAM. When set,
+<code class="docutils literal notranslate"><span class="pre">T_history</span></code> is written step by step to a <code class="docutils literal notranslate"><span class="pre">.npy</span></code> file at this
+path, so runs larger than the available RAM can complete. Values
+are stored as float32; the calculation itself is unchanged.
+Read it back with <code class="docutils literal notranslate"><span class="pre">np.load(history_path,</span> <span class="pre">mmap_mode="r")</span></code>.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
@@ -1193,18 +1161,13 @@ a float32 <code class="docutils literal notranslate"><span class="pre">np.memmap
 <dt class="sig sig-object py" id="carm.simulation.HeatFluxMode">
 <span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">carm.simulation.</span></span><span class="sig-name descname"><span class="pre">HeatFluxMode</span></span><a class="reference internal" href="_modules/carm/simulation/heat_flux_mode.html#HeatFluxMode"><span class="viewcode-link"><span class="pre">[source]</span></span></a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
-<p>Building-side load and heat pump performance configuration.</p>
-<p><code class="docutils literal notranslate"><span class="pre">eq=False</span></code> keeps the default identity-based <code class="docutils literal notranslate"><span class="pre">__eq__</span></code>/<code class="docutils literal notranslate"><span class="pre">__hash__</span></code>:
-the array fields make the auto-generated dataclass <code class="docutils literal notranslate"><span class="pre">__eq__</span></code> raise
-(elementwise array comparison has no unambiguous truth value) and
-<code class="docutils literal notranslate"><span class="pre">__hash__</span></code> raise (arrays are unhashable).</p>
+<p>Building load and heat pump settings for heat flux mode.</p>
 <dl class="py attribute">
 <dt class="sig sig-object py" id="carm.simulation.HeatFluxMode.Q_buildings">
 <span class="sig-name descname"><span class="pre">Q_buildings</span></span></dt>
-<dd><p>Building thermal load time series, shape (n_steps,) [W].
-Positive values are a heating load (COP branch), negative values
-a cooling load (EER branch), zero skips the heat pump update for
-that step.</p>
+<dd><p>Building thermal load per time step, shape (n_steps,) [W].
+Positive for heating, negative for cooling, zero when the heat
+pump is off.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Type<span class="colon">:</span></dt>
 <dd class="field-odd"><p>NDArray[np.float64]</p>
@@ -1214,7 +1177,7 @@ that step.</p>
 <dl class="py attribute">
 <dt class="sig sig-object py" id="carm.simulation.HeatFluxMode.T_supply">
 <span class="sig-name descname"><span class="pre">T_supply</span></span></dt>
-<dd><p>Supply temperature time series to the building, shape (n_steps,) [°C].</p>
+<dd><p>Supply temperature to the building per time step, shape (n_steps,) [°C].</p>
 <dl class="field-list simple">
 <dt class="field-odd">Type<span class="colon">:</span></dt>
 <dd class="field-odd"><p>NDArray[np.float64]</p>
@@ -1225,8 +1188,7 @@ that step.</p>
 <dt class="sig sig-object py" id="carm.simulation.HeatFluxMode.cop_curve">
 <span class="sig-name descname"><span class="pre">cop_curve</span></span></dt>
 <dd><p>Heat pump COP as a function of the temperature lift
-<code class="docutils literal notranslate"><span class="pre">T_supply</span> <span class="pre">-</span> <span class="pre">T_f,out</span></code> [-]. Defaults to the shared default
-performance curve.</p>
+<code class="docutils literal notranslate"><span class="pre">T_supply</span> <span class="pre">-</span> <span class="pre">T_f,out</span></code> [-]. Defaults to Ruhnau et al. (2019).</p>
 <dl class="field-list simple">
 <dt class="field-odd">Type<span class="colon">:</span></dt>
 <dd class="field-odd"><p>Callable[[float], float]</p>
@@ -1237,8 +1199,7 @@ performance curve.</p>
 <dt class="sig sig-object py" id="carm.simulation.HeatFluxMode.eer_curve">
 <span class="sig-name descname"><span class="pre">eer_curve</span></span></dt>
 <dd><p>Heat pump EER as a function of the temperature lift
-<code class="docutils literal notranslate"><span class="pre">T_f,out</span> <span class="pre">-</span> <span class="pre">T_supply</span></code> [-]. Defaults to the shared default
-performance curve.</p>
+<code class="docutils literal notranslate"><span class="pre">T_f,out</span> <span class="pre">-</span> <span class="pre">T_supply</span></code> [-]. Defaults to Ruhnau et al. (2019).</p>
 <dl class="field-list simple">
 <dt class="field-odd">Type<span class="colon">:</span></dt>
 <dd class="field-odd"><p>Callable[[float], float]</p>

@@ -112,6 +112,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../grout_variable_properties.html">Variable Grout Properties</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../heatflux_mode.html">Heat Flux Mode</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../output.html">Output</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../references.html">References</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../modules.html">carm</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="../../../carm.html">carm package</a></li>
 </ul>
@@ -185,44 +186,37 @@
 </span><span id="line-23"><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">slots</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">eq</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 </span><span id="line-24"><span class="k">class</span><span class="w"> </span><span class="nc">HeatFluxMode</span><span class="p">:</span>
 </span><span id="line-25"><span class="w">    </span><span class="sd">"""</span>
-</span><span id="line-26"><span class="sd">    Building-side load and heat pump performance configuration.</span>
+</span><span id="line-26"><span class="sd">    Building load and heat pump settings for heat flux mode.</span>
 </span><span id="line-27">
-</span><span id="line-28"><span class="sd">    ``eq=False`` keeps the default identity-based ``__eq__``/``__hash__``:</span>
-</span><span id="line-29"><span class="sd">    the array fields make the auto-generated dataclass ``__eq__`` raise</span>
-</span><span id="line-30"><span class="sd">    (elementwise array comparison has no unambiguous truth value) and</span>
-</span><span id="line-31"><span class="sd">    ``__hash__`` raise (arrays are unhashable).</span>
-</span><span id="line-32">
-</span><span id="line-33"><span class="sd">    Attributes</span>
-</span><span id="line-34"><span class="sd">    ----------</span>
-</span><span id="line-35"><span class="sd">    Q_buildings : NDArray[np.float64]</span>
-</span><span id="line-36"><span class="sd">        Building thermal load time series, shape (n_steps,) [W].</span>
-</span><span id="line-37"><span class="sd">        Positive values are a heating load (COP branch), negative values</span>
-</span><span id="line-38"><span class="sd">        a cooling load (EER branch), zero skips the heat pump update for</span>
-</span><span id="line-39"><span class="sd">        that step.</span>
-</span><span id="line-40"><span class="sd">    T_supply : NDArray[np.float64]</span>
-</span><span id="line-41"><span class="sd">        Supply temperature time series to the building, shape (n_steps,) [°C].</span>
-</span><span id="line-42"><span class="sd">    cop_curve : Callable[[float], float]</span>
-</span><span id="line-43"><span class="sd">        Heat pump COP as a function of the temperature lift</span>
-</span><span id="line-44"><span class="sd">        ``T_supply - T_f,out`` [-]. Defaults to the shared default</span>
-</span><span id="line-45"><span class="sd">        performance curve.</span>
-</span><span id="line-46"><span class="sd">    eer_curve : Callable[[float], float]</span>
-</span><span id="line-47"><span class="sd">        Heat pump EER as a function of the temperature lift</span>
-</span><span id="line-48"><span class="sd">        ``T_f,out - T_supply`` [-]. Defaults to the shared default</span>
-</span><span id="line-49"><span class="sd">        performance curve.</span>
-</span><span id="line-50"><span class="sd">    """</span>
-</span><span id="line-51">
-</span><span id="line-52">    <span class="n">Q_buildings</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">]</span>
-</span><span id="line-53">    <span class="n">T_supply</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">]</span>
-</span><span id="line-54">    <span class="n">cop_curve</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[</span><span class="nb">float</span><span class="p">],</span> <span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="n">_default_performance_curve</span>
-</span><span id="line-55">    <span class="n">eer_curve</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[</span><span class="nb">float</span><span class="p">],</span> <span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="n">_default_performance_curve</span>
-</span><span id="line-56">
-</span><span id="line-57">    <span class="k">def</span><span class="w"> </span><span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-</span><span id="line-58">        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">Q_buildings</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">T_supply</span><span class="p">):</span>
-</span><span id="line-59">            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"Q_buildings and T_supply must have the same length"</span><span class="p">)</span>
-</span><span id="line-60">        <span class="k">if</span> <span class="ow">not</span> <span class="nb">callable</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cop_curve</span><span class="p">):</span>
-</span><span id="line-61">            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"cop_curve must be callable"</span><span class="p">)</span>
-</span><span id="line-62">        <span class="k">if</span> <span class="ow">not</span> <span class="nb">callable</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">eer_curve</span><span class="p">):</span>
-</span><span id="line-63">            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"eer_curve must be callable"</span><span class="p">)</span></div>
+</span><span id="line-28"><span class="sd">    Attributes</span>
+</span><span id="line-29"><span class="sd">    ----------</span>
+</span><span id="line-30"><span class="sd">    Q_buildings : NDArray[np.float64]</span>
+</span><span id="line-31"><span class="sd">        Building thermal load per time step, shape (n_steps,) [W].</span>
+</span><span id="line-32"><span class="sd">        Positive for heating, negative for cooling, zero when the heat</span>
+</span><span id="line-33"><span class="sd">        pump is off.</span>
+</span><span id="line-34"><span class="sd">    T_supply : NDArray[np.float64]</span>
+</span><span id="line-35"><span class="sd">        Supply temperature to the building per time step, shape (n_steps,) [°C].</span>
+</span><span id="line-36"><span class="sd">    cop_curve : Callable[[float], float]</span>
+</span><span id="line-37"><span class="sd">        Heat pump COP as a function of the temperature lift</span>
+</span><span id="line-38"><span class="sd">        ``T_supply - T_f,out`` [-]. Defaults to Ruhnau et al. (2019).</span>
+</span><span id="line-39"><span class="sd">    eer_curve : Callable[[float], float]</span>
+</span><span id="line-40"><span class="sd">        Heat pump EER as a function of the temperature lift</span>
+</span><span id="line-41"><span class="sd">        ``T_f,out - T_supply`` [-]. Defaults to Ruhnau et al. (2019).</span>
+</span><span id="line-42"><span class="sd">    """</span>
+</span><span id="line-43">    <span class="c1"># eq=False: the array fields would make the generated __eq__/__hash__ raise.</span>
+</span><span id="line-44">
+</span><span id="line-45">    <span class="n">Q_buildings</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">]</span>
+</span><span id="line-46">    <span class="n">T_supply</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">]</span>
+</span><span id="line-47">    <span class="n">cop_curve</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[</span><span class="nb">float</span><span class="p">],</span> <span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="n">_default_performance_curve</span>
+</span><span id="line-48">    <span class="n">eer_curve</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[</span><span class="nb">float</span><span class="p">],</span> <span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="n">_default_performance_curve</span>
+</span><span id="line-49">
+</span><span id="line-50">    <span class="k">def</span><span class="w"> </span><span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+</span><span id="line-51">        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">Q_buildings</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">T_supply</span><span class="p">):</span>
+</span><span id="line-52">            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"Q_buildings and T_supply must have the same length"</span><span class="p">)</span>
+</span><span id="line-53">        <span class="k">if</span> <span class="ow">not</span> <span class="nb">callable</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cop_curve</span><span class="p">):</span>
+</span><span id="line-54">            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"cop_curve must be callable"</span><span class="p">)</span>
+</span><span id="line-55">        <span class="k">if</span> <span class="ow">not</span> <span class="nb">callable</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">eer_curve</span><span class="p">):</span>
+</span><span id="line-56">            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"eer_curve must be callable"</span><span class="p">)</span></div>
 
 </span></code></pre></div>
     </div></div>

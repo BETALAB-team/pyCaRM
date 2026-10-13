@@ -112,6 +112,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../grout_variable_properties.html">Variable Grout Properties</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../heatflux_mode.html">Heat Flux Mode</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../output.html">Output</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../references.html">References</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../modules.html">carm</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="../../../carm.html">carm package</a></li>
 </ul>
@@ -193,318 +194,267 @@
 </span><span id="line-31"><span class="w">    </span><span class="sd">"""</span>
 </span><span id="line-32"><span class="sd">    Finite Line Source thermal response for a borehole field.</span>
 </span><span id="line-33">
-</span><span id="line-34"><span class="sd">    Precomputes the FLS response increments at construction time and uses</span>
-</span><span id="line-35"><span class="sd">    them at each time step to evaluate the borehole wall temperature</span>
-</span><span id="line-36"><span class="sd">    perturbation via load superposition (convolution over the heat load</span>
-</span><span id="line-37"><span class="sd">    history). Only the increments are kept in memory; the cumulative response</span>
-</span><span id="line-38"><span class="sd">    matrix is rebuilt on demand. The response is the real part of the FLS</span>
-</span><span id="line-39"><span class="sd">    plus, by default, its image part (isothermal ground surface).</span>
-</span><span id="line-40">
-</span><span id="line-41"><span class="sd">    Parameters</span>
-</span><span id="line-42"><span class="sd">    ----------</span>
-</span><span id="line-43"><span class="sd">    physicalmodel : PhysicalModel</span>
-</span><span id="line-44"><span class="sd">        Full physical model of the BHE system.</span>
-</span><span id="line-45"><span class="sd">    n_steps : int</span>
-</span><span id="line-46"><span class="sd">        Total number of simulation time steps.</span>
-</span><span id="line-47"><span class="sd">    time_hist : NDArray</span>
-</span><span id="line-48"><span class="sd">        Array of cumulative simulation times [s], shape (n_steps,).</span>
-</span><span id="line-49"><span class="sd">    fls_mode : str</span>
-</span><span id="line-50"><span class="sd">        ``'sqrt'`` or ``'continuous'``, see :doc:`fls_methods`.</span>
-</span><span id="line-51"><span class="sd">    fls_image : bool</span>
-</span><span id="line-52"><span class="sd">        ``True`` (default) adds the image part, a sink mirrored above the</span>
-</span><span id="line-53"><span class="sd">        ground surface, so the FLS perturbation is zero at the surface (an</span>
-</span><span id="line-54"><span class="sd">        isothermal surface at the undisturbed, Kusuda, temperature). The BHE</span>
-</span><span id="line-55"><span class="sd">        top is buried at depth ``D = ground_geom.L_sup``. ``False`` uses the</span>
-</span><span id="line-56"><span class="sd">        real part only (a borehole in an infinite medium).</span>
-</span><span id="line-57"><span class="sd">    cache_dir : str, Path or None</span>
-</span><span id="line-58"><span class="sd">        Folder of the on-disk increments cache. ``None`` (default) computes</span>
-</span><span id="line-59"><span class="sd">        the increments in memory and writes nothing. When set, the increments</span>
-</span><span id="line-60"><span class="sd">        are looked up in the folder by a key built from the inputs they depend</span>
-</span><span id="line-61"><span class="sd">        on (see Notes), served memory-mapped from a hit, or computed, written</span>
-</span><span id="line-62"><span class="sd">        and then memory-mapped on a miss. The time grid must be uniform</span>
-</span><span id="line-63"><span class="sd">        (``time_hist = dt, 2 dt, ...``).</span>
-</span><span id="line-64">
-</span><span id="line-65"><span class="sd">    Attributes</span>
-</span><span id="line-66"><span class="sd">    ----------</span>
-</span><span id="line-67"><span class="sd">    physicalmodel : PhysicalModel</span>
-</span><span id="line-68"><span class="sd">        Full physical model of the BHE system.</span>
-</span><span id="line-69"><span class="sd">    n_steps : int</span>
-</span><span id="line-70"><span class="sd">        Total number of simulation time steps.</span>
-</span><span id="line-71"><span class="sd">    time_hist : NDArray</span>
-</span><span id="line-72"><span class="sd">        Array of cumulative simulation times [s], shape (n_steps,).</span>
-</span><span id="line-73"><span class="sd">    response_matrix : NDArray</span>
-</span><span id="line-74"><span class="sd">        FLS response matrix of shape (n_steps + 1, n_bhes, n_bhes), rebuilt</span>
-</span><span id="line-75"><span class="sd">        from the increments on each access (zeros row + cumulative sum).</span>
-</span><span id="line-76"><span class="sd">        Entry ``[t, i, j]`` is the unit thermal response at borehole ``j``</span>
-</span><span id="line-77"><span class="sd">        due to borehole ``i`` up to time step ``t``. Not used by the solver.</span>
-</span><span id="line-78">
-</span><span id="line-79"><span class="sd">    Notes</span>
-</span><span id="line-80"><span class="sd">    -----</span>
-</span><span id="line-81"><span class="sd">    With ``Ierf(x) = x erf(x) - (1 - exp(-x^2)) / sqrt(pi)``, borehole length</span>
-</span><span id="line-82"><span class="sd">    ``H = L``, buried depth ``D = L_sup`` and ``s`` from ``1 / sqrt(4 alpha t)``</span>
-</span><span id="line-83"><span class="sd">    to infinity, the response is the integral of::</span>
-</span><span id="line-84">
-</span><span id="line-85"><span class="sd">        exp(-d^2 s^2) / (2 H s^2) * (real + image)</span>
-</span><span id="line-86"><span class="sd">        real  = 2 Ierf(H s)</span>
-</span><span id="line-87"><span class="sd">        image = 2 Ierf((2 D + H) s) - Ierf(2 D s) - Ierf((2 D + 2 H) s)</span>
+</span><span id="line-34"><span class="sd">    Computes the FLS response increments once, at construction, and at each</span>
+</span><span id="line-35"><span class="sd">    time step superposes them over the heat load history to get the</span>
+</span><span id="line-36"><span class="sd">    borehole wall temperature perturbation. The method is described in</span>
+</span><span id="line-37"><span class="sd">    :doc:`fls_methods`.</span>
+</span><span id="line-38">
+</span><span id="line-39"><span class="sd">    Parameters</span>
+</span><span id="line-40"><span class="sd">    ----------</span>
+</span><span id="line-41"><span class="sd">    physicalmodel : PhysicalModel</span>
+</span><span id="line-42"><span class="sd">        Full physical model of the BHE system.</span>
+</span><span id="line-43"><span class="sd">    n_steps : int</span>
+</span><span id="line-44"><span class="sd">        Total number of simulation time steps.</span>
+</span><span id="line-45"><span class="sd">    time_hist : NDArray</span>
+</span><span id="line-46"><span class="sd">        Cumulative simulation times [s], shape (n_steps,). Must be uniform</span>
+</span><span id="line-47"><span class="sd">        (dt, 2 dt, ...).</span>
+</span><span id="line-48"><span class="sd">    fls_mode : str</span>
+</span><span id="line-49"><span class="sd">        ``'sqrt'`` or ``'continuous'``, see :doc:`fls_methods`.</span>
+</span><span id="line-50"><span class="sd">    fls_image : bool</span>
+</span><span id="line-51"><span class="sd">        ``True`` (default) adds the image part, so the FLS perturbation is</span>
+</span><span id="line-52"><span class="sd">        zero at the ground surface. ``False`` uses the real part only.</span>
+</span><span id="line-53"><span class="sd">    cache_dir : str, Path or None</span>
+</span><span id="line-54"><span class="sd">        Folder where the increments are saved and reused. ``None`` (default)</span>
+</span><span id="line-55"><span class="sd">        keeps them in memory and saves nothing.</span>
+</span><span id="line-56">
+</span><span id="line-57"><span class="sd">    Attributes</span>
+</span><span id="line-58"><span class="sd">    ----------</span>
+</span><span id="line-59"><span class="sd">    physicalmodel : PhysicalModel</span>
+</span><span id="line-60"><span class="sd">        Full physical model of the BHE system.</span>
+</span><span id="line-61"><span class="sd">    n_steps : int</span>
+</span><span id="line-62"><span class="sd">        Total number of simulation time steps.</span>
+</span><span id="line-63"><span class="sd">    time_hist : NDArray</span>
+</span><span id="line-64"><span class="sd">        Cumulative simulation times [s], shape (n_steps,).</span>
+</span><span id="line-65"><span class="sd">    response_matrix : NDArray</span>
+</span><span id="line-66"><span class="sd">        Cumulative FLS response, shape (n_steps + 1, n_bhes, n_bhes), rebuilt</span>
+</span><span id="line-67"><span class="sd">        from the increments on each access. Not used by the solver.</span>
+</span><span id="line-68"><span class="sd">    """</span>
+</span><span id="line-69">    <span class="n">CACHE_FORMAT_VERSION</span> <span class="o">=</span> <span class="mi">3</span>
+</span><span id="line-70">    <span class="n">N_THETA</span> <span class="o">=</span> <span class="mi">8</span>  <span class="c1"># receiver wall points of the continuous mode</span>
+</span><span id="line-71">
+</span><span id="line-72">    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+</span><span id="line-73">        <span class="bp">self</span><span class="p">,</span>
+</span><span id="line-74">        <span class="o">*</span><span class="p">,</span>
+</span><span id="line-75">        <span class="n">physicalmodel</span><span class="p">:</span> <span class="n">PhysicalModel</span><span class="p">,</span>
+</span><span id="line-76">        <span class="n">n_steps</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+</span><span id="line-77">        <span class="n">time_hist</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">,</span>
+</span><span id="line-78">        <span class="n">fls_mode</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"sqrt"</span><span class="p">,</span>
+</span><span id="line-79">        <span class="n">fls_image</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+</span><span id="line-80">        <span class="n">cache_dir</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">Path</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+</span><span id="line-81">    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span><span id="line-82">
+</span><span id="line-83">        <span class="bp">self</span><span class="o">.</span><span class="n">physicalmodel</span> <span class="o">=</span> <span class="n">physicalmodel</span>
+</span><span id="line-84">        <span class="bp">self</span><span class="o">.</span><span class="n">n_steps</span> <span class="o">=</span> <span class="n">n_steps</span>
+</span><span id="line-85">        <span class="bp">self</span><span class="o">.</span><span class="n">time_hist</span> <span class="o">=</span> <span class="n">time_hist</span>
+</span><span id="line-86">        <span class="bp">self</span><span class="o">.</span><span class="n">fls_mode</span> <span class="o">=</span> <span class="n">fls_mode</span>
+</span><span id="line-87">        <span class="bp">self</span><span class="o">.</span><span class="n">fls_image</span> <span class="o">=</span> <span class="n">fls_image</span>
 </span><span id="line-88">
-</span><span id="line-89"><span class="sd">    where ``image`` (always &lt;= 0) is dropped when ``fls_image=False``. ``d``</span>
-</span><span id="line-90"><span class="sd">    is ``Field._distance_matrix`` in ``'sqrt'`` mode and the receiver wall</span>
-</span><span id="line-91"><span class="sd">    points in ``'continuous'`` mode.</span>
-</span><span id="line-92">
-</span><span id="line-93"><span class="sd">    The increments ``dR[k] = R[k + 1] - R[k]``, shape (n_steps, n_bhes, n_bhes),</span>
-</span><span id="line-94"><span class="sd">    are the FLS integrals over each time interval. The penalty at ``step`` is</span>
-</span><span id="line-95"><span class="sd">    ``sum_t q[t] @ (R[step - t] - R[step - 1 - t])``, i.e. ``q[t]`` paired with</span>
-</span><span id="line-96"><span class="sd">    ``dR[step - 1 - t]``, evaluated as one matrix-vector product.</span>
+</span><span id="line-89">        <span class="n">n_bhes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">physicalmodel</span><span class="o">.</span><span class="n">fieldinput</span><span class="o">.</span><span class="n">n_bhes</span>
+</span><span id="line-90">        <span class="k">if</span> <span class="n">cache_dir</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+</span><span id="line-91">            <span class="bp">self</span><span class="o">.</span><span class="n">_response_increments</span><span class="p">:</span> <span class="n">NDArray</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span>
+</span><span id="line-92">                <span class="p">(</span><span class="n">n_steps</span><span class="p">,</span> <span class="n">n_bhes</span><span class="p">,</span> <span class="n">n_bhes</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span>
+</span><span id="line-93">            <span class="p">)</span>
+</span><span id="line-94">            <span class="bp">self</span><span class="o">.</span><span class="n">_fill_increments</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_response_increments</span><span class="p">)</span>
+</span><span id="line-95">        <span class="k">else</span><span class="p">:</span>
+</span><span id="line-96">            <span class="bp">self</span><span class="o">.</span><span class="n">_response_increments</span><span class="p">:</span> <span class="n">NDArray</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cached_increments</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="n">cache_dir</span><span class="p">))</span>
 </span><span id="line-97">
-</span><span id="line-98"><span class="sd">    **Increments cache.** The cache file is ``fls_&lt;key&gt;.npy`` (float64,</span>
-</span><span id="line-99"><span class="sd">    shape (rows, n_bhes, n_bhes)) in ``cache_dir``, next to a ``.json``</span>
-</span><span id="line-100"><span class="sd">    sidecar listing the key inputs. The key is a hash of everything the</span>
-</span><span id="line-101"><span class="sd">    increments depend on: ``fls_mode``, ``fls_image``, the time step ``dt``,</span>
-</span><span id="line-102"><span class="sd">    the ground means k, rho, cp, the borehole length L, the buried depth</span>
-</span><span id="line-103"><span class="sd">    ``D = L_sup``, the borehole coordinates, the equivalent radius ``req`` of</span>
-</span><span id="line-104"><span class="sd">    every borehole, the borehole radius ``rb``, ``n_theta`` and a cache-format</span>
-</span><span id="line-105"><span class="sd">    version. Flows, temperatures, weather and</span>
-</span><span id="line-106"><span class="sd">    the number of steps are not part of the key.</span>
-</span><span id="line-107">
-</span><span id="line-108"><span class="sd">    Because the time grid is ``k * dt``, the increments of a shorter run are</span>
-</span><span id="line-109"><span class="sd">    the first rows of a longer run's increments: a cached file with at least</span>
-</span><span id="line-110"><span class="sd">    ``n_steps`` rows serves the run by slicing. A shorter file is recomputed</span>
-</span><span id="line-111"><span class="sd">    and replaced. Files are written atomically (temporary file, then rename)</span>
-</span><span id="line-112"><span class="sd">    and opened with ``np.load(..., mmap_mode="r")``, so parallel runs on the</span>
-</span><span id="line-113"><span class="sd">    same field share one copy through the OS page cache. On a miss the</span>
-</span><span id="line-114"><span class="sd">    increments are filled straight into the temporary file, so they are never</span>
-</span><span id="line-115"><span class="sd">    held in RAM as a whole.</span>
-</span><span id="line-116">
-</span><span id="line-117"><span class="sd">    The numerical implementation of the integral, real and image parts,</span>
-</span><span id="line-118"><span class="sd">    follows the approach used in pygfunction (Cimmino, 2018).</span>
-</span><span id="line-119"><span class="sd">    """</span>
-</span><span id="line-120">    <span class="n">CACHE_FORMAT_VERSION</span> <span class="o">=</span> <span class="mi">2</span>
-</span><span id="line-121">    <span class="n">N_THETA</span> <span class="o">=</span> <span class="mi">8</span>  <span class="c1"># receiver wall points of the continuous mode</span>
-</span><span id="line-122">
-</span><span id="line-123">    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
-</span><span id="line-124">        <span class="bp">self</span><span class="p">,</span>
-</span><span id="line-125">        <span class="o">*</span><span class="p">,</span>
-</span><span id="line-126">        <span class="n">physicalmodel</span><span class="p">:</span> <span class="n">PhysicalModel</span><span class="p">,</span>
-</span><span id="line-127">        <span class="n">n_steps</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
-</span><span id="line-128">        <span class="n">time_hist</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">,</span>
-</span><span id="line-129">        <span class="n">fls_mode</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"sqrt"</span><span class="p">,</span>
-</span><span id="line-130">        <span class="n">fls_image</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
-</span><span id="line-131">        <span class="n">cache_dir</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">Path</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-</span><span id="line-132">    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-</span><span id="line-133">
-</span><span id="line-134">        <span class="bp">self</span><span class="o">.</span><span class="n">physicalmodel</span> <span class="o">=</span> <span class="n">physicalmodel</span>
-</span><span id="line-135">        <span class="bp">self</span><span class="o">.</span><span class="n">n_steps</span> <span class="o">=</span> <span class="n">n_steps</span>
-</span><span id="line-136">        <span class="bp">self</span><span class="o">.</span><span class="n">time_hist</span> <span class="o">=</span> <span class="n">time_hist</span>
-</span><span id="line-137">        <span class="bp">self</span><span class="o">.</span><span class="n">fls_mode</span> <span class="o">=</span> <span class="n">fls_mode</span>
-</span><span id="line-138">        <span class="bp">self</span><span class="o">.</span><span class="n">fls_image</span> <span class="o">=</span> <span class="n">fls_image</span>
-</span><span id="line-139">
-</span><span id="line-140">        <span class="n">n_bhes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">physicalmodel</span><span class="o">.</span><span class="n">fieldinput</span><span class="o">.</span><span class="n">n_bhes</span>
-</span><span id="line-141">        <span class="k">if</span> <span class="n">cache_dir</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-</span><span id="line-142">            <span class="bp">self</span><span class="o">.</span><span class="n">_response_increments</span><span class="p">:</span> <span class="n">NDArray</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span>
-</span><span id="line-143">                <span class="p">(</span><span class="n">n_steps</span><span class="p">,</span> <span class="n">n_bhes</span><span class="p">,</span> <span class="n">n_bhes</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span>
-</span><span id="line-144">            <span class="p">)</span>
-</span><span id="line-145">            <span class="bp">self</span><span class="o">.</span><span class="n">_fill_increments</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_response_increments</span><span class="p">)</span>
-</span><span id="line-146">        <span class="k">else</span><span class="p">:</span>
-</span><span id="line-147">            <span class="bp">self</span><span class="o">.</span><span class="n">_response_increments</span><span class="p">:</span> <span class="n">NDArray</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cached_increments</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="n">cache_dir</span><span class="p">))</span>
-</span><span id="line-148">
-</span><span id="line-149">    <span class="nd">@property</span>
-</span><span id="line-150">    <span class="k">def</span><span class="w"> </span><span class="nf">response_matrix</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">NDArray</span><span class="p">:</span>
-</span><span id="line-151">        <span class="n">dR</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_response_increments</span>
-</span><span id="line-152">        <span class="n">response_matrix</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">dR</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="o">*</span><span class="n">dR</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">:]),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
-</span><span id="line-153">        <span class="n">np</span><span class="o">.</span><span class="n">cumsum</span><span class="p">(</span><span class="n">dR</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">out</span><span class="o">=</span><span class="n">response_matrix</span><span class="p">[</span><span class="mi">1</span><span class="p">:])</span>
-</span><span id="line-154">        <span class="k">return</span> <span class="n">response_matrix</span>
-</span><span id="line-155">
-</span><span id="line-156">    <span class="k">def</span><span class="w"> </span><span class="nf">_compute_delta_t</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">q_nbhes</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">,</span> <span class="n">step</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">NDArray</span><span class="p">:</span>
-</span><span id="line-157">        <span class="c1"># ground conductivity</span>
-</span><span id="line-158">        <span class="n">k_mean</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">physicalmodel</span><span class="o">.</span><span class="n">ground</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">k_mean</span>
-</span><span id="line-159">
-</span><span id="line-160">        <span class="c1"># ground perforation</span>
-</span><span id="line-161">        <span class="n">L</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">physicalmodel</span><span class="o">.</span><span class="n">ground_geom</span><span class="o">.</span><span class="n">L</span>
-</span><span id="line-162">
-</span><span id="line-163">        <span class="c1"># ground mesh</span>
-</span><span id="line-164">        <span class="n">m_mesh</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">physicalmodel</span><span class="o">.</span><span class="n">ground_mesh</span><span class="o">.</span><span class="n">m_mesh</span>
-</span><span id="line-165">
-</span><span id="line-166">        <span class="c1"># n_bhes</span>
-</span><span id="line-167">        <span class="n">n_bhes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">physicalmodel</span><span class="o">.</span><span class="n">fieldinput</span><span class="o">.</span><span class="n">n_bhes</span>
-</span><span id="line-168">
-</span><span id="line-169">        <span class="n">dT</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">n_bhes</span><span class="p">,</span> <span class="n">m_mesh</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
-</span><span id="line-170">        <span class="k">if</span> <span class="n">step</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
-</span><span id="line-171">            <span class="k">return</span> <span class="n">dT</span>
-</span><span id="line-172">
-</span><span id="line-173">        <span class="n">const</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="p">(</span><span class="mf">2.0</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="n">k_mean</span> <span class="o">*</span> <span class="n">L</span><span class="p">)</span>
-</span><span id="line-174">
-</span><span id="line-175">        <span class="k">assert</span> <span class="n">q_nbhes</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="n">step</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span> <span class="o">==</span> <span class="p">(</span><span class="n">step</span><span class="p">,</span> <span class="n">n_bhes</span><span class="p">),</span> <span class="s2">"q_nbhes shape must be 2D"</span>
-</span><span id="line-176">
-</span><span id="line-177">        <span class="c1"># q[t] pairs with dR[step - 1 - t]: reverse q and flatten (t, i) on both sides</span>
-</span><span id="line-178">        <span class="n">dT_j</span> <span class="o">=</span> <span class="p">(</span>
-</span><span id="line-179">            <span class="n">q_nbhes</span><span class="p">[</span><span class="n">step</span> <span class="o">-</span> <span class="mi">1</span> <span class="p">::</span> <span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
-</span><span id="line-180">            <span class="o">@</span> <span class="bp">self</span><span class="o">.</span><span class="n">_response_increments</span><span class="p">[:</span><span class="n">step</span><span class="p">]</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">n_bhes</span><span class="p">)</span>
-</span><span id="line-181">        <span class="p">)[:,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="n">const</span>
-</span><span id="line-182">        <span class="n">dT</span><span class="p">[:]</span> <span class="o">=</span> <span class="n">dT_j</span>
-</span><span id="line-183">
-</span><span id="line-184">        <span class="k">return</span> <span class="n">dT</span>
-</span><span id="line-185">
-</span><span id="line-186">    <span class="k">def</span><span class="w"> </span><span class="nf">_fill_increments</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">out</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-</span><span id="line-187">        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">fls_mode</span> <span class="o">==</span> <span class="s2">"sqrt"</span><span class="p">:</span>
-</span><span id="line-188">            <span class="bp">self</span><span class="o">.</span><span class="n">_fill_increments_sqrt</span><span class="p">(</span><span class="n">out</span><span class="p">)</span>
-</span><span id="line-189">        <span class="k">else</span><span class="p">:</span>
-</span><span id="line-190">            <span class="bp">self</span><span class="o">.</span><span class="n">_fill_increments_continuous</span><span class="p">(</span><span class="n">out</span><span class="p">)</span>
-</span><span id="line-191">
-</span><span id="line-192">    <span class="k">def</span><span class="w"> </span><span class="nf">_cache_key_inputs</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
-</span><span id="line-193"><span class="w">        </span><span class="sd">"""Everything the increments depend on, as JSON-serialisable values."""</span>
-</span><span id="line-194">        <span class="n">dt</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">time_hist</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
-</span><span id="line-195">        <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">allclose</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">time_hist</span><span class="p">),</span> <span class="n">dt</span><span class="p">,</span> <span class="n">rtol</span><span class="o">=</span><span class="mf">1e-9</span><span class="p">,</span> <span class="n">atol</span><span class="o">=</span><span class="mf">0.0</span><span class="p">):</span>
-</span><span id="line-196">            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-</span><span id="line-197">                <span class="s2">"The FLS increments cache needs a uniform time grid (time_hist = dt, 2 dt, ...)"</span>
-</span><span id="line-198">            <span class="p">)</span>
-</span><span id="line-199">        <span class="n">ground</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">physicalmodel</span><span class="o">.</span><span class="n">ground</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
-</span><span id="line-200">        <span class="n">n_bhes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">physicalmodel</span><span class="o">.</span><span class="n">fieldinput</span><span class="o">.</span><span class="n">n_bhes</span>
-</span><span id="line-201">        <span class="k">return</span> <span class="p">{</span>
-</span><span id="line-202">            <span class="s2">"format_version"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">CACHE_FORMAT_VERSION</span><span class="p">,</span>
-</span><span id="line-203">            <span class="s2">"fls_mode"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">fls_mode</span><span class="p">,</span>
-</span><span id="line-204">            <span class="s2">"fls_image"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">fls_image</span><span class="p">,</span>
-</span><span id="line-205">            <span class="s2">"dt"</span><span class="p">:</span> <span class="n">dt</span><span class="p">,</span>
-</span><span id="line-206">            <span class="s2">"k"</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="n">ground</span><span class="o">.</span><span class="n">k_mean</span><span class="p">),</span>
-</span><span id="line-207">            <span class="s2">"rho"</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="n">ground</span><span class="o">.</span><span class="n">rho_mean</span><span class="p">),</span>
-</span><span id="line-208">            <span class="s2">"cp"</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="n">ground</span><span class="o">.</span><span class="n">cp_mean</span><span class="p">),</span>
-</span><span id="line-209">            <span class="s2">"L"</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">physicalmodel</span><span class="o">.</span><span class="n">ground_geom</span><span class="o">.</span><span class="n">L</span><span class="p">),</span>
-</span><span id="line-210">            <span class="s2">"D"</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">physicalmodel</span><span class="o">.</span><span class="n">ground_geom</span><span class="o">.</span><span class="n">L_sup</span><span class="p">),</span>
-</span><span id="line-211">            <span class="s2">"coordinates"</span><span class="p">:</span> <span class="p">[</span>
-</span><span id="line-212">                <span class="p">[</span><span class="nb">float</span><span class="p">(</span><span class="n">x</span><span class="p">),</span> <span class="nb">float</span><span class="p">(</span><span class="n">y</span><span class="p">)]</span>
-</span><span id="line-213">                <span class="k">for</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">physicalmodel</span><span class="o">.</span><span class="n">fieldinput</span><span class="o">.</span><span class="n">_borehole_coordinates</span>
-</span><span id="line-214">            <span class="p">],</span>
-</span><span id="line-215">            <span class="s2">"req"</span><span class="p">:</span> <span class="p">[</span>
-</span><span id="line-216">                <span class="nb">float</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">physicalmodel</span><span class="o">.</span><span class="n">field</span><span class="o">.</span><span class="n">field_dict</span><span class="p">[</span><span class="n">j</span><span class="p">][</span><span class="s2">"req"</span><span class="p">])</span> <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_bhes</span><span class="p">)</span>
-</span><span id="line-217">            <span class="p">],</span>
-</span><span id="line-218">            <span class="s2">"rb"</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">physicalmodel</span><span class="o">.</span><span class="n">borehole</span><span class="o">.</span><span class="n">D0</span> <span class="o">/</span> <span class="mf">2.0</span><span class="p">),</span>
-</span><span id="line-219">            <span class="s2">"n_theta"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">N_THETA</span><span class="p">,</span>
-</span><span id="line-220">        <span class="p">}</span>
-</span><span id="line-221">
-</span><span id="line-222">    <span class="k">def</span><span class="w"> </span><span class="nf">_cached_increments</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cache_dir</span><span class="p">:</span> <span class="n">Path</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">NDArray</span><span class="p">:</span>
-</span><span id="line-223">        <span class="n">inputs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cache_key_inputs</span><span class="p">()</span>
-</span><span id="line-224">        <span class="n">key</span> <span class="o">=</span> <span class="n">hashlib</span><span class="o">.</span><span class="n">sha256</span><span class="p">(</span><span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">inputs</span><span class="p">,</span> <span class="n">sort_keys</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span><span class="o">.</span><span class="n">encode</span><span class="p">())</span><span class="o">.</span><span class="n">hexdigest</span><span class="p">()[:</span><span class="mi">16</span><span class="p">]</span>
-</span><span id="line-225">        <span class="n">path</span> <span class="o">=</span> <span class="n">cache_dir</span> <span class="o">/</span> <span class="sa">f</span><span class="s2">"fls_</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2">.npy"</span>
-</span><span id="line-226">
-</span><span id="line-227">        <span class="k">if</span> <span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
-</span><span id="line-228">            <span class="n">cached</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">mmap_mode</span><span class="o">=</span><span class="s2">"r"</span><span class="p">)</span>
-</span><span id="line-229">            <span class="k">if</span> <span class="n">cached</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_steps</span><span class="p">:</span>
-</span><span id="line-230">                <span class="k">return</span> <span class="n">cached</span><span class="p">[:</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_steps</span><span class="p">]</span>
-</span><span id="line-231">            <span class="k">del</span> <span class="n">cached</span>  <span class="c1"># too short: release the map before replacing the file</span>
-</span><span id="line-232">
-</span><span id="line-233">        <span class="c1"># miss: fill a temporary .npy on disk, then rename it into place</span>
-</span><span id="line-234">        <span class="n">cache_dir</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-</span><span id="line-235">        <span class="n">n_bhes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">physicalmodel</span><span class="o">.</span><span class="n">fieldinput</span><span class="o">.</span><span class="n">n_bhes</span>
-</span><span id="line-236">        <span class="n">tmp</span> <span class="o">=</span> <span class="n">path</span><span class="o">.</span><span class="n">with_name</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">path</span><span class="o">.</span><span class="n">stem</span><span class="si">}</span><span class="s2">.</span><span class="si">{</span><span class="n">os</span><span class="o">.</span><span class="n">getpid</span><span class="p">()</span><span class="si">}</span><span class="s2">.tmp"</span><span class="p">)</span>
-</span><span id="line-237">        <span class="n">out</span> <span class="o">=</span> <span class="kc">None</span>
-</span><span id="line-238">        <span class="k">try</span><span class="p">:</span>
-</span><span id="line-239">            <span class="n">out</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">lib</span><span class="o">.</span><span class="n">format</span><span class="o">.</span><span class="n">open_memmap</span><span class="p">(</span>
-</span><span id="line-240">                <span class="n">tmp</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">"w+"</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_steps</span><span class="p">,</span> <span class="n">n_bhes</span><span class="p">,</span> <span class="n">n_bhes</span><span class="p">)</span>
-</span><span id="line-241">            <span class="p">)</span>
-</span><span id="line-242">            <span class="bp">self</span><span class="o">.</span><span class="n">_fill_increments</span><span class="p">(</span><span class="n">out</span><span class="p">)</span>
-</span><span id="line-243">            <span class="n">out</span><span class="o">.</span><span class="n">flush</span><span class="p">()</span>
-</span><span id="line-244">            <span class="n">out</span> <span class="o">=</span> <span class="kc">None</span>  <span class="c1"># close the map before the rename</span>
-</span><span id="line-245">            <span class="k">try</span><span class="p">:</span>
-</span><span id="line-246">                <span class="n">os</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">tmp</span><span class="p">,</span> <span class="n">path</span><span class="p">)</span>
-</span><span id="line-247">            <span class="k">except</span> <span class="ne">PermissionError</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
-</span><span id="line-248">                <span class="k">raise</span> <span class="ne">PermissionError</span><span class="p">(</span>
-</span><span id="line-249">                    <span class="sa">f</span><span class="s2">"Cannot replace the cached FLS increments </span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2">: the file is open "</span>
-</span><span id="line-250">                    <span class="s2">"(memory-mapped) in this or another process. Close those simulations, "</span>
-</span><span id="line-251">                    <span class="s2">"or build the longest run first so that shorter runs only read it."</span>
-</span><span id="line-252">                <span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">err</span>
-</span><span id="line-253">        <span class="k">except</span> <span class="ne">BaseException</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
-</span><span id="line-254">            <span class="c1"># close the map (also referenced by the failed frames) so the</span>
-</span><span id="line-255">            <span class="c1"># temporary file can be removed, on Windows too</span>
-</span><span id="line-256">            <span class="n">out</span> <span class="o">=</span> <span class="kc">None</span>
-</span><span id="line-257">            <span class="n">traceback</span><span class="o">.</span><span class="n">clear_frames</span><span class="p">(</span><span class="n">err</span><span class="o">.</span><span class="n">__traceback__</span><span class="p">)</span>
-</span><span id="line-258">            <span class="k">with</span> <span class="n">contextlib</span><span class="o">.</span><span class="n">suppress</span><span class="p">(</span><span class="ne">OSError</span><span class="p">):</span>
-</span><span id="line-259">                <span class="n">tmp</span><span class="o">.</span><span class="n">unlink</span><span class="p">()</span>
-</span><span id="line-260">            <span class="k">raise</span>
-</span><span id="line-261">
-</span><span id="line-262">        <span class="n">sidecar</span> <span class="o">=</span> <span class="p">{</span><span class="s2">"key"</span><span class="p">:</span> <span class="n">key</span><span class="p">,</span> <span class="s2">"n_steps"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_steps</span><span class="p">,</span> <span class="o">**</span><span class="n">inputs</span><span class="p">}</span>
-</span><span id="line-263">        <span class="n">tmp_json</span> <span class="o">=</span> <span class="n">path</span><span class="o">.</span><span class="n">with_name</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">path</span><span class="o">.</span><span class="n">stem</span><span class="si">}</span><span class="s2">.</span><span class="si">{</span><span class="n">os</span><span class="o">.</span><span class="n">getpid</span><span class="p">()</span><span class="si">}</span><span class="s2">.json.tmp"</span><span class="p">)</span>
-</span><span id="line-264">        <span class="n">tmp_json</span><span class="o">.</span><span class="n">write_text</span><span class="p">(</span><span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">sidecar</span><span class="p">,</span> <span class="n">indent</span><span class="o">=</span><span class="mi">2</span><span class="p">),</span> <span class="n">encoding</span><span class="o">=</span><span class="s2">"utf-8"</span><span class="p">)</span>
-</span><span id="line-265">        <span class="n">os</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">tmp_json</span><span class="p">,</span> <span class="n">path</span><span class="o">.</span><span class="n">with_suffix</span><span class="p">(</span><span class="s2">".json"</span><span class="p">))</span>
+</span><span id="line-98">    <span class="nd">@property</span>
+</span><span id="line-99">    <span class="k">def</span><span class="w"> </span><span class="nf">response_matrix</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">NDArray</span><span class="p">:</span>
+</span><span id="line-100">        <span class="n">dR</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_response_increments</span>
+</span><span id="line-101">        <span class="n">response_matrix</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">dR</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="o">*</span><span class="n">dR</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">:]),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+</span><span id="line-102">        <span class="n">np</span><span class="o">.</span><span class="n">cumsum</span><span class="p">(</span><span class="n">dR</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">out</span><span class="o">=</span><span class="n">response_matrix</span><span class="p">[</span><span class="mi">1</span><span class="p">:])</span>
+</span><span id="line-103">        <span class="k">return</span> <span class="n">response_matrix</span>
+</span><span id="line-104">
+</span><span id="line-105">    <span class="k">def</span><span class="w"> </span><span class="nf">_compute_delta_t</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">q_nbhes</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">,</span> <span class="n">step</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">NDArray</span><span class="p">:</span>
+</span><span id="line-106">        <span class="c1"># ground conductivity</span>
+</span><span id="line-107">        <span class="n">k_mean</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">physicalmodel</span><span class="o">.</span><span class="n">ground</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">k_mean</span>
+</span><span id="line-108">
+</span><span id="line-109">        <span class="c1"># ground perforation</span>
+</span><span id="line-110">        <span class="n">L</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">physicalmodel</span><span class="o">.</span><span class="n">ground_geom</span><span class="o">.</span><span class="n">L</span>
+</span><span id="line-111">
+</span><span id="line-112">        <span class="c1"># ground mesh</span>
+</span><span id="line-113">        <span class="n">m_mesh</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">physicalmodel</span><span class="o">.</span><span class="n">ground_mesh</span><span class="o">.</span><span class="n">m_mesh</span>
+</span><span id="line-114">
+</span><span id="line-115">        <span class="c1"># n_bhes</span>
+</span><span id="line-116">        <span class="n">n_bhes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">physicalmodel</span><span class="o">.</span><span class="n">fieldinput</span><span class="o">.</span><span class="n">n_bhes</span>
+</span><span id="line-117">
+</span><span id="line-118">        <span class="n">dT</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">n_bhes</span><span class="p">,</span> <span class="n">m_mesh</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+</span><span id="line-119">        <span class="k">if</span> <span class="n">step</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+</span><span id="line-120">            <span class="k">return</span> <span class="n">dT</span>
+</span><span id="line-121">
+</span><span id="line-122">        <span class="n">const</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="p">(</span><span class="mf">2.0</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="n">k_mean</span> <span class="o">*</span> <span class="n">L</span><span class="p">)</span>
+</span><span id="line-123">
+</span><span id="line-124">        <span class="k">assert</span> <span class="n">q_nbhes</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="n">step</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span> <span class="o">==</span> <span class="p">(</span><span class="n">step</span><span class="p">,</span> <span class="n">n_bhes</span><span class="p">),</span> <span class="s2">"q_nbhes shape must be 2D"</span>
+</span><span id="line-125">
+</span><span id="line-126">        <span class="c1"># q[t] pairs with dR[step - 1 - t]: reverse q and flatten (t, i) on both sides</span>
+</span><span id="line-127">        <span class="n">dT_j</span> <span class="o">=</span> <span class="p">(</span>
+</span><span id="line-128">            <span class="n">q_nbhes</span><span class="p">[</span><span class="n">step</span> <span class="o">-</span> <span class="mi">1</span> <span class="p">::</span> <span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+</span><span id="line-129">            <span class="o">@</span> <span class="bp">self</span><span class="o">.</span><span class="n">_response_increments</span><span class="p">[:</span><span class="n">step</span><span class="p">]</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">n_bhes</span><span class="p">)</span>
+</span><span id="line-130">        <span class="p">)[:,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="n">const</span>
+</span><span id="line-131">        <span class="n">dT</span><span class="p">[:]</span> <span class="o">=</span> <span class="n">dT_j</span>
+</span><span id="line-132">
+</span><span id="line-133">        <span class="k">return</span> <span class="n">dT</span>
+</span><span id="line-134">
+</span><span id="line-135">    <span class="k">def</span><span class="w"> </span><span class="nf">_fill_increments</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">out</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span><span id="line-136">        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">fls_mode</span> <span class="o">==</span> <span class="s2">"sqrt"</span><span class="p">:</span>
+</span><span id="line-137">            <span class="bp">self</span><span class="o">.</span><span class="n">_fill_increments_sqrt</span><span class="p">(</span><span class="n">out</span><span class="p">)</span>
+</span><span id="line-138">        <span class="k">else</span><span class="p">:</span>
+</span><span id="line-139">            <span class="bp">self</span><span class="o">.</span><span class="n">_fill_increments_continuous</span><span class="p">(</span><span class="n">out</span><span class="p">)</span>
+</span><span id="line-140">
+</span><span id="line-141">    <span class="k">def</span><span class="w"> </span><span class="nf">_cache_key_inputs</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+</span><span id="line-142"><span class="w">        </span><span class="sd">"""Everything the increments depend on, as JSON-serialisable values."""</span>
+</span><span id="line-143">        <span class="n">dt</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">time_hist</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+</span><span id="line-144">        <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">allclose</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">time_hist</span><span class="p">),</span> <span class="n">dt</span><span class="p">,</span> <span class="n">rtol</span><span class="o">=</span><span class="mf">1e-9</span><span class="p">,</span> <span class="n">atol</span><span class="o">=</span><span class="mf">0.0</span><span class="p">):</span>
+</span><span id="line-145">            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+</span><span id="line-146">                <span class="s2">"The FLS increments cache needs a uniform time grid (time_hist = dt, 2 dt, ...)"</span>
+</span><span id="line-147">            <span class="p">)</span>
+</span><span id="line-148">        <span class="n">ground</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">physicalmodel</span><span class="o">.</span><span class="n">ground</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+</span><span id="line-149">        <span class="n">n_bhes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">physicalmodel</span><span class="o">.</span><span class="n">fieldinput</span><span class="o">.</span><span class="n">n_bhes</span>
+</span><span id="line-150">        <span class="k">return</span> <span class="p">{</span>
+</span><span id="line-151">            <span class="s2">"format_version"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">CACHE_FORMAT_VERSION</span><span class="p">,</span>
+</span><span id="line-152">            <span class="s2">"fls_mode"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">fls_mode</span><span class="p">,</span>
+</span><span id="line-153">            <span class="s2">"fls_image"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">fls_image</span><span class="p">,</span>
+</span><span id="line-154">            <span class="s2">"dt"</span><span class="p">:</span> <span class="n">dt</span><span class="p">,</span>
+</span><span id="line-155">            <span class="s2">"k"</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="n">ground</span><span class="o">.</span><span class="n">k_mean</span><span class="p">),</span>
+</span><span id="line-156">            <span class="s2">"rho"</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="n">ground</span><span class="o">.</span><span class="n">rho_mean</span><span class="p">),</span>
+</span><span id="line-157">            <span class="s2">"cp"</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="n">ground</span><span class="o">.</span><span class="n">cp_mean</span><span class="p">),</span>
+</span><span id="line-158">            <span class="s2">"L"</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">physicalmodel</span><span class="o">.</span><span class="n">ground_geom</span><span class="o">.</span><span class="n">L</span><span class="p">),</span>
+</span><span id="line-159">            <span class="s2">"D"</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">physicalmodel</span><span class="o">.</span><span class="n">ground_geom</span><span class="o">.</span><span class="n">L_sup</span><span class="p">),</span>
+</span><span id="line-160">            <span class="s2">"coordinates"</span><span class="p">:</span> <span class="p">[</span>
+</span><span id="line-161">                <span class="p">[</span><span class="nb">float</span><span class="p">(</span><span class="n">x</span><span class="p">),</span> <span class="nb">float</span><span class="p">(</span><span class="n">y</span><span class="p">)]</span>
+</span><span id="line-162">                <span class="k">for</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">physicalmodel</span><span class="o">.</span><span class="n">fieldinput</span><span class="o">.</span><span class="n">_borehole_coordinates</span>
+</span><span id="line-163">            <span class="p">],</span>
+</span><span id="line-164">            <span class="s2">"req"</span><span class="p">:</span> <span class="p">[</span>
+</span><span id="line-165">                <span class="nb">float</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">physicalmodel</span><span class="o">.</span><span class="n">field</span><span class="o">.</span><span class="n">field_dict</span><span class="p">[</span><span class="n">j</span><span class="p">][</span><span class="s2">"req"</span><span class="p">])</span> <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_bhes</span><span class="p">)</span>
+</span><span id="line-166">            <span class="p">],</span>
+</span><span id="line-167">            <span class="s2">"rb"</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">physicalmodel</span><span class="o">.</span><span class="n">borehole</span><span class="o">.</span><span class="n">D0</span> <span class="o">/</span> <span class="mf">2.0</span><span class="p">),</span>
+</span><span id="line-168">            <span class="s2">"n_theta"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">N_THETA</span><span class="p">,</span>
+</span><span id="line-169">        <span class="p">}</span>
+</span><span id="line-170">
+</span><span id="line-171">    <span class="k">def</span><span class="w"> </span><span class="nf">_cached_increments</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cache_dir</span><span class="p">:</span> <span class="n">Path</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">NDArray</span><span class="p">:</span>
+</span><span id="line-172">        <span class="n">inputs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cache_key_inputs</span><span class="p">()</span>
+</span><span id="line-173">        <span class="n">key</span> <span class="o">=</span> <span class="n">hashlib</span><span class="o">.</span><span class="n">sha256</span><span class="p">(</span><span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">inputs</span><span class="p">,</span> <span class="n">sort_keys</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span><span class="o">.</span><span class="n">encode</span><span class="p">())</span><span class="o">.</span><span class="n">hexdigest</span><span class="p">()[:</span><span class="mi">16</span><span class="p">]</span>
+</span><span id="line-174">        <span class="n">path</span> <span class="o">=</span> <span class="n">cache_dir</span> <span class="o">/</span> <span class="sa">f</span><span class="s2">"fls_</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2">.npy"</span>
+</span><span id="line-175">
+</span><span id="line-176">        <span class="k">if</span> <span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+</span><span id="line-177">            <span class="n">cached</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">mmap_mode</span><span class="o">=</span><span class="s2">"r"</span><span class="p">)</span>
+</span><span id="line-178">            <span class="k">if</span> <span class="n">cached</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_steps</span><span class="p">:</span>
+</span><span id="line-179">                <span class="k">return</span> <span class="n">cached</span><span class="p">[:</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_steps</span><span class="p">]</span>
+</span><span id="line-180">            <span class="k">del</span> <span class="n">cached</span>  <span class="c1"># too short: release the map before replacing the file</span>
+</span><span id="line-181">
+</span><span id="line-182">        <span class="c1"># miss: fill a temporary .npy on disk, then rename it into place</span>
+</span><span id="line-183">        <span class="n">cache_dir</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span id="line-184">        <span class="n">n_bhes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">physicalmodel</span><span class="o">.</span><span class="n">fieldinput</span><span class="o">.</span><span class="n">n_bhes</span>
+</span><span id="line-185">        <span class="n">tmp</span> <span class="o">=</span> <span class="n">path</span><span class="o">.</span><span class="n">with_name</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">path</span><span class="o">.</span><span class="n">stem</span><span class="si">}</span><span class="s2">.</span><span class="si">{</span><span class="n">os</span><span class="o">.</span><span class="n">getpid</span><span class="p">()</span><span class="si">}</span><span class="s2">.tmp"</span><span class="p">)</span>
+</span><span id="line-186">        <span class="n">out</span> <span class="o">=</span> <span class="kc">None</span>
+</span><span id="line-187">        <span class="k">try</span><span class="p">:</span>
+</span><span id="line-188">            <span class="n">out</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">lib</span><span class="o">.</span><span class="n">format</span><span class="o">.</span><span class="n">open_memmap</span><span class="p">(</span>
+</span><span id="line-189">                <span class="n">tmp</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">"w+"</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_steps</span><span class="p">,</span> <span class="n">n_bhes</span><span class="p">,</span> <span class="n">n_bhes</span><span class="p">)</span>
+</span><span id="line-190">            <span class="p">)</span>
+</span><span id="line-191">            <span class="bp">self</span><span class="o">.</span><span class="n">_fill_increments</span><span class="p">(</span><span class="n">out</span><span class="p">)</span>
+</span><span id="line-192">            <span class="n">out</span><span class="o">.</span><span class="n">flush</span><span class="p">()</span>
+</span><span id="line-193">            <span class="n">out</span> <span class="o">=</span> <span class="kc">None</span>  <span class="c1"># close the map before the rename</span>
+</span><span id="line-194">            <span class="k">try</span><span class="p">:</span>
+</span><span id="line-195">                <span class="n">os</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">tmp</span><span class="p">,</span> <span class="n">path</span><span class="p">)</span>
+</span><span id="line-196">            <span class="k">except</span> <span class="ne">PermissionError</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+</span><span id="line-197">                <span class="k">raise</span> <span class="ne">PermissionError</span><span class="p">(</span>
+</span><span id="line-198">                    <span class="sa">f</span><span class="s2">"Cannot replace the cached FLS increments </span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2">: the file is open "</span>
+</span><span id="line-199">                    <span class="s2">"(memory-mapped) in this or another process. Close those simulations, "</span>
+</span><span id="line-200">                    <span class="s2">"or build the longest run first so that shorter runs only read it."</span>
+</span><span id="line-201">                <span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">err</span>
+</span><span id="line-202">        <span class="k">except</span> <span class="ne">BaseException</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+</span><span id="line-203">            <span class="c1"># close the map (also referenced by the failed frames) so the</span>
+</span><span id="line-204">            <span class="c1"># temporary file can be removed, on Windows too</span>
+</span><span id="line-205">            <span class="n">out</span> <span class="o">=</span> <span class="kc">None</span>
+</span><span id="line-206">            <span class="n">traceback</span><span class="o">.</span><span class="n">clear_frames</span><span class="p">(</span><span class="n">err</span><span class="o">.</span><span class="n">__traceback__</span><span class="p">)</span>
+</span><span id="line-207">            <span class="k">with</span> <span class="n">contextlib</span><span class="o">.</span><span class="n">suppress</span><span class="p">(</span><span class="ne">OSError</span><span class="p">):</span>
+</span><span id="line-208">                <span class="n">tmp</span><span class="o">.</span><span class="n">unlink</span><span class="p">()</span>
+</span><span id="line-209">            <span class="k">raise</span>
+</span><span id="line-210">
+</span><span id="line-211">        <span class="n">sidecar</span> <span class="o">=</span> <span class="p">{</span><span class="s2">"key"</span><span class="p">:</span> <span class="n">key</span><span class="p">,</span> <span class="s2">"n_steps"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_steps</span><span class="p">,</span> <span class="o">**</span><span class="n">inputs</span><span class="p">}</span>
+</span><span id="line-212">        <span class="n">tmp_json</span> <span class="o">=</span> <span class="n">path</span><span class="o">.</span><span class="n">with_name</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">path</span><span class="o">.</span><span class="n">stem</span><span class="si">}</span><span class="s2">.</span><span class="si">{</span><span class="n">os</span><span class="o">.</span><span class="n">getpid</span><span class="p">()</span><span class="si">}</span><span class="s2">.json.tmp"</span><span class="p">)</span>
+</span><span id="line-213">        <span class="n">tmp_json</span><span class="o">.</span><span class="n">write_text</span><span class="p">(</span><span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">sidecar</span><span class="p">,</span> <span class="n">indent</span><span class="o">=</span><span class="mi">2</span><span class="p">),</span> <span class="n">encoding</span><span class="o">=</span><span class="s2">"utf-8"</span><span class="p">)</span>
+</span><span id="line-214">        <span class="n">os</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">tmp_json</span><span class="p">,</span> <span class="n">path</span><span class="o">.</span><span class="n">with_suffix</span><span class="p">(</span><span class="s2">".json"</span><span class="p">))</span>
+</span><span id="line-215">
+</span><span id="line-216">        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">mmap_mode</span><span class="o">=</span><span class="s2">"r"</span><span class="p">)</span>
+</span><span id="line-217">
+</span><span id="line-218">    <span class="k">def</span><span class="w"> </span><span class="nf">_integrand</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">d</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Callable</span><span class="p">[[</span><span class="nb">float</span><span class="p">],</span> <span class="n">NDArray</span><span class="p">]:</span>
+</span><span id="line-219"><span class="w">        </span><span class="sd">"""FLS integrand in ``s`` for the distances ``d``, real part plus the</span>
+</span><span id="line-220"><span class="sd">        image part when ``fls_image`` (see :doc:`fls_methods`). ``1 / L`` is applied by the</span>
+</span><span id="line-221"><span class="sd">        caller."""</span>
+</span><span id="line-222">        <span class="n">L</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">physicalmodel</span><span class="o">.</span><span class="n">ground_geom</span><span class="o">.</span><span class="n">L</span>
+</span><span id="line-223">        <span class="n">D</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">physicalmodel</span><span class="o">.</span><span class="n">ground_geom</span><span class="o">.</span><span class="n">L_sup</span>
+</span><span id="line-224">
+</span><span id="line-225">        <span class="k">def</span><span class="w"> </span><span class="nf">ierf</span><span class="p">(</span><span class="n">x</span><span class="p">):</span>
+</span><span id="line-226">            <span class="k">return</span> <span class="n">x</span> <span class="o">*</span> <span class="n">erf</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="o">-</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="p">))</span> <span class="o">*</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="p">(</span><span class="n">x</span><span class="o">**</span><span class="mf">2.0</span><span class="p">)))</span>
+</span><span id="line-227">
+</span><span id="line-228">        <span class="k">def</span><span class="w"> </span><span class="nf">func</span><span class="p">(</span><span class="n">s</span><span class="p">):</span>
+</span><span id="line-229">            <span class="n">parts</span> <span class="o">=</span> <span class="n">ierf</span><span class="p">(</span><span class="n">s</span> <span class="o">*</span> <span class="n">L</span><span class="p">)</span>
+</span><span id="line-230">            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">fls_image</span><span class="p">:</span>
+</span><span id="line-231">                <span class="n">parts</span> <span class="o">=</span> <span class="n">parts</span> <span class="o">+</span> <span class="p">(</span>
+</span><span id="line-232">                    <span class="n">ierf</span><span class="p">((</span><span class="mf">2.0</span> <span class="o">*</span> <span class="n">D</span> <span class="o">+</span> <span class="n">L</span><span class="p">)</span> <span class="o">*</span> <span class="n">s</span><span class="p">)</span>
+</span><span id="line-233">                    <span class="o">-</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="p">(</span><span class="n">ierf</span><span class="p">(</span><span class="mf">2.0</span> <span class="o">*</span> <span class="n">D</span> <span class="o">*</span> <span class="n">s</span><span class="p">)</span> <span class="o">+</span> <span class="n">ierf</span><span class="p">((</span><span class="mf">2.0</span> <span class="o">*</span> <span class="n">D</span> <span class="o">+</span> <span class="mf">2.0</span> <span class="o">*</span> <span class="n">L</span><span class="p">)</span> <span class="o">*</span> <span class="n">s</span><span class="p">))</span>
+</span><span id="line-234">                <span class="p">)</span>
+</span><span id="line-235">            <span class="k">return</span> <span class="n">s</span><span class="o">**-</span><span class="mf">2.0</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="p">(</span><span class="n">d</span><span class="o">**</span><span class="mf">2.0</span><span class="p">)</span> <span class="o">*</span> <span class="n">s</span><span class="o">**</span><span class="mf">2.0</span><span class="p">)</span> <span class="o">*</span> <span class="n">parts</span>
+</span><span id="line-236">
+</span><span id="line-237">        <span class="k">return</span> <span class="n">func</span>
+</span><span id="line-238">
+</span><span id="line-239">    <span class="k">def</span><span class="w"> </span><span class="nf">_fill_increments_sqrt</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">out</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span><span id="line-240">        <span class="c1"># ground properties</span>
+</span><span id="line-241">        <span class="n">k_mean</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">physicalmodel</span><span class="o">.</span><span class="n">ground</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">k_mean</span>
+</span><span id="line-242">        <span class="n">cp_mean</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">physicalmodel</span><span class="o">.</span><span class="n">ground</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">cp_mean</span>
+</span><span id="line-243">        <span class="n">rho_mean</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">physicalmodel</span><span class="o">.</span><span class="n">ground</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">rho_mean</span>
+</span><span id="line-244">        <span class="n">alpha_mean</span> <span class="o">=</span> <span class="n">k_mean</span> <span class="o">/</span> <span class="p">(</span><span class="n">rho_mean</span> <span class="o">*</span> <span class="n">cp_mean</span><span class="p">)</span>
+</span><span id="line-245">
+</span><span id="line-246">        <span class="c1"># ground perforation</span>
+</span><span id="line-247">        <span class="n">L</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">physicalmodel</span><span class="o">.</span><span class="n">ground_geom</span><span class="o">.</span><span class="n">L</span>
+</span><span id="line-248">
+</span><span id="line-249">        <span class="c1"># distance matrix squared</span>
+</span><span id="line-250">        <span class="n">d</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">physicalmodel</span><span class="o">.</span><span class="n">field</span><span class="o">.</span><span class="n">_distance_matrix</span>
+</span><span id="line-251">
+</span><span id="line-252">        <span class="n">a</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mi">4</span> <span class="o">*</span> <span class="n">alpha_mean</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">time_hist</span><span class="p">)</span>
+</span><span id="line-253">        <span class="n">b</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">(([</span><span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">],</span> <span class="n">a</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]))</span>
+</span><span id="line-254">
+</span><span id="line-255">        <span class="n">func</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_integrand</span><span class="p">(</span><span class="n">d</span><span class="p">)</span>
+</span><span id="line-256">
+</span><span id="line-257">        <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="p">(</span><span class="n">a_k</span><span class="p">,</span> <span class="n">b_k</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">)):</span>
+</span><span id="line-258">            <span class="n">out</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">/</span> <span class="n">L</span> <span class="o">*</span> <span class="n">quad_vec</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="n">a_k</span><span class="p">,</span> <span class="n">b_k</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+</span><span id="line-259">
+</span><span id="line-260">    <span class="k">def</span><span class="w"> </span><span class="nf">_fill_increments_continuous</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">out</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span><span id="line-261">        <span class="c1"># ground properties</span>
+</span><span id="line-262">        <span class="n">k_mean</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">physicalmodel</span><span class="o">.</span><span class="n">ground</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">k_mean</span>
+</span><span id="line-263">        <span class="n">cp_mean</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">physicalmodel</span><span class="o">.</span><span class="n">ground</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">cp_mean</span>
+</span><span id="line-264">        <span class="n">rho_mean</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">physicalmodel</span><span class="o">.</span><span class="n">ground</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">rho_mean</span>
+</span><span id="line-265">        <span class="n">alpha_mean</span> <span class="o">=</span> <span class="n">k_mean</span> <span class="o">/</span> <span class="p">(</span><span class="n">rho_mean</span> <span class="o">*</span> <span class="n">cp_mean</span><span class="p">)</span>
 </span><span id="line-266">
-</span><span id="line-267">        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">mmap_mode</span><span class="o">=</span><span class="s2">"r"</span><span class="p">)</span>
-</span><span id="line-268">
-</span><span id="line-269">    <span class="k">def</span><span class="w"> </span><span class="nf">_integrand</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">d</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Callable</span><span class="p">[[</span><span class="nb">float</span><span class="p">],</span> <span class="n">NDArray</span><span class="p">]:</span>
-</span><span id="line-270"><span class="w">        </span><span class="sd">"""FLS integrand in ``s`` for the distances ``d``, real part plus the</span>
-</span><span id="line-271"><span class="sd">        image part when ``fls_image`` (see Notes). ``1 / L`` is applied by the</span>
-</span><span id="line-272"><span class="sd">        caller."""</span>
-</span><span id="line-273">        <span class="n">L</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">physicalmodel</span><span class="o">.</span><span class="n">ground_geom</span><span class="o">.</span><span class="n">L</span>
-</span><span id="line-274">        <span class="n">D</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">physicalmodel</span><span class="o">.</span><span class="n">ground_geom</span><span class="o">.</span><span class="n">L_sup</span>
-</span><span id="line-275">
-</span><span id="line-276">        <span class="k">def</span><span class="w"> </span><span class="nf">ierf</span><span class="p">(</span><span class="n">x</span><span class="p">):</span>
-</span><span id="line-277">            <span class="k">return</span> <span class="n">x</span> <span class="o">*</span> <span class="n">erf</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="o">-</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="p">))</span> <span class="o">*</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="p">(</span><span class="n">x</span><span class="o">**</span><span class="mf">2.0</span><span class="p">)))</span>
+</span><span id="line-267">        <span class="c1"># ground perforation</span>
+</span><span id="line-268">        <span class="n">L</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">physicalmodel</span><span class="o">.</span><span class="n">ground_geom</span><span class="o">.</span><span class="n">L</span>
+</span><span id="line-269">
+</span><span id="line-270">        <span class="c1"># nbhes</span>
+</span><span id="line-271">        <span class="n">n_bhes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">physicalmodel</span><span class="o">.</span><span class="n">fieldinput</span><span class="o">.</span><span class="n">n_bhes</span>
+</span><span id="line-272">
+</span><span id="line-273">        <span class="c1">#field parameters</span>
+</span><span id="line-274">        <span class="n">coords</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">physicalmodel</span><span class="o">.</span><span class="n">fieldinput</span><span class="o">.</span><span class="n">_borehole_coordinates</span><span class="p">)</span> <span class="c1">#shape (n, 2)</span>
+</span><span id="line-275">        <span class="n">req</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">physicalmodel</span><span class="o">.</span><span class="n">field</span><span class="o">.</span><span class="n">field_dict</span><span class="p">[</span><span class="n">j</span><span class="p">][</span><span class="s2">"req"</span><span class="p">]</span> <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_bhes</span><span class="p">)])</span>
+</span><span id="line-276">        <span class="n">rb</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">physicalmodel</span><span class="o">.</span><span class="n">borehole</span><span class="o">.</span><span class="n">D0</span> <span class="o">/</span> <span class="mf">2.0</span>
+</span><span id="line-277">        <span class="n">n_theta</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">N_THETA</span>
 </span><span id="line-278">
-</span><span id="line-279">        <span class="k">def</span><span class="w"> </span><span class="nf">func</span><span class="p">(</span><span class="n">s</span><span class="p">):</span>
-</span><span id="line-280">            <span class="n">parts</span> <span class="o">=</span> <span class="n">ierf</span><span class="p">(</span><span class="n">s</span> <span class="o">*</span> <span class="n">L</span><span class="p">)</span>
-</span><span id="line-281">            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">fls_image</span><span class="p">:</span>
-</span><span id="line-282">                <span class="n">parts</span> <span class="o">=</span> <span class="n">parts</span> <span class="o">+</span> <span class="p">(</span>
-</span><span id="line-283">                    <span class="n">ierf</span><span class="p">((</span><span class="mf">2.0</span> <span class="o">*</span> <span class="n">D</span> <span class="o">+</span> <span class="n">L</span><span class="p">)</span> <span class="o">*</span> <span class="n">s</span><span class="p">)</span>
-</span><span id="line-284">                    <span class="o">-</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="p">(</span><span class="n">ierf</span><span class="p">(</span><span class="mf">2.0</span> <span class="o">*</span> <span class="n">D</span> <span class="o">*</span> <span class="n">s</span><span class="p">)</span> <span class="o">+</span> <span class="n">ierf</span><span class="p">((</span><span class="mf">2.0</span> <span class="o">*</span> <span class="n">D</span> <span class="o">+</span> <span class="mf">2.0</span> <span class="o">*</span> <span class="n">L</span><span class="p">)</span> <span class="o">*</span> <span class="n">s</span><span class="p">))</span>
-</span><span id="line-285">                <span class="p">)</span>
-</span><span id="line-286">            <span class="k">return</span> <span class="n">s</span><span class="o">**-</span><span class="mf">2.0</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="p">(</span><span class="n">d</span><span class="o">**</span><span class="mf">2.0</span><span class="p">)</span> <span class="o">*</span> <span class="n">s</span><span class="o">**</span><span class="mf">2.0</span><span class="p">)</span> <span class="o">*</span> <span class="n">parts</span>
-</span><span id="line-287">
-</span><span id="line-288">        <span class="k">return</span> <span class="n">func</span>
-</span><span id="line-289">
-</span><span id="line-290">    <span class="k">def</span><span class="w"> </span><span class="nf">_fill_increments_sqrt</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">out</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-</span><span id="line-291">        <span class="c1"># ground properties</span>
-</span><span id="line-292">        <span class="n">k_mean</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">physicalmodel</span><span class="o">.</span><span class="n">ground</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">k_mean</span>
-</span><span id="line-293">        <span class="n">cp_mean</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">physicalmodel</span><span class="o">.</span><span class="n">ground</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">cp_mean</span>
-</span><span id="line-294">        <span class="n">rho_mean</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">physicalmodel</span><span class="o">.</span><span class="n">ground</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">rho_mean</span>
-</span><span id="line-295">        <span class="n">alpha_mean</span> <span class="o">=</span> <span class="n">k_mean</span> <span class="o">/</span> <span class="p">(</span><span class="n">rho_mean</span> <span class="o">*</span> <span class="n">cp_mean</span><span class="p">)</span>
-</span><span id="line-296">
-</span><span id="line-297">        <span class="c1"># ground perforation</span>
-</span><span id="line-298">        <span class="n">L</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">physicalmodel</span><span class="o">.</span><span class="n">ground_geom</span><span class="o">.</span><span class="n">L</span>
-</span><span id="line-299">
-</span><span id="line-300">        <span class="c1"># distance matrix squared</span>
-</span><span id="line-301">        <span class="n">d</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">physicalmodel</span><span class="o">.</span><span class="n">field</span><span class="o">.</span><span class="n">_distance_matrix</span>
-</span><span id="line-302">
-</span><span id="line-303">        <span class="n">a</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mi">4</span> <span class="o">*</span> <span class="n">alpha_mean</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">time_hist</span><span class="p">)</span>
-</span><span id="line-304">        <span class="n">b</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">(([</span><span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">],</span> <span class="n">a</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]))</span>
-</span><span id="line-305">
-</span><span id="line-306">        <span class="n">func</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_integrand</span><span class="p">(</span><span class="n">d</span><span class="p">)</span>
-</span><span id="line-307">
-</span><span id="line-308">        <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="p">(</span><span class="n">a_k</span><span class="p">,</span> <span class="n">b_k</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">)):</span>
-</span><span id="line-309">            <span class="n">out</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">/</span> <span class="n">L</span> <span class="o">*</span> <span class="n">quad_vec</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="n">a_k</span><span class="p">,</span> <span class="n">b_k</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
-</span><span id="line-310">
-</span><span id="line-311">    <span class="k">def</span><span class="w"> </span><span class="nf">_fill_increments_continuous</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">out</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-</span><span id="line-312">        <span class="c1"># ground properties</span>
-</span><span id="line-313">        <span class="n">k_mean</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">physicalmodel</span><span class="o">.</span><span class="n">ground</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">k_mean</span>
-</span><span id="line-314">        <span class="n">cp_mean</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">physicalmodel</span><span class="o">.</span><span class="n">ground</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">cp_mean</span>
-</span><span id="line-315">        <span class="n">rho_mean</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">physicalmodel</span><span class="o">.</span><span class="n">ground</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">rho_mean</span>
-</span><span id="line-316">        <span class="n">alpha_mean</span> <span class="o">=</span> <span class="n">k_mean</span> <span class="o">/</span> <span class="p">(</span><span class="n">rho_mean</span> <span class="o">*</span> <span class="n">cp_mean</span><span class="p">)</span>
-</span><span id="line-317">
-</span><span id="line-318">        <span class="c1"># ground perforation</span>
-</span><span id="line-319">        <span class="n">L</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">physicalmodel</span><span class="o">.</span><span class="n">ground_geom</span><span class="o">.</span><span class="n">L</span>
-</span><span id="line-320">
-</span><span id="line-321">        <span class="c1"># nbhes</span>
-</span><span id="line-322">        <span class="n">n_bhes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">physicalmodel</span><span class="o">.</span><span class="n">fieldinput</span><span class="o">.</span><span class="n">n_bhes</span>
-</span><span id="line-323">
-</span><span id="line-324">        <span class="c1">#field parameters</span>
-</span><span id="line-325">        <span class="n">coords</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">physicalmodel</span><span class="o">.</span><span class="n">fieldinput</span><span class="o">.</span><span class="n">_borehole_coordinates</span><span class="p">)</span> <span class="c1">#shape (n, 2)</span>
-</span><span id="line-326">        <span class="n">req</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">physicalmodel</span><span class="o">.</span><span class="n">field</span><span class="o">.</span><span class="n">field_dict</span><span class="p">[</span><span class="n">j</span><span class="p">][</span><span class="s2">"req"</span><span class="p">]</span> <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_bhes</span><span class="p">)])</span>
-</span><span id="line-327">        <span class="n">rb</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">physicalmodel</span><span class="o">.</span><span class="n">borehole</span><span class="o">.</span><span class="n">D0</span> <span class="o">/</span> <span class="mf">2.0</span>
-</span><span id="line-328">        <span class="n">n_theta</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">N_THETA</span>
-</span><span id="line-329">
-</span><span id="line-330">        <span class="n">a</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mi">4</span> <span class="o">*</span> <span class="n">alpha_mean</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">time_hist</span><span class="p">)</span>
-</span><span id="line-331">        <span class="n">b</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">(([</span><span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">],</span> <span class="n">a</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]))</span>
-</span><span id="line-332">
-</span><span id="line-333">        <span class="n">theta</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="p">,</span> <span class="n">n_theta</span><span class="p">,</span> <span class="n">endpoint</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
-</span><span id="line-334">
-</span><span id="line-335">        <span class="n">x</span> <span class="o">=</span> <span class="n">coords</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span>
-</span><span id="line-336">        <span class="n">y</span> <span class="o">=</span> <span class="n">coords</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span>
-</span><span id="line-337">
-</span><span id="line-338">        <span class="n">dx</span> <span class="o">=</span> <span class="n">x</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">-</span> <span class="n">x</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">+</span> <span class="n">req</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="n">theta</span><span class="p">)[</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">:]</span>
-</span><span id="line-339">        <span class="n">dy</span> <span class="o">=</span> <span class="n">y</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">-</span> <span class="n">y</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">+</span> <span class="n">req</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">theta</span><span class="p">)[</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">:]</span>
-</span><span id="line-340">        <span class="n">d</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">dx</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="n">dy</span><span class="o">**</span><span class="mi">2</span><span class="p">),</span> <span class="n">rb</span><span class="p">)</span>
-</span><span id="line-341">
-</span><span id="line-342">        <span class="n">func</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_integrand</span><span class="p">(</span><span class="n">d</span><span class="p">)</span>
-</span><span id="line-343">
-</span><span id="line-344">        <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="p">(</span><span class="n">a_k</span><span class="p">,</span> <span class="n">b_k</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">)):</span>
-</span><span id="line-345">            <span class="n">out</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">/</span> <span class="n">L</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">quad_vec</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="n">a_k</span><span class="p">,</span> <span class="n">b_k</span><span class="p">)[</span><span class="mi">0</span><span class="p">],</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span></div>
+</span><span id="line-279">        <span class="n">a</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mi">4</span> <span class="o">*</span> <span class="n">alpha_mean</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">time_hist</span><span class="p">)</span>
+</span><span id="line-280">        <span class="n">b</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">(([</span><span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">],</span> <span class="n">a</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]))</span>
+</span><span id="line-281">
+</span><span id="line-282">        <span class="n">theta</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="p">,</span> <span class="n">n_theta</span><span class="p">,</span> <span class="n">endpoint</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+</span><span id="line-283">
+</span><span id="line-284">        <span class="n">x</span> <span class="o">=</span> <span class="n">coords</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span>
+</span><span id="line-285">        <span class="n">y</span> <span class="o">=</span> <span class="n">coords</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span>
+</span><span id="line-286">
+</span><span id="line-287">        <span class="n">dx</span> <span class="o">=</span> <span class="n">x</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">-</span> <span class="n">x</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">+</span> <span class="n">req</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="n">theta</span><span class="p">)[</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">:]</span>
+</span><span id="line-288">        <span class="n">dy</span> <span class="o">=</span> <span class="n">y</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">-</span> <span class="n">y</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">+</span> <span class="n">req</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">theta</span><span class="p">)[</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">:]</span>
+</span><span id="line-289">        <span class="n">d</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">dx</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="n">dy</span><span class="o">**</span><span class="mi">2</span><span class="p">),</span> <span class="n">rb</span><span class="p">)</span>
+</span><span id="line-290">
+</span><span id="line-291">        <span class="n">func</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_integrand</span><span class="p">(</span><span class="n">d</span><span class="p">)</span>
+</span><span id="line-292">
+</span><span id="line-293">        <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="p">(</span><span class="n">a_k</span><span class="p">,</span> <span class="n">b_k</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">)):</span>
+</span><span id="line-294">            <span class="n">out</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">/</span> <span class="n">L</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">quad_vec</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="n">a_k</span><span class="p">,</span> <span class="n">b_k</span><span class="p">)[</span><span class="mi">0</span><span class="p">],</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span></div>
 
 </span></code></pre></div>
     </div></div>

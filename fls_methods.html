@@ -80,6 +80,7 @@
 <li class="toctree-l1"><a class="reference internal" href="grout_variable_properties.html">Variable Grout Properties</a></li>
 <li class="toctree-l1"><a class="reference internal" href="heatflux_mode.html">Heat Flux Mode</a></li>
 <li class="toctree-l1"><a class="reference internal" href="output.html">Output</a></li>
+<li class="toctree-l1"><a class="reference internal" href="references.html">References</a></li>
 <li class="toctree-l1" x-data="{ expanded: $el.classList.contains('current') ? true : false }"><a :class="{ 'expanded' : expanded }" @click="expanded = !expanded" class="reference internal expandable" href="modules.html">carm<button @click.prevent.stop="expanded = !expanded" type="button" x-cloak=""><span class="sr-only"></span><svg fill="currentColor" height="18px" stroke="none" viewbox="0 0 24 24" width="18px" xmlns="http://www.w3.org/2000/svg"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"></path></svg></button></a><ul x-cloak="" x-show="expanded">
 <li class="toctree-l2"><a class="reference internal" href="carm.html">carm package</a></li>
 </ul>
@@ -131,7 +132,20 @@ the response at distance <span class="math notranslate nohighlight">\(d\)</span>
 \Big[\underbrace{2\,\mathrm{ierf}(Hs)}_{\text{real}}
 + \underbrace{2\,\mathrm{ierf}((2D + H)s) - \mathrm{ierf}(2Ds)
 - \mathrm{ierf}((2D + 2H)s)}_{\text{image}}\Big]\, ds\]</div>
-<p>as in pygfunction (Cimmino, 2018).</p>
+<p>following Claesson and Javed (2011). This equation is validated against
+pygfunction (Cimmino, 2018) in the test suite.</p>
+</section>
+<section id="limitations">
+<h2>Limitations</h2>
+<p>The FLS treats each borehole as a line source. Two cases are therefore an
+approximation:</p>
+<ul class="simple">
+<li><p><strong>Very short times.</strong> At the first time steps the heat has not yet
+travelled far from the borehole, and the line-source assumption does not
+describe this phase accurately.</p></li>
+<li><p><strong>Helical heat exchangers.</strong> The heat source is a helix, not a line, so
+the FLS interference between helical boreholes is an approximation.</p></li>
+</ul>
 </section>
 <section id="overview">
 <h2>Overview</h2>
@@ -166,6 +180,86 @@ points along its equivalent radius:</p>
 <p>where <span class="math notranslate nohighlight">\(d_{ijk}\)</span> is the distance from source <span class="math notranslate nohighlight">\(j\)</span> to point
 <span class="math notranslate nohighlight">\(k\)</span> on receiver <span class="math notranslate nohighlight">\(i\)</span>. This method is more accurate but
 significantly more expensive.</p>
+</section>
+<section id="comparing-the-two-methods">
+<h2>Comparing the two methods</h2>
+<p>Both methods look at the same thing: the boundary of the receiver’s cell, a
+circle of radius <span class="math notranslate nohighlight">\(r_{eq,i}\)</span>. The mean squared distance from source
+<span class="math notranslate nohighlight">\(j\)</span> to the points of that circle is <span class="math notranslate nohighlight">\(d^2 + r_{eq,i}^2\)</span>, which is
+exactly the squared distance to the point at 90° from the source direction.
+So <code class="docutils literal notranslate"><span class="pre">"sqrt"</span></code> evaluates the FLS once, at that point, while <code class="docutils literal notranslate"><span class="pre">"continuous"</span></code>
+averages it over <span class="math notranslate nohighlight">\(N_\theta\)</span> points of the circle. The two differ only
+because <span class="math notranslate nohighlight">\(h\)</span> is not linear in the distance.</p>
+<figure class="align-default" id="id1">
+<a class="reference internal image-reference" href="_images/fls_mode_geometry.svg"><img alt="_images/fls_mode_geometry.svg" src="_images/fls_mode_geometry.svg" style="width: 100%;"/>
+</a>
+<figcaption>
+<p><span class="caption-text">Left: a five-borehole field (four corners and a centre, 6 m square, field
+box extending 3 m beyond the outer boreholes) with its Voronoi cells and
+equivalent radii. Right: the distances each method uses from a corner
+source to the centre receiver.</span></p>
+</figcaption>
+</figure>
+<p>The figures below compare the two methods on that field: single U-tube,
+100 m boreholes, parallel connection, constant inlet temperature of 2 °C and
+mass flow of 0.1657 kg/s, ground conductivity 1.8 W/(m K), synthetic
+weather, two years of hourly steps. <code class="docutils literal notranslate"><span class="pre">"continuous"</span></code> is taken as the
+reference.</p>
+<figure class="align-default" id="id2">
+<a class="reference internal image-reference" href="_images/fls_mode_time.svg"><img alt="_images/fls_mode_time.svg" src="_images/fls_mode_time.svg" style="width: 80%;"/>
+</a>
+<figcaption>
+<p><span class="caption-text">Computation time, measured on a single run on one machine. The extra cost
+of <code class="docutils literal notranslate"><span class="pre">"continuous"</span></code> is all in the FLS precomputation, done once when the
+simulation is built; the time-step loop is the same for both methods.</span></p>
+</figcaption>
+</figure>
+<figure class="align-default" id="id3">
+<a class="reference internal image-reference" href="_images/fls_mode_accuracy.svg"><img alt="_images/fls_mode_accuracy.svg" src="_images/fls_mode_accuracy.svg" style="width: 90%;"/>
+</a>
+<figcaption>
+<p><span class="caption-text">Outlet fluid temperature difference between the two methods for the
+centre and a corner borehole. <code class="docutils literal notranslate"><span class="pre">"sqrt"</span></code> underestimates the interference,
+so its outlet temperature is higher. The difference peaks within the
+first months and then decreases.</span></p>
+</figcaption>
+</figure>
+<figure class="align-default" id="id4">
+<a class="reference internal image-reference" href="_images/fls_mode_spacing.svg"><img alt="_images/fls_mode_spacing.svg" src="_images/fls_mode_spacing.svg" style="width: 80%;"/>
+</a>
+<figcaption>
+<p><span class="caption-text">Largest outlet temperature difference over the two years, for square
+sides from 4 to 10 m. The field box always extends half a side beyond the
+outer boreholes.</span></p>
+</figcaption>
+</figure>
+</section>
+<section id="number-of-ring-points-in-the-continuous-method">
+<h2>Number of ring points in the continuous method</h2>
+<p><code class="docutils literal notranslate"><span class="pre">"continuous"</span></code> uses <span class="math notranslate nohighlight">\(N_\theta = 8\)</span> points on the receiver ring
+(<code class="docutils literal notranslate"><span class="pre">FiniteLineSolution.N_THETA</span></code>). The figures below repeat the simulation of
+the previous section (6 m square, one year of hourly steps) with
+<span class="math notranslate nohighlight">\(N_\theta\)</span> from 4 to 64, taking <span class="math notranslate nohighlight">\(N_\theta = 64\)</span> as the
+reference.</p>
+<figure class="align-default" id="id5">
+<a class="reference internal image-reference" href="_images/fls_ntheta_time.svg"><img alt="_images/fls_ntheta_time.svg" src="_images/fls_ntheta_time.svg" style="width: 80%;"/>
+</a>
+<figcaption>
+<p><span class="caption-text">Computation time, measured on a single run on one machine. Only the setup,
+which includes the FLS precomputation, grows with <span class="math notranslate nohighlight">\(N_\theta\)</span>; the
+time-step loop is the same for every case.</span></p>
+</figcaption>
+</figure>
+<figure class="align-default" id="id6">
+<a class="reference internal image-reference" href="_images/fls_ntheta_difference.svg"><img alt="_images/fls_ntheta_difference.svg" src="_images/fls_ntheta_difference.svg" style="width: 100%;"/>
+</a>
+<figcaption>
+<p><span class="caption-text">Outlet fluid temperature difference from <span class="math notranslate nohighlight">\(N_\theta = 64\)</span> for the
+centre and a corner borehole. With <span class="math notranslate nohighlight">\(N_\theta = 8\)</span> the largest
+difference is 0.006 °C, with <span class="math notranslate nohighlight">\(N_\theta = 16\)</span> it is below
+0.001 °C. <code class="docutils literal notranslate"><span class="pre">"sqrt"</span></code> is shown for comparison.</span></p>
+</figcaption>
+</figure>
 </section>
 <section id="choosing-a-method">
 <h2>Choosing a method</h2>
@@ -223,9 +317,12 @@ nothing.</p>
 <div class="sticky top-16 -mt-10 max-h-[calc(100vh-5rem)] h-full overflow-y-auto pt-6 space-y-2"><p class="font-medium">On this page</p>
 <ul>
 <li><a :data-current="activeSection === '#real-and-image-parts'" class="reference internal" href="#real-and-image-parts">Real and image parts</a></li>
+<li><a :data-current="activeSection === '#limitations'" class="reference internal" href="#limitations">Limitations</a></li>
 <li><a :data-current="activeSection === '#overview'" class="reference internal" href="#overview">Overview</a></li>
 <li><a :data-current="activeSection === '#sqrt-method-default'" class="reference internal" href="#sqrt-method-default">sqrt method (default)</a></li>
 <li><a :data-current="activeSection === '#continuous-method'" class="reference internal" href="#continuous-method">continuous method</a></li>
+<li><a :data-current="activeSection === '#comparing-the-two-methods'" class="reference internal" href="#comparing-the-two-methods">Comparing the two methods</a></li>
+<li><a :data-current="activeSection === '#number-of-ring-points-in-the-continuous-method'" class="reference internal" href="#number-of-ring-points-in-the-continuous-method">Number of ring points in the continuous method</a></li>
 <li><a :data-current="activeSection === '#choosing-a-method'" class="reference internal" href="#choosing-a-method">Choosing a method</a></li>
 <li><a :data-current="activeSection === '#load-superposition'" class="reference internal" href="#load-superposition">Load superposition</a></li>
 <li><a :data-current="activeSection === '#response-cache'" class="reference internal" href="#response-cache">Response cache</a></li>
