@@ -54,3 +54,8 @@ CLAUDE.md
 docs/agents/
 .scratch/
 CONTEXT.md
+# Coverage
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
