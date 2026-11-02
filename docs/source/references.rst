@@ -28,6 +28,10 @@ CaRM model
   Applied Thermal Engineering, 162, 114305.
   https://doi.org/10.1016/j.applthermaleng.2019.114305
 
+- Tollin, A., Zarrella, A. (2027). *Effect of active grout irrigation in ground heat
+  exchangers with helical-shaped pipe.* Energy Conversion and Management, 372, 122336.
+  https://doi.org/10.1016/j.enconman.2026.122336
+
 Thermal interference (FLS)
 --------------------------
 
